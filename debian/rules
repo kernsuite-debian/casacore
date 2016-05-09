@@ -20,7 +20,7 @@ override_dh_auto_build-indep:
 override_dh_auto_test-indep override_dh_auto_install-indep:
 
 override_dh_auto_test-arch:
-	HOME=$(CURDIR) dh_auto_test -a
+	HOME=$(CURDIR) dh_auto_test --max-parallel=1 -a
 
 override_dh_clean:
 	rm -rf doc/
