@@ -21,7 +21,7 @@ Build-Depends: bison,
 Standards-Version: 3.9.6
 Section: science
 Homepage: http://casacore.github.io/casacore
-Vcs-Git: git://anonscm.debian.org/debian-astro/packages/casacore.git
+Vcs-Git: https://anonscm.debian.org/git/debian-astro/packages/casacore.git
 Vcs-Browser: https://anonscm.debian.org/cgit/debian-astro/packages/casacore.git
 
 Package: casacore-dev
@@ -143,13 +143,13 @@ Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
-Description: CASA python bindings
+Description: CASA Python bindings
  The casacore package contains the core libraries of the old
  AIPS++/CASA (Common Astronomy Software Applications) package. This
  split was made to get a better separation of core libraries and
  applications.
  .
- This package contains the python bindings.
+ This package contains the Python bindings.
 
 Package: libcasa-tables2
 Section: libs
