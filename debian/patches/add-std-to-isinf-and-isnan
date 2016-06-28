@@ -1,0 +1,35 @@
+Description: add std to isinf and isnan
+https://github.com/casacore/casacore/pull/338
+.
+
+--- casacore-2.1.0.orig/casa/BasicMath/Math.cc
++++ casacore-2.1.0/casa/BasicMath/Math.cc
+@@ -178,7 +178,7 @@ Bool isInf(Float val) {
+   // infinite. I can only have access to Solaris, Linux and SGI machines to
+   // determine this.
+ #if defined(AIPS_LINUX)
+-  return (isinf(Double(val)));
++  return (std::isinf(Double(val)));
+ #elif defined(AIPS_DARWIN)
+   return (std::isinf(Double(val)));
+ #elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX)
+@@ -212,7 +212,7 @@ Bool isInf(Double val) {
+   // infinite. I can only have access to Solaris, Linux and SGI machines to
+   // determine this.
+ #if defined(AIPS_LINUX)
+-  return (isinf(Double(val)));
++  return (std::isinf(Double(val)));
+ #elif defined(AIPS_DARWIN)
+   return (std::isinf(Double(val)));
+ #elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX)
+--- casacore-2.1.0.orig/casa/BasicMath/test/tMathNaN.cc
++++ casacore-2.1.0/casa/BasicMath/test/tMathNaN.cc
+@@ -43,7 +43,7 @@
+ 			    ((*(Int *)(x) & 0x007fffff) != 0x00000000))
+ 
+ inline Bool isNaN_isnan(Float val) {
+-  return (isnan(Double(val)));
++  return (std::isnan(Double(val)));
+ }
+ 
+ inline Bool isNaN_isnanf(const Float& val) {
