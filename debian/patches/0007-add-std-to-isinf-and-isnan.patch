@@ -1,10 +1,10 @@
+Author: Gijs Molenaar <gijs@pythonic.nl>
 Description: add std to isinf and isnan
-https://github.com/casacore/casacore/pull/338
-.
-
---- casacore-2.1.0.orig/casa/BasicMath/Math.cc
-+++ casacore-2.1.0/casa/BasicMath/Math.cc
-@@ -178,7 +178,7 @@ Bool isInf(Float val) {
+ Backport from casacore git
+Origin: https://github.com/casacore/casacore/pull/338
+--- a/casa/BasicMath/Math.cc
++++ b/casa/BasicMath/Math.cc
+@@ -178,7 +178,7 @@
    // infinite. I can only have access to Solaris, Linux and SGI machines to
    // determine this.
  #if defined(AIPS_LINUX)
@@ -13,7 +13,7 @@ https://github.com/casacore/casacore/pull/338
  #elif defined(AIPS_DARWIN)
    return (std::isinf(Double(val)));
  #elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX)
-@@ -212,7 +212,7 @@ Bool isInf(Double val) {
+@@ -212,7 +212,7 @@
    // infinite. I can only have access to Solaris, Linux and SGI machines to
    // determine this.
  #if defined(AIPS_LINUX)
@@ -22,8 +22,8 @@ https://github.com/casacore/casacore/pull/338
  #elif defined(AIPS_DARWIN)
    return (std::isinf(Double(val)));
  #elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX)
---- casacore-2.1.0.orig/casa/BasicMath/test/tMathNaN.cc
-+++ casacore-2.1.0/casa/BasicMath/test/tMathNaN.cc
+--- a/casa/BasicMath/test/tMathNaN.cc
++++ b/casa/BasicMath/test/tMathNaN.cc
 @@ -43,7 +43,7 @@
  			    ((*(Int *)(x) & 0x007fffff) != 0x00000000))
  
