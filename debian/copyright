@@ -4,6 +4,7 @@ Upstream-Contact: aips2-request@nrao.edu
 Source: https://github.com/casacore/casacore/releases
 
 Files: *
+ derivedmscal/DerivedMC/test/*.cc
 Copyright: 1992-2015 Associated Universities, Inc. Washington DC, USA.
  2010 ESO (in the framework of the ALMA collaboration)
  1988 Free Software Foundation
