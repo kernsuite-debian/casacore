@@ -4,10 +4,58 @@
 measuresdata \- read IERS and other data for Measure conversion
 .SH "SYNOPSIS"
 .PP
-\fBmeasuresdata\fP [\fI ... \fR]
+\fBmeasuresdata\fP [key=value \fI ... \fR]
 .SH "DESCRIPTION"
-\fBmeasuresdata\fP is a small tool come with casacore source. It
-reads IERS and other data for Measure conversion.
-.SH "AUTHOR"
+The \fBmeasuresdata\fP program is able to analyse ascii tables
+(or sinex files or xml files) and convert them into casa Tables which
+can be used by e.g. the Measures class.
 .PP
-This manual page was written by Benda Xu <heroxbd@gentoo.org>, for the Debian GNU/Linux system.
+The files have to be obtained by other means (e.g. a python script,
+manually or another script (e.g. the provided measuresdata.csh tcsh script.
+.SS "Normal operation"
+.TP
+1.
+Call the program measuresdata. The program can have arguments (see
+later, but the defaults suffice. The program will produce a cout log.
+.TP
+2.
+The program will return with either a failure status or with
+success status. In latter case a resource file (measuresdata.rc) will
+be present. This file will have format:
+
+ status: [end|cont]
+ ftp: <node-address>
+ dir: <ftp-directory>
+ file: <ftp-file>
+ data: ascii
+ arg: <arguments to call back to measuresdata>
+
+If the status is given as 'end' the program is finished; if it is given as
+'cont' the script should obtain the file given by ftp, dir and file and
+call measuresdata back with all the info in arg.
+.TP
+3.
+Loop with calls to measuresdata
+.SH "OPTIONS"
+.PP
+The arguments to measuresdata are given in casa 'Inputs' format. I.e.
+as 'key=value'. In the following the key is followed by default.
+.TP
+\fBtype=\fR\fIALL\fR|\fIIERS\fR|\fIJPL\fR|\fITAI_UTC\fR|\fI....\fR
+Type(s) of tables to produce. Default: all
+.TP
+\fBin=\fR\fI<filename>\fR|\fI-\fR
+Input ascii file. Normally determined by measuresdata program. Default: -
+.TP
+\fBrefresh=\fR\fIy\fR|\fIn\fR
+Force a table refresh within the minimum refresh period. Default: n
+.TP
+\fBrenew=\fR\fIy\fR|\fIn\fR
+Force a table renew, rather than an update, if table has to be refreshed.
+Default: n
+.TP
+\fBderange=\fR\fIyyyy,yyyy\fR
+The wanted range for the JPL planetary tables. Default: 1960,now+20
+.TP
+\fBdir=\fR\fI<filename>\fR
+Base directory for tables. Default: .
