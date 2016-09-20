@@ -1,14 +1,14 @@
-casacore (2.1.0-2) UNRELEASED; urgency=medium
+casacore (2.1.0-2) unstable; urgency=medium
 
-  [ Gijs Molenaar ]
-  *  enable C++11 support. Closes: #831077
-
-  [ Ole Streicher ]
+  * Team upload.
   * Unconditionally add -fsigned-char to CMAKE_CXX_FLAGS. Closes:
     #830248
   * Use correct getrusage() on HURD and kfreebsd. Closes: #830253
 
- -- Gijs Molenaar <gijs@pythonic.nl>  Tue, 28 Jun 2016 13:51:49 +0200
+  [ Gijs Molenaar ]
+  *  enable C++11 support. Closes: #831077
+
+ -- Ole Streicher <olebole@debian.org>  Tue, 20 Sep 2016 11:14:11 +0200
 
 casacore (2.1.0-1) unstable; urgency=low
 
