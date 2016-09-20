@@ -1,0 +1,110 @@
+From 3aca5c81655274529778a0b074781a55797b5482 Mon Sep 17 00:00:00 2001
+From: Ole Streicher <olebole@debian.org>
+Date: Mon, 1 Aug 2016 12:08:45 +0200
+Subject: [PATCH] For glibc systems, use the correct getrusage() declaration
+ There are some non-Linux systems using glibc as well, namely GNU HURD and
+ kFreeBSD. For getrusage() they should be handled like the Linux systems.
+
+---
+ casa/OS/Timer.cc | 16 ++++++++--------
+ casa/OS/Timer.h  |  4 ++--
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/casa/OS/Timer.cc b/casa/OS/Timer.cc
+index 709ca86..ea28536 100644
+--- a/casa/OS/Timer.cc
++++ b/casa/OS/Timer.cc
+@@ -44,7 +44,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+ #if defined (DOS) || defined (MSDOS)
+     usage0 = clock();
+     ftime(&real0);
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     struct timezone tz;
+     getrusage(0, &usage0);
+@@ -75,7 +75,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+     ms = ms * 0.001 + s;
+     return (ms);
+  
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     struct timeval now;
+     struct timezone tz;
+@@ -115,7 +115,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+     // error: Processor time not available
+     return (0.0);
+  
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     double dsec, dusec;
+     rusage usage1;       // current rusage structure
+@@ -145,7 +145,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+ #if defined (DOS) || defined (MSDOS)
+     return(0L);
+ 
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     double dsec, dusec;
+     rusage usage1;       // current rusage structure
+@@ -180,7 +180,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+     // error: Processor time not available
+     return (0.0);
+  
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     double dsec, dusec;
+     rusage usage1;       // current rusage structure
+@@ -220,7 +220,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+     // error: Processor time not available
+     return (0.0);
+  
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     double dsec, dusec;
+     rusage usage1;       // current rusage structure
+@@ -251,7 +251,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+ #if defined (DOS) || defined (MSDOS)
+     return(0.0);
+ 
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     double dsec, dusec;
+     rusage usage1;       // current rusage structure
+@@ -287,7 +287,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+     // error: Processor time not available
+     return (0.0);
+  
+-#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined (AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+ # ifdef AIPS_CRAY_PGI
+     double dsec, dusec;
+     rusage usage1;       // current rusage structure
+diff --git a/casa/OS/Timer.h b/casa/OS/Timer.h
+index 765547d..829a1b6 100644
+--- a/casa/OS/Timer.h
++++ b/casa/OS/Timer.h
+@@ -41,7 +41,7 @@ extern "C" {
+ #include <time.h>
+ }
+ 
+-#elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+   #if defined(AIPS_CRAY_PGI)
+     #include <sys/time.h>
+     #include <sys/resource.h>
+@@ -189,7 +189,7 @@ class Timer {
+ #if defined(DOS) || defined(MSDOS)
+     clock_t usage0;
+     timeb   real0;          //# elapsed real time at last mark
+-#elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD)
++#elif defined(AIPS_SOLARIS) || defined(AIPS_IRIX) || defined(AIPS_OSF) || defined(__hpux__) || defined(AIPS_LINUX) || defined(AIPS_DARWIN) || defined(AIPS_BSD) || defined(__GLIBC__)
+   #if defined(AIPS_CRAY_PGI)
+     //struct timeval usage0;
+     rusage usage0;          //# rusage structure at last mark

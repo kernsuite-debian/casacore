@@ -6,3 +6,4 @@
 0006-disable-known-failed-tests-post-2.0.0.patch
 0007-add-std-to-isinf-and-isnan.patch
 0008-signed-char.patch
+0009-use-correct-rusage-for-glibc-systems.patch

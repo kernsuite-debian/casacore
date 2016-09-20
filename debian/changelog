@@ -6,6 +6,7 @@ casacore (2.1.0-2) UNRELEASED; urgency=medium
   [ Ole Streicher ]
   * Unconditionally add -fsigned-char to CMAKE_CXX_FLAGS. Closes:
     #830248
+  * Use correct getrusage() on HURD and kfreebsd. Closes: #830253
 
  -- Gijs Molenaar <gijs@pythonic.nl>  Tue, 28 Jun 2016 13:51:49 +0200
 
