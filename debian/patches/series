@@ -5,3 +5,4 @@
 0005-disable-tPath-test.patch
 0006-disable-known-failed-tests-post-2.0.0.patch
 0007-add-std-to-isinf-and-isnan.patch
+0008-signed-char.patch
