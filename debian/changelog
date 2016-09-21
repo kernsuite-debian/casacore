@@ -3,6 +3,7 @@ casacore (2.1.0-3) UNRELEASED; urgency=medium
   * Team upload.
   * Remove unneeded include to fix FTBFS on non-linux archs.
     Closes: #838423
+  * Use the correct symbol to detect Linux OS. Closes: #838422
 
  -- Ole Streicher <olebole@debian.org>  Tue, 20 Sep 2016 14:17:33 +0200
 

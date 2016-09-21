@@ -1,0 +1,14 @@
+Author: Ole Streicher <olebole@debian.org>
+Description: Use the correct symbol to detect Linux OS
+ Otherwise the compilation fails on powerpc archs
+--- a/casa/aipsenv.h
++++ b/casa/aipsenv.h
+@@ -130,7 +130,7 @@
+ #if defined(AIPS_LINUX)
+ #undef AIPS_LINUX
+ #endif
+-#if defined(__linux)
++#if defined(__linux__)
+ #define AIPS_LINUX
+ #endif
+ 
