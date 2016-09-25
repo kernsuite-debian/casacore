@@ -6,46 +6,29 @@ Description: Properly convert array to Python
  problems on some architectures.
 --- a/python/Converters/PycArrayComCC.h
 +++ b/python/Converters/PycArrayComCC.h
-@@ -281,16 +281,23 @@
-     PyArrayObject* po = (PyArrayObject*)obj_ptr;
-     boost::python::object obj;
-     bool docopy = copyData;               // copy data if wanted or needed
--    if (! PyArray_ISCONTIGUOUS(po)
--	||  ! PyArray_ISALIGNED(po)
--	||  PyArray_ISBYTESWAPPED(po)) {
-+    if ((shp.product() > 0) &&
-+	(! PyArray_ISCONTIGUOUS(po)
-+	 ||  ! PyArray_ISALIGNED(po)
-+	 ||  PyArray_ISBYTESWAPPED(po))) {
-       boost::python::handle<> py_hdl(obj_ptr);
+@@ -288,8 +288,10 @@
        boost::python::object py_obj(py_hdl);
        // incr refcount, because ~object decrements it
        boost::python::incref(obj_ptr);
 -      obj = py_obj.attr("copy")();
 -      po = (PyArrayObject*)(obj.ptr());
-+      po = PyArray_FromArray(py_obj, NULL,
-+			     NPY_ARRAY_NOTSWAPPED
-+			     | NPY_ARRAY_C_CONTIGUOUS
-+			     | NPY_ARRAY_ALIGNED)
++      po = (PyArrayObject*)PyArray_FromArray(po, NULL,
++					     NPY_ARRAY_NOTSWAPPED
++					     | NPY_ARRAY_C_CONTIGUOUS
++					     | NPY_ARRAY_ALIGNED);
        docopy = true;
-+      // Assert array is contiguous now.
+     }
+     // Swap axes, because Casacore has row minor and Python row major order.
+@@ -305,9 +307,9 @@
+     // Assert array is contiguous now.
+     // If the array is empty, numarray still sees it as non-contiguous.
+     if (shp.product() > 0) {
+-      AlwaysAssert (PyArray_ISCONTIGUOUS(po)
+-		    &&  PyArray_ISALIGNED(po)
+-		    &&  !PyArray_ISBYTESWAPPED(po), AipsError);
 +      AlwaysAssert (PyArray_ISCONTIGUOUS(po), AipsError);
 +      AlwaysAssert (PyArray_ISALIGNED(po), AipsError);
 +      AlwaysAssert (!PyArray_ISBYTESWAPPED(po), AipsError);
      }
-     // Swap axes, because Casacore has row minor and Python row major order.
-     // A scalar is treated as a vector with length 1.
-@@ -302,13 +309,6 @@
- 	shp[i] = PyArray_DIMS(po)[nd-i-1];
-       }
-     }
--    // Assert array is contiguous now.
--    // If the array is empty, numarray still sees it as non-contiguous.
--    if (shp.product() > 0) {
--      AlwaysAssert (PyArray_ISCONTIGUOUS(po)
--		    &&  PyArray_ISALIGNED(po)
--		    &&  !PyArray_ISBYTESWAPPED(po), AipsError);
--    }
      // Create the correct array.
      switch (PyArray_TYPE(po)) {
-     case NPY_BOOL:
