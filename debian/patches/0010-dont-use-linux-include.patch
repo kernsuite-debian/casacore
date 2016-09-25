@@ -1,7 +1,7 @@
 Author: Ole Streicher <olebole@debian.org>
 Description: Remove unneeded include to fix FTBFS on non-linux archs
---- a/casacore/casa/OS/Directory.cc
-+++ b/casacore/casa/OS/Directory.cc
+--- a/casa/OS/Directory.cc
++++ b/casa/OS/Directory.cc
 @@ -490,7 +490,6 @@
  
  #ifndef __APPLE__
