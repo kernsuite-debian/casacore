@@ -7,7 +7,7 @@
 0007-add-std-to-isinf-and-isnan.patch
 0008-signed-char.patch
 0009-use-correct-rusage-for-glibc-systems.patch
-0010-dont-use-linux-include.patch
+0010-make-nfs-check-more-portable.patch
 0011-use-predefined-__linux__.patch
 0012-fix-FitsLong-size.patch
 0013-loose-tfftserver-tests.patch
