@@ -57,6 +57,7 @@ Description: CASA core library development files
 Package: casacore-doc
 Section: doc
 Architecture: all
+Multi-Arch: foreign
 Depends: ${misc:Depends}
 Suggests: casacore-dev
 Description: CASA core library (documentation)
