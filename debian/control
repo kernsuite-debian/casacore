@@ -80,11 +80,11 @@ Description: Tools built with CASA
  .
  This package contains the tools built with CASA core:
  .
- taql - query language for casacore tables
- measuresdata - create data tables for measures
- imageregrid, imagecalc, showtable, showtablelock, findmeastable,
- fits2table, imreorder, casahdf5support, msselect,  image2fits,
- imageslice, etc.
+ * taql - query language for casacore tables
+ * measuresdata - create data tables for measures
+ * imageregrid, imagecalc, showtable, showtablelock, findmeastable,
+   fits2table, imreorder, casahdf5support, msselect,  image2fits,
+   imageslice, etc.
 
 Package: libcasa-casa2
 Section: libs
