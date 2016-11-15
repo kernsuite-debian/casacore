@@ -4,6 +4,11 @@ Description: Properly convert array to Python
  use the correct converter function instead of just ndarray.copy().
  ndarray.copy() does not swap byte swapped arrays back, which may cause
  problems on some architectures.
+ .
+ On some platforms, Numpy however does not align arrays of complex numbers
+ properly, namely on mips, mipsel, sparc64. This should not be a problem,
+ however. For a discussion, see https://github.com/numpy/numpy/issues/8274
+ and https://github.com/casacore/casacore/issues/531
 --- a/python/Converters/PycArrayComCC.h
 +++ b/python/Converters/PycArrayComCC.h
 @@ -288,8 +288,10 @@
@@ -27,7 +32,7 @@ Description: Properly convert array to Python
 -		    &&  PyArray_ISALIGNED(po)
 -		    &&  !PyArray_ISBYTESWAPPED(po), AipsError);
 +      AlwaysAssert (PyArray_ISCONTIGUOUS(po), AipsError);
-+      AlwaysAssert (PyArray_ISALIGNED(po), AipsError);
++      // AlwaysAssert (PyArray_ISALIGNED(po), AipsError); // see https://github.com/numpy/numpy/issues/8274
 +      AlwaysAssert (!PyArray_ISBYTESWAPPED(po), AipsError);
      }
      // Create the correct array.
