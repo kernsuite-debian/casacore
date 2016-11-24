@@ -316,13 +316,8 @@ Bool MSFitsOutput::writeFitsFile(
     out.setPadWitFlags(padWithFlags);
     out.setFieldNumber(fieldNumber);
     out.setOverwrite(overwrite);
-    try {
-        out.write();
-        return True;
-    }
-    catch (const AipsError&) {
-        return False;
-    }
+    out.write();
+    return True;
 }
 
 uInt MSFitsOutput::get_tbf_end(const uInt rownr, const uInt nrow,
@@ -363,16 +358,6 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     if (nrow == 0) {
         os << LogIO::SEVERE << "Empty measurement set!" << LogIO::POST;
         return 0;
-    }
-
-    Bool doWsrt = False;
-    {
-        MSObservation obsTable(_ms.observation());
-        if (obsTable.nrow() > 0) {
-            ScalarColumn<String> inarrayname(obsTable,
-                    MSObservation::columnName(MSObservation::TELESCOPE_NAME));
-            doWsrt = inarrayname(0) == "WSRT";
-        }
     }
     Record ek; // ek == extra keys
     Vector<Double> radec;
@@ -460,7 +445,6 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
 
     ScalarColumn<Int> measFreq(spectralTable, MSSpectralWindow::columnName(
             MSSpectralWindow::MEAS_FREQ_REF));
-
     Double restFreq(0.0);
     if (nsrc > 0) {
         ArrayColumn<Double> restfreqcol(srcTable, MSSource::columnName(
@@ -494,10 +478,9 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
             Vector<Double> freqs = frequencies(s);
             if (freqs.nelements() > 1) {
                 delta = freqs(1) - freqs(0);
-            } else {
+            }
+            else {
                 delta = totalbw(0);
-                if (doWsrt && (delta > 0))
-                    delta = -delta; // This makes delta (and later bw0) NEGATIVE
             }
             // If first time, set the various values.
 
@@ -554,24 +537,20 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
                         << LogIO::POST;
                 return 0;
             }
-            //cout << "freqs.nelements()=" << freqs.nelements() << endl;
-            Vector<Double> selChans(nchan);
-            for (uInt j = 0; j < (uInt)nchan; j++) {
-                uInt k = chanstart + j * chanstep;
-                selChans(j) = freqs(k);
-            }
-            //cout << "selChans.nelements()=" << selChans.nelements() << endl;
-            //for (uInt j = 0; j < selChans.nelements(); j++) {
-            //    cout << selChans(j) << " ";
-            //}
-            //cout << endl;
-            delta = selChans(1) - selChans(0);
-            for (uInt j = 1; j < selChans.nelements(); j++) {
-                if (!near(delta, selChans(j) - selChans(j - 1), 1.0e-5)) {
-                    os << LogIO::SEVERE
+            if (nchan > 1) {
+                Vector<Double> selChans(nchan);
+                for (uInt j = 0; j < (uInt)nchan; ++j) {
+                    uInt k = chanstart + j * chanstep;
+                    selChans(j) = freqs(k);
+                }
+                delta = selChans(1) - selChans(0);
+                for (uInt j = 1; j < selChans.nelements(); ++j) {
+                    if (!near(delta, selChans(j) - selChans(j - 1), 1.0e-5)) {
+                        os << LogIO::SEVERE
                             << "Channel width varies across the band"
                             << LogIO::POST;
-                    return 0;
+                        return 0;
+                    }
                 }
             }
             if (measFreq(s) != measFreq0) {
@@ -583,17 +562,14 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     }
 
     Int f0RefPix(0);
-    if (doWsrt) {
-        f0RefPix = nchan / 2;
-        refFreq = f0 + f0RefPix * bw0;
-    } else {
-        f0RefPix = 1 + nchan / 2;
-        if (f0RefPix == 1) 
-            // single-channel out
-            refFreq = f0 + bw0 / 2.0 - delta / 2.0;
-        else 
-            // multi-channel out  (f0RefPix is a *one* - based index!)
-            refFreq = f0 + (f0RefPix - 1) * bw0;
+    f0RefPix = 1 + nchan / 2;
+    if (f0RefPix == 1) {
+        // single-channel out
+        refFreq = f0 + bw0 / 2.0 - delta / 2.0;
+    }
+    else {
+        // multi-channel out  (f0RefPix is a *one* - based index!)
+        refFreq = f0 + (f0RefPix - 1) * bw0;
     }
     refPixelFreq = f0RefPix;
 
@@ -729,15 +705,7 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     ek.define("ctype4", "FREQ");
     ek.define("crval4", refFreq);
     ek.define("cdelt4", bw0);
-    if (doWsrt) {
-        if (refPixelFreq != 1) {
-            ek.define("crpix4", Double(1 + refPixelFreq));
-        } else {
-            ek.define("crpix4", Double(refPixelFreq));
-        }
-    } else {
-        ek.define("crpix4", Double(refPixelFreq));
-    }
+    ek.define("crpix4", Double(refPixelFreq));
     ek.define("crota4", 0.0);
 
     ek.define("ctype5", "IF");
@@ -1449,19 +1417,17 @@ Bool MSFitsOutput::writeFQ(FitsOutput *output, const MeasurementSet &ms,
             MSSpectralWindow::TOTAL_BANDWIDTH));
     ScalarColumn<Int> insideband(specTable, MSSpectralWindow::columnName(
             MSSpectralWindow::NET_SIDEBAND));
-
-    Bool doWsrt = False;
     String telescopeName;
     {
         MSObservation obsTable(ms.observation());
         if (obsTable.nrow() > 0) {
-            ScalarColumn<String> inarrayname(obsTable,
-                    MSObservation::columnName(MSObservation::TELESCOPE_NAME));
-            doWsrt = inarrayname(0) == "WSRT";
+            ScalarColumn<String> inarrayname(
+                obsTable,
+                MSObservation::columnName(MSObservation::TELESCOPE_NAME)
+            );
             telescopeName = inarrayname(0);
         }
     }
-
     // ##### Header
     Record header;
     // NO_IF
@@ -1554,16 +1520,15 @@ Bool MSFitsOutput::writeFQ(FitsOutput *output, const MeasurementSet &ms,
                     } else {
                         (*ifwidth)(inx) = abs(chanbw);
                     }
-                } else if (doWsrt) {
-                    (*ifwidth)(inx) = abs(chanbw);
-                } else {
+                }
+                else {
                     (*ifwidth)(inx) = (chanbw);
                 }
             } else {
                 (*ifwidth)(inx) = intotbw(i);
             }
             (*totbw)(inx) = intotbw(i);
-            if (doWsrt || telescopeName == "ALMA") {
+            if (telescopeName == "ALMA") {
                 if (freqs(1) < freqs(0)) {
                     (*sideband)(inx) = -1;
                 } else {
@@ -1621,7 +1586,6 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
         MEpoch ia0time(itime, MEpoch::UTC);
         MEpoch gsttime = MEpoch::Convert(ia0time, MEpoch::GMST)();
         gstday = gsttime.get("d").getValue();
-
     }
     Double gstdeg = 360 * (gstday - floor(gstday));
     {
@@ -1637,53 +1601,28 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
     const Euler& polarMotion = MeasTable::polarMotion(utcday);
 
     // Each array gets its own antenna table
-    for (uInt arraynum = 0; arraynum < narray; arraynum++) {
+    for (uInt arraynum = 0; arraynum < narray; ++arraynum) {
         // Get the observatory's position and convert to ITRF.
         String obsName = inarrayname(arraynum);
         MPosition pos;
         MeasTable::Observatory(pos, obsName);
         MPosition itrfpos = MPosition::Convert(pos, MPosition::ITRF)();
         MVPosition mvpos = itrfpos.getValue();
-        Vector<Double> arraypos = mvpos.getValue();
-
-        // Prepare handling of peculiar UVFITS antenna position conventions:
-        // VLA and WSRT requires rotation into local frame:
-        String arrayName = inarrayname(arraynum);
-        Bool doRot = (arrayName == "VLA" /*|| arrayName == "WSRT"*/);
-        Matrix<Double> posRot = Rot3D(0, 0.0);
-
-        if (doRot) {
-            // form rotation around Z-axis by longitude:
-            Double posLong = mvpos.getLong();
-            posRot = Rot3D(2, -posLong); // opposite rotation cf MSFitsInput
-        }
-        // "VLBI" (==arraypos<1000m) requires y-axis reflection:
-        //   (ATCA looks like VLBI in UVFITS, but is already RHed.)
-        // It looks as if WSRT needs y-axis reflection for UVFIX.
-        Bool doRefl = (/*(arrayName == "WSRT") || */((arrayName != "ATCA"
-                && arrayName != "EVLA") && allLE(abs(arraypos), 1000.0)));
-
-        // EVLA wants full ITRF per antenna and arraypos=(0,0,0)
-        if (arrayName == "EVLA" || arrayName == "ALMA")
-            arraypos.set(0.0);
-
-        // Discern the position reference frame
         ROMSAntennaColumns antCols(ms.antenna());
-
         // Nominally arraypos+antpos will be ITRF (see below),
         //   unless we tinker with it, in which case it is
         //   a local convention
         String posref("ITRF");
-        if (doRot || doRefl)
-            posref = arrayName;
-
         // #### Header
         Record header;
         header.define("EXTNAME", "AIPS AN"); // EXTNAME
         header.define("EXTVER", Int(arraynum + 1)); // EXTVER
-        header.define("ARRAYX", arraypos(0)); // ARRAYX
-        header.define("ARRAYY", arraypos(1)); // ARRAYY
-        header.define("ARRAYZ", arraypos(2)); // ARRAYZ
+        // we are now writing antenna positions in ITRF, so the
+        // corresponding array center is always the origin of this
+        // coordinate system
+        header.define("ARRAYX", 0);
+        header.define("ARRAYY", 0);
+        header.define("ARRAYZ", 0);
         header.define("GSTIA0", gstdeg); // GSTIA0
         header.define("DEGPDY", degpdy); // DEGPDY
         header.define("FREQ", refFreq); // FREQ
@@ -1697,13 +1636,13 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
         header.define("NUMORB", 0); // NUMORB
         header.define("NOPCAL", 0); // NOPCAL
         header.define("POLTYPE", "        "); // POLTYPE
-
+        header.define("XYZHAND", "RIGHT"); // handedness of antenna coord system
 
         // Added Nov 2009, following AIPS addition
         header.define("FRAME", posref); // FRAME
         os << LogIO::NORMAL // Requested by CAS-437.
-                << "Using " << posref << " frame for antenna positions."
-                << LogIO::POST;
+            << "Using " << posref << " frame for antenna positions."
+            << LogIO::POST;
 
         // NOT in going aips
         // header.define("DATUTC", 0.0);
@@ -1761,6 +1700,9 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
         ROMSFeedColumns feedCols(feedTable);
         ArrayColumn<String> inpoltype(feedCols.polarizationType());
         ScalarColumn<Int> inantid(feedCols.antennaId());
+        ScalarColumn<Int> spwids(feedCols.spectralWindowId());
+        MSMetaData msmd(&ms, 100);
+        std::set<uInt> uSpws = msmd.getUniqueSpwIDs();
         ArrayQuantColumn<Double> receptorAngle(feedCols.receptorAngleQuant());
 
         FITSTableWriter writer(output, desc, strlengths, nant, header, units, False);
@@ -1805,23 +1747,16 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
                 }
             }
         }
-        for (uInt antnum = 0; antnum < nant; antnum++) {
+        // antenna -> receptor angles
+        std::map<uInt, Vector<Quantity> > antToRA;
+        for (uInt antnum = 0; antnum < nant; ++antnum) {
             *anname = anames(antnum);
 
             // Get antenna position in ITRF coordinates.
             // Take difference with array position.
             MPosition antpos = inantposition.convert(antnum, MPosition::ITRF);
-            Vector<Double> corstabxyz = antpos.getValue().getValue() - arraypos;
-
-            // Do UVFITS-dependent position corrections:
-            if (doRot) {
-                corstabxyz = product(posRot, corstabxyz);
-            }
-            if (doRefl) {
-                corstabxyz(1) = -corstabxyz(1);
-            }
+            Vector<Double> corstabxyz = antpos.getValue().getValue();
             *stabxyz = corstabxyz;
-
             *nosta = id[antnum];
             String mount = upcase(inantmount(antnum));
             // MS has "EQUATORIAL", "ALT-AZ", "X-Y",  "SPACE-HALCA" 
@@ -1855,19 +1790,33 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
             Bool found = False;
             *poltya = " ";
             *poltyb = " ";
-            for (uInt i = 0; i < nmax; i++) {
-                if (Int(antnum) == inantid(i)) {
+            for (uInt i = 0; i < nmax; ++i) {
+                // filter out irrelevant spws. spw = -1 in the FEED table
+                // inicates that row applies for all spectral windows
+                if (
+                    Int(antnum) == inantid(i)
+                    && (
+                        spwids(i) == -1
+                        || uSpws.find(spwids(i)) != uSpws.end()
+                    )
+                ) {
                     found = True;
                     Vector<String> poltypes = inpoltype(i);
                     Vector<Quantity> ra;
                     receptorAngle.get(i, ra);
-                    if (poltypes.nelements() >= 1) {
-                        *poltya = poltypes(0);
-                        *polaa = ra[0].getValue("deg");
+                    if (antToRA.find(antnum) == antToRA.end()) {
+                        if (poltypes.nelements() >= 1) {
+                            *poltya = poltypes(0);
+                            *polaa = ra[0].getValue("deg");
+                        }
+                        if (poltypes.nelements() >= 2) {
+                            *poltyb = poltypes(1);
+                            *polab = ra[1].getValue("deg");
+                        }
+                        antToRA[antnum] = ra;
                     }
-                    if (poltypes.nelements() >= 2) {
-                        *poltyb = poltypes(1);
-                        *polab = ra[1].getValue("deg");
+                    else {
+                        _checkReceptorAngles(ra, antToRA[antnum], antnum);
                     }
                 }
             }
@@ -1878,10 +1827,32 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
             }
             writer.write();
         }
-
     }
-
     return True;
+}
+
+void MSFitsOutput::_checkReceptorAngles(
+    const Vector<Quantity>& ra0, Vector<Quantity>& ra1, Int antnum
+) {
+    if (ra0.size() != ra1.size()) {
+        ostringstream oss;
+        oss << "Varying number of receptor angles found for "
+            << "specified spectral windows for antenna "
+            << antnum << " is not supported by uvfits";
+        ThrowCc(oss.str());
+    }
+    uInt nra = ra0.size();
+    for (uInt j=0; j<nra; ++j) {
+        if (
+            ! nearAbs(ra0[j].getValue("deg"), ra1[j].getValue("deg"), 0.001)
+        ) {
+            ostringstream oss;
+            oss << "Receptor angle " << j << " for antenna " << antnum
+                << " varies with the selected spectral windows "
+                << "which is not supported by uvfits.";
+            ThrowCc(oss.str());
+        }
+    }
 }
 
 Bool MSFitsOutput::writeSU(FitsOutput *output, const MeasurementSet &ms,

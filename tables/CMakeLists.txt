@@ -17,6 +17,12 @@ endforeach (src)
 
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
+# Add SOVERSION definition for files needing it.
+foreach (src DataMan/DataManager.cc TaQL/UDFBase.cc)
+    set_source_files_properties(${src}
+                 PROPERTIES COMPILE_FLAGS -DSOVERSION=${LIB_SOVERSION})
+endforeach (src)
+
 add_library (casa_tables
 Tables/ArrayColumn_tmpl.cc
 Tables/ArrColDesc_tmpl.cc
@@ -153,6 +159,7 @@ TaQL/ExprRange.cc
 TaQL/ExprUDFNode.cc
 TaQL/ExprUDFNodeArray.cc
 TaQL/ExprUnitNode.cc
+TaQL/MArrayBase.cc
 TaQL/RecordExpr.cc
 TaQL/RecordGram.cc
 TaQL/TaQLNode.cc
@@ -162,6 +169,7 @@ TaQL/TaQLNodeRep.cc
 TaQL/TaQLNodeResult.cc
 TaQL/TaQLNodeVisitor.cc
 TaQL/TaQLResult.cc
+TaQL/TaQLShow.cc
 TaQL/TaQLStyle.cc
 TaQL/TableExprData.cc
 TaQL/TableExprId.cc
@@ -254,6 +262,7 @@ Tables/TableAttr.h
 Tables/TableCache.h
 Tables/TableColumn.h
 Tables/TableCopy.h
+Tables/TableCopy.tcc
 Tables/TableDesc.h
 Tables/TableError.h
 Tables/TableIndexProxy.h
@@ -380,6 +389,12 @@ TaQL/ExprRange.h
 TaQL/ExprUDFNode.h
 TaQL/ExprUDFNodeArray.h
 TaQL/ExprUnitNode.h
+TaQL/MArrayBase.h
+TaQL/MArrayLogical.h
+TaQL/MArrayMathBase.h
+TaQL/MArrayMath.h
+TaQL/MArrayUtil.h
+TaQL/MArray.h
 TaQL/RecordExpr.h
 TaQL/RecordGram.h
 TaQL/TaQLNode.h
@@ -389,6 +404,7 @@ TaQL/TaQLNodeRep.h
 TaQL/TaQLNodeResult.h
 TaQL/TaQLNodeVisitor.h
 TaQL/TaQLResult.h
+TaQL/TaQLShow.h
 TaQL/TaQLStyle.h
 TaQL/TableExprData.h
 TaQL/TableExprId.h
@@ -449,9 +465,7 @@ Tables/UDFBase.h
 DESTINATION include/casacore/tables/Tables
 )
 
-if (BUILD_TESTING)
-    add_subdirectory (Tables/test)
-    add_subdirectory (DataMan/test)
-    add_subdirectory (TaQL/test)
-    add_subdirectory (LogTables/test)
-endif (BUILD_TESTING)
+add_subdirectory (Tables/test ${EXCL_ALL})
+add_subdirectory (DataMan/test ${EXCL_ALL})
+add_subdirectory (TaQL/test ${EXCL_ALL})
+add_subdirectory (LogTables/test ${EXCL_ALL})

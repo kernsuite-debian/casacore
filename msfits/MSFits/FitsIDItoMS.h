@@ -227,8 +227,8 @@ protected:
   // If useTSM is True, the Tiled Storage Manager will be used to store
   // DATA, FLAG and WEIGHT_SPECTRUM
   void setupMeasurementSet(const String& MSFileName, Bool useTSM=True, 
-			   Bool mainTbl=False, 
-			   Bool addCorrMod=False, Bool addSyscal=False);
+			   Bool mainTbl=False, Bool addCorrMod=False,
+			   Bool addSyscal=False, Bool addWeather=False);
   
   // Fill the main table from the Primary group data
   void fillMSMainTable(const String& MSFileName, Int& nField, Int& nSpW);
@@ -293,6 +293,10 @@ protected:
   MeasurementSet ms_p;
   MSColumns* msc_p;
   static Bool firstMain;
+  static Bool firstSyscal;
+  static Bool firstWeather;
+  Bool weather_hasWater_p;
+  Bool weather_hasElectron_p;
   Bool uv_data_hasWeights_p;
   Bool weightKwPresent_p;
   Bool weightypKwPresent_p;

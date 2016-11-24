@@ -73,13 +73,16 @@ namespace casacore {
 //  <li> PA2 is the parallactic angle of ANTENNA2.
 //  <li> AZEL1 is the azimuth/elevation of ANTENNA1.
 //  <li> AZEL2 is the azimuth/elevation of ANTENNA2.
+//  <li> ITRF is the PHASE_DIR in ITRF coordinates (depends on TIME only).
 //  <li> UVW_J2000 is the UVW coordinates in J2000 (in meters)
 //  <li> STOKES makes it possible to convert Stokes of data, flag, or weight.
 //  <li> BASELINE is baseline selection using CASA syntax.
+//  <li> CORR is correlation selection using CASA syntax.
 //  <li> TIME is baseline selection using CASA syntax.
 //  <li> UVDIST is UV-distance selection using CASA syntax.
 //  <li> SPW is spectral window selection using CASA syntax.
 //  <li> FIELD is field selection using CASA syntax.
+//  <li> FEED is feed selection using CASA syntax.
 //  <li> ARRAY is array selection using CASA syntax.
 //  <li> SCAN is scan selection using CASA syntax.
 //  <li> STATE is state selection using CASA syntax.
@@ -115,11 +118,12 @@ namespace casacore {
   {
   public:
     // Define the possible 'column' types.
-    enum ColType {HA, HADEC, PA, LAST, AZEL, NEWUVW,
+    enum ColType {HA, HADEC, PA, LAST, AZEL, ITRF, NEWUVW,
                   UVWWVL, UVWWVLS, NEWUVWWVL, NEWUVWWVLS,
                   STOKES, SELECTION, GETVALUE};
     // Define the possible selection types.
-    enum SelType {BASELINE, TIME, UVDIST, SPW, FIELD, ARRAY, SCAN, STATE, OBS};
+    enum SelType {BASELINE, CORR, TIME, UVDIST, SPW, FIELD,
+                  FEED, ARRAY, SCAN, STATE, OBS};
 
     // Create object the given ColType and SelType.
     UDFMSCal (ColType, Int arg);
@@ -145,8 +149,10 @@ namespace casacore {
     static UDFBase* makeLAST     (const String&);
     static UDFBase* makeLAST1    (const String&);
     static UDFBase* makeLAST2    (const String&);
+    static UDFBase* makeAZEL     (const String&);
     static UDFBase* makeAZEL1    (const String&);
     static UDFBase* makeAZEL2    (const String&);
+    static UDFBase* makeITRF     (const String&);
     static UDFBase* makeUVW      (const String&);
     static UDFBase* makeWvl      (const String&);
     static UDFBase* makeWvls     (const String&);
@@ -154,10 +160,12 @@ namespace casacore {
     static UDFBase* makeUvwWvls  (const String&);
     static UDFBase* makeStokes   (const String&);
     static UDFBase* makeBaseline (const String&);
+    static UDFBase* makeCorr     (const String&);
     static UDFBase* makeTime     (const String&);
     static UDFBase* makeUVDist   (const String&);
     static UDFBase* makeSpw      (const String&);
     static UDFBase* makeField    (const String&);
+    static UDFBase* makeFeed     (const String&);
     static UDFBase* makeArray    (const String&);
     static UDFBase* makeScan     (const String&);
     static UDFBase* makeState    (const String&);
@@ -183,11 +191,11 @@ namespace casacore {
     virtual Double   getDouble   (const TableExprId& id);
     virtual DComplex getDComplex (const TableExprId& id);
     virtual String   getString   (const TableExprId& id);
-    virtual Array<Bool>     getArrayBool     (const TableExprId& id);
-    virtual Array<Int64>    getArrayInt      (const TableExprId& id);
-    virtual Array<Double>   getArrayDouble   (const TableExprId& id);
-    virtual Array<DComplex> getArrayDComplex (const TableExprId& id);
-    virtual Array<String>   getArrayString   (const TableExprId& id);
+    virtual MArray<Bool>     getArrayBool     (const TableExprId& id);
+    virtual MArray<Int64>    getArrayInt      (const TableExprId& id);
+    virtual MArray<Double>   getArrayDouble   (const TableExprId& id);
+    virtual MArray<DComplex> getArrayDComplex (const TableExprId& id);
+    virtual MArray<String>   getArrayString   (const TableExprId& id);
 
     // Let a derived class recreate its column objects in case a selection
     // has to be applied.

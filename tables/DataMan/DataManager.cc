@@ -252,6 +252,9 @@ Bool DataManager::canAddColumn() const
 Bool DataManager::canRemoveColumn() const
     { return False; }
 
+Bool DataManager::canRenameColumn() const
+    { return True; }
+
 void DataManager::addRow (uInt)
     { throw (DataManInvOper ("DataManager::addRow not allowed")); }
 
@@ -313,7 +316,8 @@ DataManagerCtor DataManager::getCtor (const String& type)
         libname = libname.substr (0, pos);
     }
     // Try to load and initialize the dynamic library.
-    DynLib dl(libname, string("libcasa_"), "register_"+libname, False);
+    DynLib dl(libname, string("libcasa_"), CASACORE_STRINGIFY(SOVERSION),
+              "register_"+libname, False);
     if (dl.getHandle()) {
         // See if registered now.
         fp = theirRegisterMap.isDefined (type);
@@ -377,6 +381,12 @@ uInt DataManagerColumn::ndim (uInt rownr)
 
 // The shape of the array in the given row.
 IPosition DataManagerColumn::shape (uInt)
+{
+    return IPosition(0);
+}
+
+// The tile shape of the array in the given row.
+IPosition DataManagerColumn::tileShape (uInt)
 {
     return IPosition(0);
 }

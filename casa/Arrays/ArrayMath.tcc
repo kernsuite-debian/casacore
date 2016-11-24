@@ -756,31 +756,39 @@ template<class T> void minMax(T &minVal, T &maxVal, const Array<T> &array)
     throw(ArrayError("void minMax(T &min, T &max, const Array<T> &array) - "
                      "Array has no elements"));	
   }
-  T minv = array.data()[0];
-  T maxv = minv;
   if (array.contiguousStorage()) {
+    // minimal scope as some compilers may spill onto stack otherwise
+    T minv = array.data()[0];
+    T maxv = minv;
     typename Array<T>::const_contiter iterEnd = array.cend();
     for (typename Array<T>::const_contiter iter = array.cbegin();
          iter!=iterEnd; ++iter) {
       if (*iter < minv) {
         minv = *iter;
-      } else if (*iter > maxv) {
+      }
+      // no else allows compiler to use branchless instructions
+      if (*iter > maxv) {
         maxv = *iter;
       }
     }
+    maxVal = maxv;
+    minVal = minv;
   } else {
+    T minv = array.data()[0];
+    T maxv = minv;
     typename Array<T>::const_iterator iterEnd = array.end();
     for (typename Array<T>::const_iterator iter = array.begin();
          iter!=iterEnd; ++iter) {
       if (*iter < minv) {
         minv = *iter;
-      } else if (*iter > maxv) {
+      }
+      if (*iter > maxv) {
         maxv = *iter;
       }
     }
+    maxVal = maxv;
+    minVal = minv;
   }
-  maxVal = maxv;
-  minVal = minv;
 }
 
 // <thrown>
@@ -1037,6 +1045,26 @@ template<class T> Array<T> fmod(const Array<T> &a, const T &b)
 
 
 // <thrown>
+//   </item> ArrayConformanceError
+// </thrown>
+template<class T> Array<T> floormod(const Array<T> &a, const Array<T> &b)
+{
+    checkArrayShapes (a, b, "floormod");
+    return arrayTransformResult (a, b, casacore::FloorMod<T>());
+}
+
+template<class T> Array<T> floormod(const T &a, const Array<T> &b)
+{
+    return arrayTransformResult (a, b, casacore::FloorMod<T>());
+}
+
+template<class T> Array<T> floormod(const Array<T> &a, const T &b)
+{
+    return arrayTransformResult (a, b, casacore::FloorMod<T>());
+}
+
+
+// <thrown>
 //    </item> ArrayError
 // </thrown>
 template<class T> T sum(const Array<T> &a)
@@ -1044,6 +1072,13 @@ template<class T> T sum(const Array<T> &a)
   return a.contiguousStorage() ?
     std::accumulate(a.cbegin(), a.cend(), T(), std::plus<T>()) :
     std::accumulate(a.begin(),  a.end(),  T(), std::plus<T>());
+}
+
+template<class T> T sumsqr(const Array<T> &a)
+{
+  return a.contiguousStorage() ?
+    std::accumulate(a.cbegin(), a.cend(), T(), casacore::SumSqr<T>()) :
+    std::accumulate(a.begin(),  a.end(),  T(), casacore::SumSqr<T>());
 }
 
 // <thrown>
@@ -1320,6 +1355,24 @@ template<typename T>
 Array<std::complex<T> > makeComplex(const Array<T> &left, const Array<T>& right)
 {
   checkArrayShapes (left, right, "makeComplex");
+  Array<std::complex<T> > res(left.shape());
+  arrayContTransform (left, right, res,
+                      casacore::MakeComplex<T,T,std::complex<T> >());
+  return res;
+}
+
+template<typename T>
+Array<std::complex<T> > makeComplex(const T &left, const Array<T>& right)
+{
+  Array<std::complex<T> > res(right.shape());
+  arrayContTransform (left, right, res,
+                      casacore::MakeComplex<T,T,std::complex<T> >());
+  return res;
+}
+
+template<typename T>
+Array<std::complex<T> > makeComplex(const Array<T> &left, const T& right)
+{
   Array<std::complex<T> > res(left.shape());
   arrayContTransform (left, right, res,
                       casacore::MakeComplex<T,T,std::complex<T> >());
