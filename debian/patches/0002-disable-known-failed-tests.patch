@@ -1,8 +1,7 @@
 From: Benda Xu <heroxbd@gentoo.org>
 Date: Wed, 10 Sep 2014 10:00:43 +0900
-Subject: disable known failed tests
+Subject: Testsuite of tEarthField, tEarthMagneticMachine,
 
-Description: Testsuite of tEarthField, tEarthMagneticMachine,
     tMEarthMagnetic are out of date with casacore-data. Data needed
     for tAntennaResponses is not available.
 
@@ -35,13 +34,13 @@ Description: Testsuite of tEarthField, tEarthMagneticMachine,
  images/Images/test/CMakeLists.txt           | 19 -------------------
  images/Regions/test/CMakeLists.txt          |  4 ----
  lattices/LatticeMath/test/CMakeLists.txt    |  1 -
- measures/Measures/test/CMakeLists.txt       | 21 ---------------------
+ measures/Measures/test/CMakeLists.txt       | 22 ----------------------
  measures/TableMeasures/test/CMakeLists.txt  |  1 -
  ms/MSOper/test/CMakeLists.txt               |  3 ---
- 7 files changed, 55 deletions(-)
+ 7 files changed, 56 deletions(-)
 
 diff --git a/coordinates/Coordinates/test/CMakeLists.txt b/coordinates/Coordinates/test/CMakeLists.txt
-index f46b327..bbf7e68 100644
+index bd1c996..96e9433 100644
 --- a/coordinates/Coordinates/test/CMakeLists.txt
 +++ b/coordinates/Coordinates/test/CMakeLists.txt
 @@ -1,18 +1,12 @@
@@ -64,7 +63,7 @@ index f46b327..bbf7e68 100644
  tQualityCoordinate
  tTabularCoordinate
 diff --git a/images/Images/test/CMakeLists.txt b/images/Images/test/CMakeLists.txt
-index bf8d81a..f5ce79e 100644
+index 302d798..4f78a6e 100644
 --- a/images/Images/test/CMakeLists.txt
 +++ b/images/Images/test/CMakeLists.txt
 @@ -35,39 +35,20 @@ endforeach (file)
@@ -108,7 +107,7 @@ index bf8d81a..f5ce79e 100644
  tTempImage
  )
 diff --git a/images/Regions/test/CMakeLists.txt b/images/Regions/test/CMakeLists.txt
-index e41dd37..6ac6c4b 100644
+index b94c391..15aa498 100644
 --- a/images/Regions/test/CMakeLists.txt
 +++ b/images/Regions/test/CMakeLists.txt
 @@ -9,12 +9,8 @@ foreach (file ${datafiles})
@@ -125,7 +124,7 @@ index e41dd37..6ac6c4b 100644
  )
  
 diff --git a/lattices/LatticeMath/test/CMakeLists.txt b/lattices/LatticeMath/test/CMakeLists.txt
-index 1df3ce6..528096c 100644
+index 0d869d5..f9983ab 100644
 --- a/lattices/LatticeMath/test/CMakeLists.txt
 +++ b/lattices/LatticeMath/test/CMakeLists.txt
 @@ -13,7 +13,6 @@ tLatticeSlice1D
@@ -137,7 +136,7 @@ index 1df3ce6..528096c 100644
  
  foreach (test ${tests})
 diff --git a/measures/Measures/test/CMakeLists.txt b/measures/Measures/test/CMakeLists.txt
-index 12933d3..6c83c11 100644
+index c10a670..103ed60 100644
 --- a/measures/Measures/test/CMakeLists.txt
 +++ b/measures/Measures/test/CMakeLists.txt
 @@ -1,25 +1,10 @@
@@ -166,18 +165,19 @@ index 12933d3..6c83c11 100644
  )
  
  foreach (test ${tests})
-@@ -27,9 +12,3 @@ foreach (test ${tests})
-     target_link_libraries (${test} casa_measures)
+@@ -28,10 +13,3 @@ foreach (test ${tests})
      add_test (${test} ${CMAKE_SOURCE_DIR}/cmake/cmake_assay ./${test})
+     add_dependencies(check ${test})
  endforeach (test)
 -
 -if (SOFA_FOUND)
 -    add_executable (tIAU2000 SofaTest.cc tIAU2000.cc)
 -    target_link_libraries (tIAU2000 casa_measures ${SOFA_LIBRARY})
 -    add_test (tIAU2000 ${CMAKE_SOURCE_DIR}/cmake/cmake_assay ./tIAU2000)
+-    add_dependencies(check tIAU2000)
 -endif (SOFA_FOUND)
 diff --git a/measures/TableMeasures/test/CMakeLists.txt b/measures/TableMeasures/test/CMakeLists.txt
-index 20db6b4..042b8a9 100644
+index e7c4af1..d6eadf1 100644
 --- a/measures/TableMeasures/test/CMakeLists.txt
 +++ b/measures/TableMeasures/test/CMakeLists.txt
 @@ -1,6 +1,5 @@
@@ -188,7 +188,7 @@ index 20db6b4..042b8a9 100644
  )
  
 diff --git a/ms/MSOper/test/CMakeLists.txt b/ms/MSOper/test/CMakeLists.txt
-index cf40a4a..0491056 100644
+index e53aec3..c8f39b2 100644
 --- a/ms/MSOper/test/CMakeLists.txt
 +++ b/ms/MSOper/test/CMakeLists.txt
 @@ -1,9 +1,6 @@

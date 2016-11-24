@@ -6,7 +6,7 @@ Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
 Forwarded: no need
-Description: sbuild gets HOME variable leaked into the build environment
+Subject: sbuild gets HOME variable leaked into the build environment
     Debian uses sbuild as official build farm.  Until the cause is pinned down,
     this test is disabled.
 
@@ -36,7 +36,7 @@ FAIL (output not verified): ./tPath
  1 file changed, 1 deletion(-)
 
 diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
-index 4a31f7a..10d5b80 100644
+index 328bd9f..169dc7b 100644
 --- a/casa/OS/test/CMakeLists.txt
 +++ b/casa/OS/test/CMakeLists.txt
 @@ -12,7 +12,6 @@ tMemory

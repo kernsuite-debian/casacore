@@ -3,7 +3,7 @@ Date: Wed, 29 Oct 2014 10:06:53 +0900
 Subject: disable the tests replying on permission bits exceptions
 
 Bug: https://code.google.com/p/casacore/issues/detail?id=73
-Description: disable the tests on file/directory operations
+Subject: disable the tests on file/directory operations
 
 They are tBucketFile, tByteIO, tDirectory, tFile, tRegularFile, tSymLink,
 resulting in failure if tested by superuser.
@@ -31,7 +31,7 @@ For example, from casa/OS/test/tSymlink.cc
  2 files changed, 6 deletions(-)
 
 diff --git a/casa/IO/test/CMakeLists.txt b/casa/IO/test/CMakeLists.txt
-index a143760..fd263f1 100644
+index 188a6c4..6dafd38 100644
 --- a/casa/IO/test/CMakeLists.txt
 +++ b/casa/IO/test/CMakeLists.txt
 @@ -3,9 +3,7 @@ tAipsIOCarray
@@ -45,7 +45,7 @@ index a143760..fd263f1 100644
  tByteSinkSource
  tFilebufIO
 diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
-index 5ece8c7..4a31f7a 100644
+index 520ceed..328bd9f 100644
 --- a/casa/OS/test/CMakeLists.txt
 +++ b/casa/OS/test/CMakeLists.txt
 @@ -3,10 +3,8 @@ tCanonicalConversion

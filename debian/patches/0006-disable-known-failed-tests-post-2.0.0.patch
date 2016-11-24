@@ -3,7 +3,7 @@ Date: Mon, 29 Jun 2015 17:33:10 +0900
 Subject: disable known failed tests post 2.0.0
 
 Forwarded: no need
-Description: tImageConcat, tMSFieldEphem, tmeas requires casacore-data,
+Subject: tImageConcat, tMSFieldEphem, tmeas requires casacore-data,
     which is not available yet (bug #761146).  tLatticeStatsDataProvider
     tries to allocate a 1024*1024*1024 array, which is at least 4GiB,
     not likely to be available on port machines.
@@ -15,7 +15,7 @@ Description: tImageConcat, tMSFieldEphem, tmeas requires casacore-data,
  4 files changed, 1 insertion(+), 6 deletions(-)
 
 diff --git a/images/Images/test/CMakeLists.txt b/images/Images/test/CMakeLists.txt
-index f5ce79e..f0caba3 100644
+index 4f78a6e..b2e09d4 100644
 --- a/images/Images/test/CMakeLists.txt
 +++ b/images/Images/test/CMakeLists.txt
 @@ -42,7 +42,6 @@ tFITSExtImageII
@@ -27,7 +27,7 @@ index f5ce79e..f0caba3 100644
  tImageExprParse
  tImageExprParse_addDir
 diff --git a/lattices/LatticeMath/test/CMakeLists.txt b/lattices/LatticeMath/test/CMakeLists.txt
-index 528096c..91d103f 100644
+index f9983ab..54573e7 100644
 --- a/lattices/LatticeMath/test/CMakeLists.txt
 +++ b/lattices/LatticeMath/test/CMakeLists.txt
 @@ -11,7 +11,6 @@ tLatticeHistograms
@@ -39,7 +39,7 @@ index 528096c..91d103f 100644
  )
  
 diff --git a/meas/MeasUDF/test/CMakeLists.txt b/meas/MeasUDF/test/CMakeLists.txt
-index 155c470..ad73942 100644
+index a2ecd9a..cd225c3 100644
 --- a/meas/MeasUDF/test/CMakeLists.txt
 +++ b/meas/MeasUDF/test/CMakeLists.txt
 @@ -1,6 +1,4 @@
@@ -49,9 +49,9 @@ index 155c470..ad73942 100644
 +set (tests)
  
  foreach (test ${tests})
-     add_test (${test} ${CMAKE_SOURCE_DIR}/cmake/cmake_assay ./${test})
+     add_executable (${test} ${test}.cc)
 diff --git a/ms/MeasurementSets/test/CMakeLists.txt b/ms/MeasurementSets/test/CMakeLists.txt
-index 42ff162..3b07142 100644
+index 6e66aad..2cc4292 100644
 --- a/ms/MeasurementSets/test/CMakeLists.txt
 +++ b/ms/MeasurementSets/test/CMakeLists.txt
 @@ -15,7 +15,6 @@ tMeasurementSet
