@@ -190,7 +190,8 @@ Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Recommends: casacore-data-igrf,
             casacore-data-observatories,
-            casacore-data-tai_utc
+            casacore-data-sources,
+            casacore-data-tai-utc
 Multi-Arch: same
 Description: CASA measures library
  The casacore package contains the core libraries of the old
