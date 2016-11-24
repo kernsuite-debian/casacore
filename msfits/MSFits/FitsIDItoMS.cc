@@ -150,6 +150,8 @@ static Int getIndexContains(Vector<String>& map, const String& key,
 }
 
 Bool FITSIDItoMS1::firstMain = True; // initialize the class variable firstMain
+Bool FITSIDItoMS1::firstSyscal = True; // initialize the class variable firstSyscal
+Bool FITSIDItoMS1::firstWeather = True; // initialize the class variable firstWeather
 Double FITSIDItoMS1::rdate = 0.; // initialize the class variable rdate
 String FITSIDItoMS1::array_p = ""; // initialize the class variable array_p
 SimpleOrderedMap<Int,Int> FITSIDItoMS1::antIdFromNo(-1); // initialize the class variable antIdFromNo
@@ -182,6 +184,10 @@ SimpleOrderedMap<Int,Int> FITSIDItoMS1::antIdFromNo(-1); // initialize the class
   
   if(initFirstMain){
       firstMain = True;
+      firstSyscal = True;
+      firstWeather = True;
+      weather_hasWater_p = False;
+      weather_hasElectron_p = False;
       antIdFromNo.clear();
       rdate = 0.;
   }
@@ -920,6 +926,11 @@ void FITSIDItoMS1::describeColumns()
 	  colname="DATA";
 	}
 
+	if(extname=="WEATHER" && colname=="WVR_H2O")
+	  weather_hasWater_p = True;
+	if(extname=="WEATHER" && colname=="IONOS_ELECTRON")
+	  weather_hasElectron_p = True;
+
 	//
 	// Check if the name exists.
 	//
@@ -1534,7 +1545,8 @@ void FITSIDItoMS1::getAxisInfo()
 }
 
 void FITSIDItoMS1::setupMeasurementSet(const String& MSFileName, Bool useTSM, 
-				       Bool mainTbl, Bool addCorrMod, Bool addSyscal) {
+				       Bool mainTbl, Bool addCorrMod,
+				       Bool addSyscal, Bool addWeather) {
   
   Int nCorr = 0;
   Int nChan = 0;
@@ -1702,7 +1714,27 @@ void FITSIDItoMS1::setupMeasurementSet(const String& MSFileName, Bool useTSM,
   }
 
   if(addSyscal){
-    cout << "Syscal table setup needs to be inplemented." << endl;
+    TableDesc td = MSSysCal::requiredTableDesc();
+    MSSysCal::addColumnToDesc(td, MSSysCal::TSYS);
+    SetupNewTable tabSetup(ms.sysCalTableName(), td, option);
+    ms.rwKeywordSet().defineTable(MS::keywordName(MS::SYSCAL),
+				  Table(tabSetup));
+  }
+
+  if(addWeather){
+    TableDesc td = MSWeather::requiredTableDesc();
+    MSWeather::addColumnToDesc(td, MSWeather::DEW_POINT);
+    if(weather_hasWater_p)
+      MSWeather::addColumnToDesc(td, MSWeather::H2O);
+    if(weather_hasElectron_p)
+      MSWeather::addColumnToDesc(td, MSWeather::IONOS_ELECTRON);
+    MSWeather::addColumnToDesc(td, MSWeather::PRESSURE);
+    MSWeather::addColumnToDesc(td, MSWeather::TEMPERATURE);
+    MSWeather::addColumnToDesc(td, MSWeather::WIND_DIRECTION);
+    MSWeather::addColumnToDesc(td, MSWeather::WIND_SPEED);
+    SetupNewTable tabSetup(ms.weatherTableName(), td, option);
+    ms.rwKeywordSet().defineTable(MS::keywordName(MS::WEATHER),
+				  Table(tabSetup));
   }
 
   // update the references to the subtable keywords
@@ -1801,6 +1833,8 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
   Int iTime1 = getIndex(tType, "TIME");
   // get index for source
   Int iSource = getIndex(tType, "SOURCE_ID"); 
+  if (iSource < 0)
+    iSource = getIndex(tType, "SOURCE");
   // get index for Freq
   Int iFreq = getIndex(tType, "FREQID");
   // get index for FLUX
@@ -2377,8 +2411,10 @@ void FITSIDItoMS1::fillAntennaTable()
      else{
        ant.name().put(row, name(i));
      }
-     //Vector<Double> offsets(3); offsets=0.; offsets(0)=offset(i);
-     //ant.offset().put(row,offset);
+     Vector<Float> tempf=offset(i);
+     Vector<Double> tempd(3);
+     for (Int j=0; j<3; j++) tempd[j]=tempf[j];
+     ant.offset().put(row,tempd);
 
      //ant.station().put(row,name(i));
      ant.station().put(row,arrnam+":"+temps);     
@@ -2412,6 +2448,7 @@ void FITSIDItoMS1::fillFeedTable() {
   String kwname;
   kwl.first();
   Int nIF = 1;
+  Int nPcal = 0;
   while ((fkw = kwl.next())){
     kwname = fkw->name();
     if (kwname == "NO_STKD") {
@@ -2426,7 +2463,10 @@ void FITSIDItoMS1::fillFeedTable() {
       nIF = fkw->asInt();
       //cout << kwname << "=" << nIF << endl;
     }
-    
+    if (kwname == "NOPCAL") {
+      nPcal = fkw->asInt();
+      //cout << kwname << "=" << nPcal << endl;
+    }
   }
 
   //access fitsidi AN table
@@ -2470,12 +2510,14 @@ void FITSIDItoMS1::fillFeedTable() {
 
   ROArrayColumn<Float> polcala;
   ROArrayColumn<Float> polcalb;
-  if(anTab.tableDesc().isColumn("POLCALA") && anTab.tableDesc().isColumn("POLCALB")){
-    polcala.attach(anTab, "POLCALA");
-    polcalb.attach(anTab, "POLCALB");
-  }
-  else{
-    *itsLog << LogIO::WARN << "POLCALA and/or POLCALB column is missing in ANTENNA table." << LogIO::POST;
+  if(nPcal > 0){
+    if(anTab.tableDesc().isColumn("POLCALA") && anTab.tableDesc().isColumn("POLCALB")){
+      polcala.attach(anTab, "POLCALA");
+      polcalb.attach(anTab, "POLCALB");
+    }
+    else{
+      *itsLog << LogIO::WARN << "POLCALA and/or POLCALB column is missing in ANTENNA table." << LogIO::POST;
+    }
   }
 
   //  ROArrayColumn<Float> beamfwhm(anTab, "BEAMFWHM"); // this column is optional and there is presently
@@ -2929,12 +2971,58 @@ Bool FITSIDItoMS1::fillCorrelatorModelTable()
 
 Bool FITSIDItoMS1::fillSysCalTable()
 {
-
   *itsLog << LogOrigin("FitsIDItoMS()", "fillSysCalTable");
-  //MSSysCalColumns& msSysCal(msc_p->sysCal());
-  *itsLog << LogIO::WARN <<  "not yet implemented" << LogIO::POST;
-  return False;
+  MSSysCalColumns& msSysCal(msc_p->sysCal());
 
+  ConstFitsKeywordList& kwl = kwlist();
+  const FitsKeyword* fkw;
+  String kwname;
+  kwl.first();
+  Int nIF = 1;
+  while ((fkw = kwl.next())){
+    kwname = fkw->name();
+    if (kwname == "NO_BAND") {
+      nIF = fkw->asInt();
+    }
+  }
+
+  Int nVal=nrows();
+  Bool dualPol=False;
+
+  Table tyTab = oldfullTable("");
+  ROScalarColumn<Double> time(tyTab, "TIME");
+  ROScalarColumn<Float> timeint(tyTab, "TIME_INTERVAL");
+  ROScalarColumn<Int> anNo(tyTab, "ANTENNA_NO");
+  ROArrayColumn<Float> tsys_1(tyTab, "TSYS_1");
+  ROArrayColumn<Float> tsys_2;
+  if(tyTab.tableDesc().isColumn("TSYS_2")) {
+    tsys_2.attach(tyTab, "TSYS_2"); // this column is optional
+    dualPol=True;
+  }
+  Vector<Float> tsys(dualPol ? 2 : 1);
+
+  Int outRow=-1;
+  for (Int inRow=0; inRow<nVal; inRow++) {
+    for (Int inIF=0; inIF<nIF; inIF++) {
+      ms_p.sysCal().addRow(); outRow++;
+      if (antIdFromNo.isDefined(anNo(inRow))) {
+	msSysCal.antennaId().put(outRow, antIdFromNo(anNo(inRow)));
+      } else {
+    	*itsLog << LogIO::SEVERE << "Internal error: no mapping for ANTENNA_NO "
+				<< anNo(inRow) << LogIO::EXCEPTION;
+      }
+      msSysCal.feedId().put(outRow,0); // only one feed ID == 0
+      msSysCal.time().put(outRow,time(inRow)*C::day + rdate);
+      msSysCal.interval().put(outRow,timeint(inRow)*C::day);
+      msSysCal.spectralWindowId().put(outRow,inIF);
+      tsys(0)=tsys_1(inRow)(IPosition(1,inIF));
+      if (dualPol)
+	tsys(1)=tsys_2(inRow)(IPosition(1,inIF));
+      msSysCal.tsys().put(outRow,tsys);
+    }
+  }
+
+  return True;
 }
 
 Bool FITSIDItoMS1::fillFlagCmdTable()
@@ -2950,12 +3038,50 @@ Bool FITSIDItoMS1::fillFlagCmdTable()
 
 Bool FITSIDItoMS1::fillWeatherTable()
 {
-
   *itsLog << LogOrigin("FitsIDItoMS()", "fillWeatherTable");
-  //MSWeatherColumns& msWeather(msc_p->weather());
-  *itsLog << LogIO::WARN <<  "not yet implemented" << LogIO::POST;
-  return False;
+  MSWeatherColumns& msWeather(msc_p->weather());
 
+  Int nVal=nrows();
+
+  Table wxTab = oldfullTable("");
+  ROScalarColumn<Double> time(wxTab, "TIME");
+  ROScalarColumn<Float> timeint(wxTab, "TIME_INTERVAL");
+  ROScalarColumn<Int> anNo(wxTab, "ANTENNA_NO");
+  ROScalarColumn<Float> temperature(wxTab, "TEMPERATURE");
+  ROScalarColumn<Float> pressure(wxTab, "PRESSURE");
+  ROScalarColumn<Float> dewpoint(wxTab, "DEWPOINT");
+  ROScalarColumn<Float> wind_velocity(wxTab, "WIND_VELOCITY");
+  ROScalarColumn<Float> wind_direction(wxTab, "WIND_DIRECTION");
+  ROScalarColumn<Float> wvr_h2o;
+  if(weather_hasWater_p)
+    wvr_h2o.attach(wxTab, "WVR_H2O");
+  ROScalarColumn<Float> ionos_electron;
+  if(weather_hasElectron_p)
+    wvr_h2o.attach(wxTab, "IONOS_ELECTRON");
+
+  Int outRow=-1;
+  for (Int inRow=0; inRow<nVal; inRow++) {
+      ms_p.weather().addRow(); outRow++;
+      if (antIdFromNo.isDefined(anNo(inRow))) {
+	msWeather.antennaId().put(outRow, antIdFromNo(anNo(inRow)));
+      } else {
+    	*itsLog << LogIO::SEVERE << "Internal error: no mapping for ANTENNA_NO "
+				<< anNo(inRow) << LogIO::EXCEPTION;
+      }
+      msWeather.time().put(outRow,time(inRow)*C::day + rdate);
+      msWeather.interval().put(outRow,timeint(inRow)*C::day);
+      msWeather.dewPoint().put(outRow,dewpoint(inRow)+273.15);
+      msWeather.pressure().put(outRow,pressure(inRow));	// hPa == millibar
+      msWeather.temperature().put(outRow,temperature(inRow)+273.15);
+      msWeather.windDirection().put(outRow,wind_direction(inRow)*C::pi/180.0);
+      msWeather.windSpeed().put(outRow,wind_velocity(inRow));
+      if(weather_hasWater_p)
+	msWeather.H2O().put(outRow,wvr_h2o(inRow));
+      if(weather_hasElectron_p)
+	msWeather.ionosElectron().put(outRow,wvr_h2o(inRow));
+  }
+
+  return True;
 }
 
 Bool FITSIDItoMS1::handleGainCurve()
@@ -3099,7 +3225,22 @@ bool FITSIDItoMS1::readFitsFile(const String& msFile)
   else{
     Bool useTSM=False;
     Bool mainTbl=False;
-    setupMeasurementSet(msFile, useTSM, mainTbl);
+    Bool addCorrMode=False;
+    Bool addSyscal=False;
+    Bool addWeather=False;
+
+    if (firstSyscal && extname == "SYSTEM_TEMPERATURE") {
+      addSyscal=True;
+      firstSyscal=False;
+    }
+
+    if (firstWeather && extname == "WEATHER") {
+      addWeather=True;
+      firstWeather=False;
+    }
+
+    setupMeasurementSet(msFile, useTSM, mainTbl, addCorrMode, addSyscal,
+			addWeather);
     
     Bool success = True; // for the optional tables, we have a return value permitting us
                          // to skip them if they cannot be read

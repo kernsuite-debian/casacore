@@ -38,6 +38,7 @@ int main() {
         String *parts = new String[2];
         split(EnvironmentVariable::get("CASAPATH"), parts, 2, String(" "));
         String datadir = parts[0] + "/data/";
+        delete [] parts;
         String msname = datadir + "regression/unittest/uvfits/uvfits_test.ms";
         if (! File(msname).exists()) {
             cout << "Cannot find test fixture so tests cannot be run" << endl;
@@ -53,12 +54,17 @@ int main() {
             ), AipsError
         );
         // this should fail since overwrite is False
-        AlwaysAssert(
-            ! MSFitsOutput::writeFitsFile(
+        Bool thrown = False;
+        try {
+            MSFitsOutput::writeFitsFile(
                 fitsFile, ms, "DATA", 0, 1, 1, False,
                 False, False, False, 1.0, False, 1, 0, False
-            ), AipsError
-        );
+            );
+        }
+        catch (const AipsError&) {
+            thrown = True;
+        }
+        AlwaysAssert(thrown, AipsError);
         // this should succeed, since overwrite is True
         AlwaysAssert(
             MSFitsOutput::writeFitsFile(

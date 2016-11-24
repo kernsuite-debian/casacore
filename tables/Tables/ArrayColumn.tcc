@@ -145,7 +145,7 @@ void ArrayColumn<T>::checkDataType() const
 template<class T>
 void ArrayColumn<T>::checkShape (const IPosition& shp,
                                  Array<T>& arr, Bool resize,
-                                 const String& where) const
+                                 const char * where) const
 {
     if (! shp.isEqual (arr.shape())) {
 	if (resize  ||  arr.nelements() == 0) {
@@ -154,6 +154,14 @@ void ArrayColumn<T>::checkShape (const IPosition& shp,
           throw TableArrayConformanceError(where);
 	}
     }
+}
+
+template<class T>
+void ArrayColumn<T>::checkShape (const IPosition& shp,
+                                 Array<T>& arr, Bool resize,
+                                 const String& where) const
+{
+    checkShape (shp, arr, resize, where.c_str());
 }
 
 template<class T>
@@ -275,8 +283,8 @@ ArrayColumn<T>::getColumnCells (const RefRows & rows,
    IPosition destinationShape (columnSlicer.shape());
    destinationShape.append (IPosition (1, rows.nrows()));
 
-   static const String tag ("ArrayColumn::getColumnCells (rows, slicers, ...)");
-   checkShape (destinationShape, destination, resize, tag);
+   checkShape (destinationShape, destination, resize,
+               "ArrayColumn::getColumnCells (rows, slicers, ...)");
 
    // Fill the destination array one row at a time.
    // If rows is not sliced then rowNumbers is simply a vector of the relevant
@@ -878,9 +886,9 @@ ArrayColumn<T>::putColumnCells (const RefRows& rows,
 
 template<class T>
 void ArrayColumn<T>::put (uInt thisRownr, const TableColumn& that,
-			  uInt thatRownr)
+			  uInt thatRownr, Bool preserveTileShape)
 {
-    TableColumn::put (thisRownr, that, thatRownr);
+  TableColumn::put (thisRownr, that, thatRownr, preserveTileShape);
 }
 
 template<class T>
@@ -1116,13 +1124,6 @@ void ArrayColumn<T>::putColumnCells (const RefRows& rownrs,
     baseColPtr_p->putColumnSliceCells (rownrs, arraySection, &arr);
 }
 
-
-template<class T>
-void ArrayColumn<T>::put (uInt thisRownr, const ArrayColumn<T>& that,
-			  uInt thatRownr)
-{
-    put (thisRownr, that(thatRownr));
-}
 
 //# This is a very simple implementation.
 //# However, it does not need to be more fancy, since an array operation

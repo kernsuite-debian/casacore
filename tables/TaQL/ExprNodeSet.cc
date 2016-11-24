@@ -23,7 +23,7 @@
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
 //#
-//# $Id$
+//# $Id: ExprNodeSet.cc 21262 2012-09-07 12:38:36Z gervandiepen $
 
 #include <casacore/tables/TaQL/ExprNodeSet.h>
 #include <casacore/tables/TaQL/ExprNode.h>
@@ -84,23 +84,30 @@ TableExprNodeSetElem::TableExprNodeSetElem (const TableExprNode* start,
 {
     // Link to the nodes and determine the data types.
     //# Note that the TableExprNode copy ctor is needed to get rid of const.
+    Bool isScalar = True;
     NodeDataType dts = NTInt;
     if (start != 0) {
 	TableExprNode tmp(*start);
 	itsStart = getRep(tmp)->link();
 	dts = itsStart->dataType();
+        isScalar = isScalar && start->isScalar();
     }
     NodeDataType dte = dts;
     if (end != 0) {
 	TableExprNode tmp(*end);
 	itsEnd = getRep(tmp)->link();
 	dte = itsEnd->dataType();
+        isScalar = isScalar && end->isScalar();
     }
     NodeDataType dti = NTInt;
     if (incr != 0) {
 	TableExprNode tmp(*incr);
 	itsIncr = getRep(tmp)->link();
 	dti = itsIncr->dataType();
+        isScalar = isScalar && incr->isScalar();
+    }
+    if (!isScalar) {
+      throw TableInvExpr("Scalar values must be used in start:incr:end");
     }
     if (dts == NTInt  &&  (dte == NTDouble || dti == NTDouble)) dts = NTDouble;
     if (dte == NTInt  &&  (dts == NTDouble || dti == NTDouble)) dte = NTDouble;
@@ -224,10 +231,12 @@ void TableExprNodeSetElem::setup (Bool isLeftClosed,
     itsRightClosed = isRightClosed;
     itsDiscrete    = False;
     itsSingle      = False;
+    Bool isScalar  = True;
     //# Note that the TableExprNode copy ctor is needed to get rid of const.
     if (start != 0) {
 	TableExprNode tmp(*start);
 	itsStart = getRep(tmp)->link();
+        isScalar = isScalar && start->isScalar();
         // Get data type; integer continuous interval is always double
 	dtype_p = itsStart->dataType();
         if (dtype_p == NTInt) {
@@ -238,6 +247,7 @@ void TableExprNodeSetElem::setup (Bool isLeftClosed,
       if (end != 0) {
 	TableExprNode tmp(*end);
 	itsEnd = getRep(tmp)->link();
+        isScalar = isScalar && end->isScalar();
         NodeDataType etype = itsEnd->dataType();
         if (etype == NTInt) {
             etype = NTDouble;
@@ -246,6 +256,9 @@ void TableExprNodeSetElem::setup (Bool isLeftClosed,
 	    throw (TableInvExpr ("start=:=end must have equal data types"));
 	}
 	dtype_p = etype;
+      }
+      if (!isScalar) {
+        throw TableInvExpr("Scalar values must be used in start:=:end");
       }
       NodeDataType dt = dataType();
       if (dt != NTInt  &&  dt != NTDouble  &&  dt != NTString
@@ -396,103 +409,112 @@ TableExprNodeSetElem* TableExprNodeSetElem::evaluate
     return new TableExprNodeSetElem (*this, start, end, incr);
 }
 
-void TableExprNodeSetElem::fillVector (Vector<Bool>& vec, uInt& cnt,
+void TableExprNodeSetElem::fillVector (Vector<Bool>& vec, Int64& cnt,
 				       const TableExprId& id) const
 {
     DebugAssert (itsSingle, AipsError);
-    uInt n = vec.nelements();
+    Int64 n = vec.nelements();
     if (n < cnt+1) {
-	vec.resize (cnt+1, True);
+	vec.resize (cnt+64, True);
     }
     vec(cnt++) = itsStart->getBool (id);
 }
-void TableExprNodeSetElem::fillVector (Vector<Int64>& vec, uInt& cnt,
+void TableExprNodeSetElem::fillVector (Vector<Int64>& vec, Int64& cnt,
 				       const TableExprId& id) const
 {
     DebugAssert (itsDiscrete, AipsError);
     Int64 start = itsStart==0  ?  0 : itsStart->getInt (id);
     Int64 end   = itsEnd==0  ?  start : itsEnd->getInt (id);
     Int64 incr  = itsIncr==0  ?  1 : itsIncr->getInt (id);
-    if (start > end) {
-	return;
+    if (incr == 0) {
+      throw TableInvExpr("Increment in a range must be non-zero");
     }
-    uInt nval = 1 + uInt((end - start) / incr);
-    uInt n = vec.nelements();
+    Int64 nval = std::max(Int64(0), 1 + (end - start) / incr);
+    if (itsEndExcl  &&  nval > 0) {
+      Int64 rngend = start + (nval-1)*incr;
+      if (rngend == end) {
+        nval -= 1;
+      }
+    }
+    Int64 n = vec.nelements();
     if (n < cnt+nval) {
-	vec.resize (cnt+nval, True);
+        vec.resize (cnt+max(64,nval), True);
     }
-    for (uInt i=0; i<nval; i++) {
+    for (Int64 i=0; i<nval; i++) {
 	vec(cnt++) = start;
 	start += incr;
-        if (itsEndExcl  &&  start >= end) {
-            break;
-        }
     }
 }
-void TableExprNodeSetElem::fillVector (Vector<Double>& vec, uInt& cnt,
+void TableExprNodeSetElem::fillVector (Vector<Double>& vec, Int64& cnt,
 				       const TableExprId& id) const
 {
     DebugAssert (itsDiscrete, AipsError);
     Double start = itsStart==0  ?  0 : itsStart->getDouble (id);
     Double end   = itsEnd==0  ?  start : itsEnd->getDouble (id);
     Double incr  = itsIncr==0  ?  1 : itsIncr->getDouble (id);
-    if (start > end) {
-	return;
+    if (incr == 0) {
+      throw TableInvExpr("Increment in a range must be non-zero");
     }
-    uInt nval = 1 + uInt((end - start) / incr);
-    uInt n = vec.nelements();
+    Int64 nval = std::max(Int64(0), Int64(1 + (end - start) / incr + 1e-10));
+    if (itsEndExcl  &&  nval > 0) {
+      Double rngend = start + (nval-1)*incr;
+      if (near(rngend, end)  ||  (end == 0  &&  nearAbs(rngend, end))) {
+        nval -= 1;
+      }
+    }
+    Int64 n = vec.nelements();
     if (n < cnt+nval) {
-	vec.resize (cnt+nval, True);
+        vec.resize (cnt+max(64,nval), True);
     }
-    for (uInt i=0; i<nval; i++) {
+    for (Int64 i=0; i<nval; i++) {
 	vec(cnt++) = start;
 	start += incr;
-        if (itsEndExcl  &&  start >= end) {
-            break;
-        }
     }
 }
-void TableExprNodeSetElem::fillVector (Vector<DComplex>& vec, uInt& cnt,
+void TableExprNodeSetElem::fillVector (Vector<DComplex>& vec, Int64& cnt,
 				       const TableExprId& id) const
 {
     DebugAssert (itsSingle, AipsError);
-    uInt n = vec.nelements();
+    Int64 n = vec.nelements();
     if (n < cnt+1) {
-	vec.resize (cnt+1, True);
+	vec.resize (cnt+64, True);
     }
     vec(cnt++) = itsStart->getDComplex (id);
 }
-void TableExprNodeSetElem::fillVector (Vector<String>& vec, uInt& cnt,
+void TableExprNodeSetElem::fillVector (Vector<String>& vec, Int64& cnt,
 				       const TableExprId& id) const
 {
     DebugAssert (itsSingle, AipsError);
-    uInt n = vec.nelements();
+    Int64 n = vec.nelements();
     if (n < cnt+1) {
-	vec.resize (cnt+1, True);
+	vec.resize (cnt+64, True);
     }
     vec(cnt++) = itsStart->getString (id);
 }
-void TableExprNodeSetElem::fillVector (Vector<MVTime>& vec, uInt& cnt,
+void TableExprNodeSetElem::fillVector (Vector<MVTime>& vec, Int64& cnt,
 				       const TableExprId& id) const
 {
     DebugAssert (itsDiscrete, AipsError);
     Double start = itsStart==0  ?  0 : Double(itsStart->getDate (id));
     Double end   = itsEnd==0  ?  start : Double(itsEnd->getDate (id));
     Double incr  = itsIncr==0  ?  1 : itsIncr->getDouble (id);
-    if (start > end) {
-	return;
+    if (incr == 0) {
+      throw TableInvExpr("Increment in a range must be non-zero");
     }
-    uInt nval = 1 + uInt((end - start) / incr);
-    uInt n = vec.nelements();
+    Int64 nval = std::max(Int64(0), Int64(1 + (end - start) / incr + 1e-10));
+    if (itsEndExcl  &&  nval > 0) {
+      Double rngend = start + (nval-1)*incr;
+      if (near(rngend, end)  ||  (end == 0  &&  nearAbs(rngend, end))) {
+        nval -= 1;
+      }
+    }
+    Int64 n = vec.nelements();
     if (n < cnt+nval) {
-	vec.resize (cnt+nval, True);
+        vec.resize (cnt+max(64,nval), True);
     }
-    for (uInt i=0; i<nval; i++) {
+    for (Int64 i=0; i<nval; i++) {
 	vec(cnt++) = start;
 	start += incr;
-        if (itsEndExcl  &&  start >= end) {
-            break;
-        }
     }
 }
 
@@ -518,8 +540,8 @@ void TableExprNodeSetElem::matchInt (Bool* match, const Int64* value,
     Int64 start = itsStart==0  ?  0 : itsStart->getInt (id);
     Int64 end   = itsEnd==0  ?  start : itsEnd->getInt (id);
     Int64 incr  = itsIncr==0  ?  1 : itsIncr->getInt (id);
-    if (start > end) {
-	return;
+    if (incr == 0) {
+      throw TableInvExpr("Increment in a range must be non-zero");
     }
     Bool* lastVal = match + nval;
     if (itsSingle) {
@@ -536,13 +558,21 @@ void TableExprNodeSetElem::matchInt (Bool* match, const Int64* value,
             end -= 1;
         }
 	while (match < lastVal) {
-	    Int64 tmp = *value - start;
-	    if (tmp >= 0  &&  (itsEnd == 0  ||  tmp <= end)) {
-                if (tmp%incr == 0) {
-		    *match = True;
-		}
-	    }
-	    value++;
+            Int64 tmp = *value - start;
+            if (incr > 0) {
+                if (tmp >= 0  &&  (itsEnd == 0  ||  tmp <= end)) {
+                    if (tmp%incr == 0) {
+                        *match = True;
+                    }
+                }
+            } else {
+                if (tmp <= 0  &&  (itsEnd == 0  ||  tmp >= end)) {
+                    if (tmp%incr == 0) {
+                        *match = True;
+                    }
+                }
+            }
+            value++;
 	    match++;
 	}
     }else{
@@ -566,8 +596,8 @@ void TableExprNodeSetElem::matchDouble (Bool* match, const Double* value,
     Double start = itsStart==0  ?  0 : itsStart->getDouble (id);
     Double end   = itsEnd==0  ?  start : itsEnd->getDouble (id);
     Double incr  = itsIncr==0  ?  1 : itsIncr->getDouble (id);
-    if (start > end) {
-	return;
+    if (incr == 0) {
+      throw TableInvExpr("Increment in a range must be non-zero");
     }
     Bool* lastVal = match + nval;
     if (itsSingle) {
@@ -582,12 +612,21 @@ void TableExprNodeSetElem::matchDouble (Bool* match, const Double* value,
 	end -= start;
 	while (match < lastVal) {
 	    Double tmp = *value - start;
-	    if (tmp >= 0  &&  (itsEnd == 0  ||  tmp < end  ||
-                               (!itsEndExcl && tmp==end))) {
-                if (near(tmp, incr*Int64(tmp/incr + 0.5))) {
-		    *match = True;
-		}
-	    }
+            if (incr > 0) {
+                if (tmp >= 0  &&  (itsEnd == 0  ||  tmp < end  ||
+                                   (!itsEndExcl && tmp==end))) {
+                    if (near(tmp, incr*Int64(tmp/incr + 0.5))) {
+                        *match = True;
+                    }
+                }
+            } else {
+                if (tmp <= 0  &&  (itsEnd == 0  ||  tmp > end  ||
+                                   (!itsEndExcl && tmp==end))) {
+                    if (near(tmp, incr*Int64(tmp/incr + 0.5))) {
+                        *match = True;
+                    }
+                }
+            }
 	    value++;
 	    match++;
 	}
@@ -662,8 +701,8 @@ void TableExprNodeSetElem::matchDate (Bool* match, const MVTime* value,
     Double start = itsStart==0  ?  0 : Double(itsStart->getDate (id));
     Double end   = itsEnd==0  ?  start : Double(itsEnd->getDate (id));
     Double incr  = itsIncr==0  ?  1 : itsIncr->getDouble (id);
-    if (start > end) {
-	return;
+    if (incr == 0) {
+      throw TableInvExpr("Increment in a range must be non-zero");
     }
     Bool* lastVal = match + nval;
     if (itsSingle) {
@@ -678,12 +717,20 @@ void TableExprNodeSetElem::matchDate (Bool* match, const MVTime* value,
 	end -= start;
 	while (match < lastVal) {
 	    Double tmp = Double(*value) - start;
-	    if (tmp >= 0  &&  (itsEnd == 0  ||  tmp < end  ||
-                               (!itsEndExcl && tmp==end))) {
-		Double div = tmp/incr;
-		if (int(div) == div) {
-		    *match = True;
-		}
+            if (incr > 0) {
+                if (tmp >= 0  &&  (itsEnd == 0  ||  tmp < end  ||
+                                   (!itsEndExcl && tmp==end))) {
+                    if (near(tmp, incr*Int64(tmp/incr + 0.5))) {
+		        *match = True;
+                    }
+                }
+            } else {
+                if (tmp <= 0  &&  (itsEnd == 0  ||  tmp > end  ||
+                                   (!itsEndExcl && tmp==end))) {
+                    if (near(tmp, incr*Int64(tmp/incr + 0.5))) {
+		        *match = True;
+                    }
+                }
 	    }
 	    value++;
 	    match++;
@@ -803,7 +850,7 @@ TableExprNodeSet::TableExprNodeSet (const TableExprNodeSet& that)
   itsEnd           (that.itsEnd),
   itsFindFunc      (that.itsFindFunc)
 {
-    uInt n = that.itsElems.nelements();
+    uInt n = that.itsElems.size();
     itsElems.resize (n);
     for (uInt i=0; i<n; i++) {
 	itsElems[i] = new TableExprNodeSetElem (*(that.itsElems[i]));
@@ -817,7 +864,7 @@ TableExprNodeSet::~TableExprNodeSet()
 
 void TableExprNodeSet::deleteElems()
 {
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	delete itsElems[i];
     }
@@ -825,16 +872,16 @@ void TableExprNodeSet::deleteElems()
 
 void TableExprNodeSet::combineIntIntervals()
 {
-  DebugAssert (itsElems.nelements() > 0, AipsError);
+  DebugAssert (itsElems.size() > 0, AipsError);
   // Make an id (with an arbitrary row number) for the gets.
   TableExprId id(0);
-  PtrBlock<TableExprNodeSetElem*> elems(1);
+  std::vector<TableExprNodeSetElem*> elems(1);
   TableExprNodeSetElem& elem = *(itsElems[0]);
   if (elem.start() == 0) {
     // No start value, so only the highest end value is relevant.
     // Make a single interval with the used open/closed-ness.
     Int64 val = elem.end()->getInt(id);
-    for (uInt i=1; i<itsElems.nelements(); i++) {
+    for (uInt i=1; i<itsElems.size(); i++) {
       Int64 valn = itsElems[i]->end()->getInt(id);
       if (valn > val) {
 	val = valn;
@@ -845,7 +892,7 @@ void TableExprNodeSet::combineIntIntervals()
   } else if (elem.end() == 0) {
     // No end value, so only the lowest start value is relevant.
     Int64 val = elem.start()->getInt(id);
-    for (uInt i=1; i<itsElems.nelements(); i++) {
+    for (uInt i=1; i<itsElems.size(); i++) {
       Int64 valn = itsElems[i]->start()->getInt(id);
       if (valn < val) {
 	val = valn;
@@ -856,11 +903,11 @@ void TableExprNodeSet::combineIntIntervals()
   } else {
     // The intervals contain both a start and an end value.
     // Make the block large enough for all possible intervals.
-    elems.resize (itsElems.nelements());
+    elems.resize (itsElems.size());
     uInt nelem = 0;
     // Get all start values and sort them (indirectly) in ascending order.
-    Block<Int64> vals(itsElems.nelements());
-    for (uInt i=0; i<itsElems.nelements(); i++) {
+    Block<Int64> vals(itsElems.size());
+    for (uInt i=0; i<itsElems.size(); i++) {
       vals[i] = itsElems[i]->start()->getInt(id);
     }
     Vector<uInt> index;
@@ -898,7 +945,7 @@ void TableExprNodeSet::combineIntIntervals()
 					      stval,
 					      endval,
 					      elem.isRightClosed());
-    elems.resize (nelem, True, True);
+    elems.resize (nelem);
     // Store the values in a start and an end array.
     itsStart.resize (nelem);
     itsEnd.resize (nelem);
@@ -916,16 +963,16 @@ void TableExprNodeSet::combineIntIntervals()
 
 void TableExprNodeSet::combineDoubleIntervals()
 {
-  DebugAssert (itsElems.nelements() > 0, AipsError);
+  DebugAssert (itsElems.size() > 0, AipsError);
   // Make an id (with an arbitrary row number) for the gets.
   TableExprId id(0);
-  PtrBlock<TableExprNodeSetElem*> elems(1);
+  std::vector<TableExprNodeSetElem*> elems(1);
   TableExprNodeSetElem& elem = *(itsElems[0]);
   if (elem.start() == 0) {
     // No start value, so only the highest end value is relevant.
     // Make a single interval with the used open/closed-ness.
     Double val = elem.end()->getDouble(id);
-    for (uInt i=1; i<itsElems.nelements(); i++) {
+    for (uInt i=1; i<itsElems.size(); i++) {
       Double valn = itsElems[i]->end()->getDouble(id);
       if (valn > val) {
 	val = valn;
@@ -936,7 +983,7 @@ void TableExprNodeSet::combineDoubleIntervals()
   } else if (elem.end() == 0) {
     // No end value, so only the lowest start value is relevant.
     Double val = elem.start()->getDouble(id);
-    for (uInt i=1; i<itsElems.nelements(); i++) {
+    for (uInt i=1; i<itsElems.size(); i++) {
       Double valn = itsElems[i]->start()->getDouble(id);
       if (valn < val) {
 	val = valn;
@@ -947,11 +994,11 @@ void TableExprNodeSet::combineDoubleIntervals()
   } else {
     // The intervals contain both a start and an end value.
     // Make the block large enough for all possible intervals.
-    elems.resize (itsElems.nelements());
+    elems.resize (itsElems.size());
     uInt nelem = 0;
     // Get all start values and sort them (indirectly) in ascending order.
-    Block<Double> vals(itsElems.nelements());
-    for (uInt i=0; i<itsElems.nelements(); i++) {
+    Block<Double> vals(itsElems.size());
+    for (uInt i=0; i<itsElems.size(); i++) {
       vals[i] = itsElems[i]->start()->getDouble(id);
     }
     Vector<uInt> index;
@@ -989,7 +1036,7 @@ void TableExprNodeSet::combineDoubleIntervals()
 					      stval,
 					      endval,
 					      elem.isRightClosed());
-    elems.resize (nelem, True, True);
+    elems.resize (nelem);
     // Store the values in a start and an end array.
     itsStart.resize (nelem);
     itsEnd.resize (nelem);
@@ -1007,17 +1054,17 @@ void TableExprNodeSet::combineDoubleIntervals()
 
 void TableExprNodeSet::combineDateIntervals()
 {
-  DebugAssert (itsElems.nelements() > 0, AipsError);
+  DebugAssert (itsElems.size() > 0, AipsError);
   // Make an id (with an arbitrary row number) for the gets.
   // Note that this function uses the automatic Double<->MVTime conversions.
   TableExprId id(0);
-  PtrBlock<TableExprNodeSetElem*> elems(1);
+  std::vector<TableExprNodeSetElem*> elems(1);
   TableExprNodeSetElem& elem = *(itsElems[0]);
   if (elem.start() == 0) {
     // No start value, so only the highest end value is relevant.
     // Make a single interval with the used open/closed-ness.
     Double val = elem.end()->getDate(id);
-    for (uInt i=1; i<itsElems.nelements(); i++) {
+    for (uInt i=1; i<itsElems.size(); i++) {
       Double valn = itsElems[i]->end()->getDate(id);
       if (valn > val) {
 	val = valn;
@@ -1029,7 +1076,7 @@ void TableExprNodeSet::combineDateIntervals()
   } else if (elem.end() == 0) {
     // No end value, so only the lowest start value is relevant.
     Double val = elem.start()->getDate(id);
-    for (uInt i=1; i<itsElems.nelements(); i++) {
+    for (uInt i=1; i<itsElems.size(); i++) {
       Double valn = itsElems[i]->start()->getDate(id);
       if (valn < val) {
 	val = valn;
@@ -1041,11 +1088,11 @@ void TableExprNodeSet::combineDateIntervals()
   } else {
     // The intervals contain both a start and an end value.
     // Make the block large enough for all possible intervals.
-    elems.resize (itsElems.nelements());
+    elems.resize (itsElems.size());
     uInt nelem = 0;
     // Get all start values and sort them (indirectly) in ascending order.
-    Block<Double> vals(itsElems.nelements());
-    for (uInt i=0; i<itsElems.nelements(); i++) {
+    Block<Double> vals(itsElems.size());
+    for (uInt i=0; i<itsElems.size(); i++) {
       vals[i] = itsElems[i]->start()->getDate(id);
     }
     Vector<uInt> index;
@@ -1085,7 +1132,7 @@ void TableExprNodeSet::combineDateIntervals()
 					new TableExprNodeConstDate(stval),
 					new TableExprNodeConstDate(endval),
 					elem.isRightClosed());
-    elems.resize (nelem, True, True);
+    elems.resize (nelem);
     // Store the values in a start and an end array.
     itsStart.resize (nelem);
     itsEnd.resize (nelem);
@@ -1118,16 +1165,15 @@ void TableExprNodeSet::setFindFunc (Bool isLeftClosed, Bool isRightClosed)
   }
 }
 
-void TableExprNodeSet::add (const TableExprNodeSetElem& elem)
+void TableExprNodeSet::add (const TableExprNodeSetElem& elem,
+                            Bool adaptType)
 {
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     itsElems.resize (n+1);
     itsElems[n] = new TableExprNodeSetElem (elem);
     // Set and adapt unit as needed.
     if (unit().empty()) {
         setUnit (elem.unit());
-        ///   } else {
-        ///        itsElems[n]->adaptSetUnits (unit());
     }
     // See if the set properties change.
     if (! elem.isSingle()) {
@@ -1144,6 +1190,11 @@ void TableExprNodeSet::add (const TableExprNodeSetElem& elem)
     }
     if (n == 0) {
 	dtype_p = elem.dataType();
+    } else if (adaptType) {
+      // Determine the highest data type.
+      // Note: using OtEQ works well for all types (including dates).
+        dtype_p = TableExprNodeBinary::getDT (dtype_p, elem.dataType(),
+                                              OtEQ);
     }
     checkTablePtr (itsElems[n]);
     fillExprType  (itsElems[n]);
@@ -1152,7 +1203,7 @@ void TableExprNodeSet::add (const TableExprNodeSetElem& elem)
 void TableExprNodeSet::adaptSetUnits (const Unit& unit)
 {
     if (! unit.empty()) {
-        for (uInt i=0; i<itsElems.nelements(); i++) {
+        for (uInt i=0; i<itsElems.size(); i++) {
 	    itsElems[i]->adaptSetUnits (unit);
 	}
 	setUnit (unit);
@@ -1162,7 +1213,7 @@ void TableExprNodeSet::adaptSetUnits (const Unit& unit)
 void TableExprNodeSet::checkEqualDataTypes() const
 {
     if (itsCheckTypes) {
-        for (uInt i=0; i<itsElems.nelements(); i++) {
+        for (uInt i=0; i<itsElems.size(); i++) {
 	    if (itsElems[i]->dataType() != dtype_p) {
 	        throw TableInvExpr ("Set elements must have equal data types");
 	    }
@@ -1173,21 +1224,21 @@ void TableExprNodeSet::checkEqualDataTypes() const
 void TableExprNodeSet::show (ostream& os, uInt indent) const
 {
     TableExprNodeRep::show (os, indent);
-    for (uInt j=0; j<itsElems.nelements(); j++) {
+    for (uInt j=0; j<itsElems.size(); j++) {
 	itsElems[j]->show (os, indent+2);
     }
 }
 
 void TableExprNodeSet::getAggrNodes (vector<TableExprNodeRep*>& aggr)
 {
-    for (uInt j=0; j<itsElems.nelements(); j++) {
+    for (uInt j=0; j<itsElems.size(); j++) {
         itsElems[j]->getAggrNodes (aggr);
     }
 }
 
 void TableExprNodeSet::getColumnNodes (vector<TableExprNodeRep*>& cols)
 {
-    for (uInt j=0; j<itsElems.nelements(); j++) {
+    for (uInt j=0; j<itsElems.size(); j++) {
         itsElems[j]->getColumnNodes (cols);
     }
 }
@@ -1195,7 +1246,7 @@ void TableExprNodeSet::getColumnNodes (vector<TableExprNodeRep*>& cols)
 Bool TableExprNodeSet::hasArrays() const
 {
     //# Check if a value is an array?
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	const TableExprNodeSetElem& elem = *(itsElems[i]);
 	if (elem.start() != 0
@@ -1216,12 +1267,8 @@ Bool TableExprNodeSet::hasArrays() const
 
 TableExprNodeRep* TableExprNodeSet::setOrArray() const
 {
-    // The set should not contain array elements.
-    if (hasArrays()) {
-        return new TableExprNodeSet (*this);
-///	throw a(TableInvExpr ("A set cannot contain elements having arrays"));
-    }
-    // A set where elements have different units cannot be turned into an array.
+    // A set where elements have different unit types cannot be turned
+    // into an array.
     if (! unit().empty()) {
         Quantity q(1., unit());
 	uInt n = nelements();
@@ -1232,7 +1279,7 @@ TableExprNodeRep* TableExprNodeSet::setOrArray() const
                   }
               }
 	}
-        // No different units, so adapt elements to known one.
+        // No different units, so adapt elements to first one.
 	for (uInt i=0; i<n; i++) {
             itsElems[i]->adaptSetUnits (unit());
         }
@@ -1250,7 +1297,7 @@ TableExprNodeRep* TableExprNodeSet::setOrArray() const
     if (itsBounded) {
 	// When it is const, that can be done immediately.
 	if (isConstant()) {
-	    return toArray();
+	    return toConstArray();
 	}
     }
     TableExprNodeSet* set = new TableExprNodeSet (*this);
@@ -1258,7 +1305,7 @@ TableExprNodeRep* TableExprNodeSet::setOrArray() const
 	// Set the type to VTArray and the getArray
 	// functions convert the set to an array for each row.
 	set->setValueType (VTArray);
-	if (itsSingle) {
+	if (itsSingle  &&  !hasArrays()) {
 	    set->ndim_p = 1;
 	    set->shape_p = IPosition (1, nelements());
 	}
@@ -1266,142 +1313,64 @@ TableExprNodeRep* TableExprNodeSet::setOrArray() const
     return set;
 }
 
-TableExprNodeRep* TableExprNodeSet::toArray() const
+TableExprNodeRep* TableExprNodeSet::toConstArray() const
 {
     // Construct the correct const array object.
     TableExprNodeRep* tsnptr=0;
     switch (dataType()) {
     case NTBool:
-	tsnptr = new TableExprNodeArrayConstBool (toArrayBool(0));
-	break;
+      tsnptr = new TableExprNodeArrayConstBool (toArray<Bool>(0));
+      break;
     case NTInt:
-	tsnptr = new TableExprNodeArrayConstInt (toArrayInt(0));
-	break;
+      tsnptr = new TableExprNodeArrayConstInt (toArray<Int64>(0));
+      break;
     case NTDouble:
-	tsnptr = new TableExprNodeArrayConstDouble (toArrayDouble(0));
-	break;
+      tsnptr = new TableExprNodeArrayConstDouble (toArray<Double>(0));
+      break;
     case NTComplex:
-	tsnptr = new TableExprNodeArrayConstDComplex (toArrayDComplex(0));
-	break;
+      tsnptr = new TableExprNodeArrayConstDComplex (toArray<DComplex>(0));
+      break;
     case NTString:
-	tsnptr = new TableExprNodeArrayConstString (toArrayString(0));
-	break;
+      tsnptr = new TableExprNodeArrayConstString (toArray<String>(0));
+      break;
     case NTDate:
-	tsnptr = new TableExprNodeArrayConstDate (toArrayDate(0));
-	break;
+      tsnptr = new TableExprNodeArrayConstDate (toArray<MVTime>(0));
+      break;
     default:
-	TableExprNode::throwInvDT ("TableExprNodeSet::toArray");
+      TableExprNode::throwInvDT ("TableExprNodeSet::toConstArray");
     }
     tsnptr->setUnit (unit());
     return tsnptr;
 }
 
-Array<Bool> TableExprNodeSet::toArrayBool (const TableExprId& id) const
+MArray<Bool> TableExprNodeSet::getArrayBool (const TableExprId& id)
 {
-    DebugAssert (itsBounded, AipsError);
-    // First determine (roughly) the number of values needed in
-    // the resulting vector. This number is correct in case
-    // single values are given (which is usually the case).
-    // The fillVector functions will resize when needed.
-    // At the end the vector is also resized in case it was too long.
-    uInt n = nelements();
-    uInt cnt = 0;
-    Vector<Bool> result (n);
-    for (uInt i=0; i<n; i++) {
-	itsElems[i]->fillVector (result, cnt, id);
-    }
-    result.resize (cnt, True);
-    return result;
+  return toArray<Bool> (id);
 }
-Array<Int64> TableExprNodeSet::toArrayInt (const TableExprId& id) const
+MArray<Int64> TableExprNodeSet::getArrayInt (const TableExprId& id)
 {
-    DebugAssert (itsBounded, AipsError);
-    uInt n = nelements();
-    uInt cnt = 0;
-    Vector<Int64> result (n);
-    for (uInt i=0; i<n; i++) {
-	itsElems[i]->fillVector (result, cnt, id);
-    }
-    result.resize (cnt, True);
-    return result;
+  return toArray<Int64> (id);
 }
-Array<Double> TableExprNodeSet::toArrayDouble (const TableExprId& id) const
+MArray<Double> TableExprNodeSet::getArrayDouble (const TableExprId& id)
 {
-    DebugAssert (itsBounded, AipsError);
-    uInt n = nelements();
-    uInt cnt = 0;
-    Vector<Double> result (n);
-    for (uInt i=0; i<n; i++) {
-	itsElems[i]->fillVector (result, cnt, id);
-    }
-    result.resize (cnt, True);
-    return result;
+  return toArray<Double> (id);
 }
-Array<DComplex> TableExprNodeSet::toArrayDComplex (const TableExprId& id) const
+MArray<DComplex> TableExprNodeSet::getArrayDComplex (const TableExprId& id)
 {
-    DebugAssert (itsBounded, AipsError);
-    uInt n = nelements();
-    uInt cnt = 0;
-    Vector<DComplex> result (n);
-    for (uInt i=0; i<n; i++) {
-	itsElems[i]->fillVector (result, cnt, id);
-    }
-    result.resize (cnt, True);
-    return result;
+  return toArray<DComplex> (id);
 }
-Array<String> TableExprNodeSet::toArrayString (const TableExprId& id) const
+MArray<String> TableExprNodeSet::getArrayString (const TableExprId& id)
 {
-    DebugAssert (itsBounded, AipsError);
-    uInt n = nelements();
-    uInt cnt = 0;
-    Vector<String> result (n);
-    for (uInt i=0; i<n; i++) {
-	itsElems[i]->fillVector (result, cnt, id);
-    }
-    result.resize (cnt, True);
-    return result;
+  return toArray<String> (id);
 }
-Array<MVTime> TableExprNodeSet::toArrayDate (const TableExprId& id) const
+MArray<MVTime> TableExprNodeSet::getArrayDate (const TableExprId& id)
 {
-    DebugAssert (itsBounded, AipsError);
-    uInt n = nelements();
-    uInt cnt = 0;
-    Vector<MVTime> result (n);
-    for (uInt i=0; i<n; i++) {
-	itsElems[i]->fillVector (result, cnt, id);
-    }
-    result.resize (cnt, True);
-    return result;
-}
-
-Array<Bool> TableExprNodeSet::getArrayBool (const TableExprId& id)
-{
-    return toArrayBool (id);
-}
-Array<Int64> TableExprNodeSet::getArrayInt (const TableExprId& id)
-{
-    return toArrayInt (id);
-}
-Array<Double> TableExprNodeSet::getArrayDouble (const TableExprId& id)
-{
-    return toArrayDouble (id);
-}
-Array<DComplex> TableExprNodeSet::getArrayDComplex (const TableExprId& id)
-{
-    return toArrayDComplex (id);
-}
-Array<String> TableExprNodeSet::getArrayString (const TableExprId& id)
-{
-    return toArrayString (id);
-}
-Array<MVTime> TableExprNodeSet::getArrayDate (const TableExprId& id)
-{
-    return toArrayDate (id);
+  return toArray<MVTime> (id);
 }
 
 Bool TableExprNodeSet::findOpenOpen (Double value)
 {
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     if (value >= itsEnd[n-1]) {
         return False;
     }
@@ -1417,7 +1386,7 @@ Bool TableExprNodeSet::findOpenOpen (Double value)
 }
 Bool TableExprNodeSet::findOpenClosed (Double value)
 {
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     if (value > itsEnd[n-1]) {
         return False;
     }
@@ -1433,7 +1402,7 @@ Bool TableExprNodeSet::findOpenClosed (Double value)
 }
 Bool TableExprNodeSet::findClosedOpen (Double value)
 {
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     if (value >= itsEnd[n-1]) {
         return False;
     }
@@ -1449,7 +1418,7 @@ Bool TableExprNodeSet::findClosedOpen (Double value)
 }
 Bool TableExprNodeSet::findClosedClosed (Double value)
 {
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     if (value > itsEnd[n-1]) {
         return False;
     }
@@ -1467,7 +1436,7 @@ Bool TableExprNodeSet::findClosedClosed (Double value)
 Bool TableExprNodeSet::hasBool (const TableExprId& id, Bool value)
 {
     Bool result = False;
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchBool (&result, &value, 1, id);
     }
@@ -1479,7 +1448,7 @@ Bool TableExprNodeSet::hasInt (const TableExprId& id, Int64 value)
         return (this->*itsFindFunc) (value);
     }
     Bool result = False;
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
         itsElems[i]->matchInt (&result, &value, 1, id);
     }
@@ -1491,7 +1460,7 @@ Bool TableExprNodeSet::hasDouble (const TableExprId& id, Double value)
         return (this->*itsFindFunc) (value);
     }
     Bool result = False;
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
         itsElems[i]->matchDouble (&result, &value, 1, id);
     }
@@ -1501,7 +1470,7 @@ Bool TableExprNodeSet::hasDComplex (const TableExprId& id,
 				    const DComplex& value)
 {
     Bool result = False;
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchDComplex (&result, &value, 1, id);
     }
@@ -1510,7 +1479,7 @@ Bool TableExprNodeSet::hasDComplex (const TableExprId& id,
 Bool TableExprNodeSet::hasString (const TableExprId& id, const String& value)
 {
     Bool result = False;
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchString (&result, &value, 1, id);
     }
@@ -1522,119 +1491,113 @@ Bool TableExprNodeSet::hasDate (const TableExprId& id, const MVTime& value)
         return (this->*itsFindFunc) (value);
     }
     Bool result = False;
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchDate (&result, &value, 1, id);
     }
     return result;
 }
-Array<Bool> TableExprNodeSet::hasArrayBool (const TableExprId& id,
-					    const Array<Bool>& value)
+MArray<Bool> TableExprNodeSet::hasArrayBool (const TableExprId& id,
+                                             const MArray<Bool>& value)
 {
-    Array<Bool> set = getArrayBool (id);
     Array<Bool> result(value.shape());
     result.set (False);
     Bool deleteIn, deleteOut;
-    const Bool* in = value.getStorage (deleteIn);
+    const Bool* in = value.array().getStorage (deleteIn);
     Bool* out = result.getStorage (deleteOut);
     uInt nval = value.nelements();
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchBool (out, in, nval, id);
     }
-    value.freeStorage (in, deleteIn);
+    value.array().freeStorage (in, deleteIn);
     result.putStorage (out, deleteOut);
-    return result;
+    return MArray<Bool> (result, value.mask());
 }
-Array<Bool> TableExprNodeSet::hasArrayInt (const TableExprId& id,
-                                           const Array<Int64>& value)
+MArray<Bool> TableExprNodeSet::hasArrayInt (const TableExprId& id,
+                                            const MArray<Int64>& value)
 {
-    Array<Int64> set = getArrayInt (id);
     Array<Bool> result(value.shape());
     result.set (False);
     Bool deleteIn, deleteOut;
-    const Int64* in = value.getStorage (deleteIn);
+    const Int64* in = value.array().getStorage (deleteIn);
     Bool* out = result.getStorage (deleteOut);
     uInt nval = value.nelements();
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchInt (out, in, nval, id);
     }
-    value.freeStorage (in, deleteIn);
+    value.array().freeStorage (in, deleteIn);
     result.putStorage (out, deleteOut);
-    return result;
+    return MArray<Bool> (result, value.mask());
 }
-Array<Bool> TableExprNodeSet::hasArrayDouble (const TableExprId& id,
-					      const Array<Double>& value)
+MArray<Bool> TableExprNodeSet::hasArrayDouble (const TableExprId& id,
+                                               const MArray<Double>& value)
 {
-    Array<Double> set = getArrayDouble (id);
     Array<Bool> result(value.shape());
     result.set (False);
     Bool deleteIn, deleteOut;
-    const Double* in = value.getStorage (deleteIn);
+    const Double* in = value.array().getStorage (deleteIn);
     Bool* out = result.getStorage (deleteOut);
     uInt nval = value.nelements();
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchDouble (out, in, nval, id);
     }
-    value.freeStorage (in, deleteIn);
+    value.array().freeStorage (in, deleteIn);
     result.putStorage (out, deleteOut);
-    return result;
+    return MArray<Bool> (result, value.mask());
 }
-Array<Bool> TableExprNodeSet::hasArrayDComplex (const TableExprId& id,
-						const Array<DComplex>& value)
+MArray<Bool> TableExprNodeSet::hasArrayDComplex (const TableExprId& id,
+                                                 const MArray<DComplex>& value)
 {
-    Array<DComplex> set = getArrayDComplex (id);
     Array<Bool> result(value.shape());
     result.set (False);
     Bool deleteIn, deleteOut;
-    const DComplex* in = value.getStorage (deleteIn);
+    const DComplex* in = value.array().getStorage (deleteIn);
     Bool* out = result.getStorage (deleteOut);
     uInt nval = value.nelements();
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchDComplex (out, in, nval, id);
     }
-    value.freeStorage (in, deleteIn);
+    value.array().freeStorage (in, deleteIn);
     result.putStorage (out, deleteOut);
-    return result;
+    return MArray<Bool> (result, value.mask());
 }
-Array<Bool> TableExprNodeSet::hasArrayString (const TableExprId& id,
-					      const Array<String>& value)
+MArray<Bool> TableExprNodeSet::hasArrayString (const TableExprId& id,
+                                               const MArray<String>& value)
 {
-    Array<String> set = getArrayString (id);
     Array<Bool> result(value.shape());
     result.set (False);
     Bool deleteIn, deleteOut;
-    const String* in = value.getStorage (deleteIn);
+    const String* in = value.array().getStorage (deleteIn);
     Bool* out = result.getStorage (deleteOut);
     uInt nval = value.nelements();
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchString (out, in, nval, id);
     }
-    value.freeStorage (in, deleteIn);
+    value.array().freeStorage (in, deleteIn);
     result.putStorage (out, deleteOut);
-    return result;
+    return MArray<Bool> (result, value.mask());
 }
-Array<Bool> TableExprNodeSet::hasArrayDate (const TableExprId& id,
-					    const Array<MVTime>& value)
+MArray<Bool> TableExprNodeSet::hasArrayDate (const TableExprId& id,
+                                             const MArray<MVTime>& value)
 {
-    Array<MVTime> set = getArrayDate (id);
     Array<Bool> result(value.shape());
     result.set (False);
     Bool deleteIn, deleteOut;
-    const MVTime* in = value.getStorage (deleteIn);
+    const MVTime* in = value.array().getStorage (deleteIn);
     Bool* out = result.getStorage (deleteOut);
     uInt nval = value.nelements();
-    uInt n = itsElems.nelements();
+    uInt n = itsElems.size();
     for (uInt i=0; i<n; i++) {
 	itsElems[i]->matchDate (out, in, nval, id);
     }
-    value.freeStorage (in, deleteIn);
+    value.array().freeStorage (in, deleteIn);
     result.putStorage (out, deleteOut);
-    return result;
+    return MArray<Bool> (result, value.mask());
 }
 
 } //# NAMESPACE CASACORE - END
