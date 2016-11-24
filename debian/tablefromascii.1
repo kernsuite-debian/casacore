@@ -1,0 +1,46 @@
+.TH "tablefromascii" "1" "2016-11-24" "casacore"
+.SH "NAME"
+tablefromascii \- Convert an ASCII file to a table
+.SH "SYNOPSIS"
+.PP
+\fBtablefromascii\fP \fIinput\fR [\fI ... \fR]
+.SH "DESCRIPTION"
+This program converts an ASCII table to a table. It can only handle scalar columns.
+The separator between the fields in the ASCII file can be specified.
+.SH "OPTIONS"
+.TP
+\fB\-in\fR [string]
+Input ASCII file
+.TP
+\fB\-out\fR [string]
+Output table name
+.TP
+\fB\-headerfile\fR [string]
+Name of optional file containing headers
+.TP
+\fB\-autoheader\fR [T|F]
+Determine header automatically? (default: F)
+.TP
+\fB\-autoshape\fR [string]
+Shape if all columns are treated as one array
+.TP
+\fB\-columnnames\fR [string]
+Comma separated names of the columns
+.TP
+\fB\-datatypes\fR [string]
+Comma separated data types of the columns
+.TP
+\fB\-sep\fR [string]
+One character separator between values
+.TP
+\fB\-commentmarker\fR [string]
+Regex indicating comments
+.TP
+\fB\-firstline\fR [int]
+First line to process (default: 1)
+.TP
+\fB\-lastline\fR [int]
+Last line to process (<0 is till end; default: -1)
+.SH "AUTHOR"
+.PP
+This manual page was written by Ole Streicher with information from the source code.
