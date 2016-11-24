@@ -1,3 +1,13 @@
+casacore (2.2~rc+2016.11.24-1) experimental; urgency=low
+
+  * Team upload.
+  * New upstream version 2.2~rc+2016.11.24 (commit b4339f6)
+  * Rediff patches
+  * Indent list of tools
+  * Recommend new data packages, and correctly set the DATA_DIR
+
+ -- Ole Streicher <olebole@debian.org>  Thu, 24 Nov 2016 14:41:36 +0100
+
 casacore (2.1.0-3) unstable; urgency=medium
 
   * Team upload.
