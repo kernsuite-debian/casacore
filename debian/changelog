@@ -1,7 +1,8 @@
 casacore (2.2~rc+2016.11.24-1) experimental; urgency=low
 
   * Team upload.
-  * New upstream version 2.2~rc+2016.11.24 (commit b4339f6)
+  * New upstream version 2.2~rc+2016.11.24 (commit b4339f6).
+    Closes: #830249
   * Rediff patches
   * Indent list of tools
   * Recommend new data packages, and correctly set the DATA_DIR
@@ -14,7 +15,7 @@ casacore (2.1.0-3) unstable; urgency=medium
   * Make the check for NFS a bit more portable. Closes: #838423
   * Use the correct symbol to detect Linux OS. Closes: #838422
   * Properly convert arrays to Python. Closes: #838425
-  * Fix several test failures that cause FTBFS
+  * Fix several test failures that cause FTBFS. Closes: #838428
 
  -- Ole Streicher <olebole@debian.org>  Mon, 26 Sep 2016 09:52:19 +0200
 
