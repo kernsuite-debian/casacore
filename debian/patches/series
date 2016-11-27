@@ -7,3 +7,4 @@
 0010-make-nfs-check-more-portable.patch
 0011-use-predefined-__linux__.patch
 0013-loose-tfftserver-tests.patch
+Enable-hostinfo-for-kFreeBSD.patch
