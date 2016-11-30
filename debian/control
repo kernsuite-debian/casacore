@@ -189,6 +189,7 @@ Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Recommends: casacore-data-igrf,
+            casacore-data-lines,
             casacore-data-observatories,
             casacore-data-sources,
             casacore-data-tai-utc
