@@ -19,7 +19,7 @@ endif
 override_dh_auto_configure:
 	dh_auto_configure -- -DCMAKE_SKIP_INSTALL_RPATH=ON -DUSE_FFTW3=ON -DUSE_HDF5=OFF \
 		-DUSE_THREADS=$(THREADS) -DLIB_SUFFIX=/$(DEB_HOST_GNU_TYPE) \
-		-DDATA_DIR=/var/lib/casacore/data -DBUILD_PYTHON3=ON -DCXX11=ON
+		-DDATA_DIR=/var/lib/casacore/data -DBUILD_PYTHON3=ON -DBUILD_TESTING=True
 
 override_dh_auto_build-indep:
 	doxygen doxygen.cfg
