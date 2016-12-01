@@ -1,0 +1,270 @@
+From: Ole Streicher <olebole@debian.org>
+Date: Wed, 30 Nov 2016 14:25:19 +0100
+Subject: Add HostInfoHurd.h
+
+---
+ casa/OS/HostInfo.cc    |   7 +++
+ casa/OS/HostInfoHurd.h | 167 +++++++++++++++++++++++++++++++++++++++++++++++++
+ casa/OS/Path.cc        |   6 +-
+ casa/OS/malloc.cc      |   2 +-
+ casa/aipsenv.h         |   7 +++
+ mirlib/bug.c           |   2 +-
+ 6 files changed, 187 insertions(+), 4 deletions(-)
+ create mode 100644 casa/OS/HostInfoHurd.h
+
+diff --git a/casa/OS/HostInfo.cc b/casa/OS/HostInfo.cc
+index 054caa2..3519442 100644
+--- a/casa/OS/HostInfo.cc
++++ b/casa/OS/HostInfo.cc
+@@ -279,6 +279,13 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+ HOSTINFO_IMPLEMENT_MEMBERS
+ } //# NAMESPACE CASACORE - END
+ 
++#elif defined(AIPS_HURD)
++#include <casacore/casa/OS/HostInfoHurd.h>
++namespace casacore { //# NAMESPACE CASACORE - BEGIN
++
++HOSTINFO_IMPLEMENT_MEMBERS
++} //# NAMESPACE CASACORE - END
++
+ #else
+ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+ 
+diff --git a/casa/OS/HostInfoHurd.h b/casa/OS/HostInfoHurd.h
+new file mode 100644
+index 0000000..64a22d4
+--- /dev/null
++++ b/casa/OS/HostInfoHurd.h
+@@ -0,0 +1,167 @@
++/*
++**  This is a greatly MODIFIED version of a "top" machine dependent file.
++**  The only resemblance it bears to the original is with respect to the
++**  mechanics of finding various system details. The copyright details
++**  follow.
++**
++**  This is a modified version of the osf1 version.
++**
++**  --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- --- ---
++**
++**  Top users/processes display for Unix
++**  Version 3
++**
++**  This program may be freely redistributed,
++**  but this entire comment MUST remain intact.
++**
++**  Copyright (c) 1984, 1989, William LeFebvre, Rice University
++**  Copyright (c) 1989 - 1994, William LeFebvre, Northwestern University
++**  Copyright (c) 1994, 1995, William LeFebvre, Argonne National Laboratory
++**  Copyright (c) 1996, William LeFebvre, Group sys Consulting
++**  Copyright (c) 2002, Associated Universities Inc.
++*/
++
++/*
++** LIBS: -lstdc++
++**
++**          AUTHOR:       Darrell Schiebel  <drs@nrao.edu>
++**
++** ORIGINAL AUTHOR:       Anthony Baxter    <anthony@aaii.oz.au>
++** ORIGINAL CONTRIBUTORS: David S. Comay    <dsc@seismo.css.gov>
++**                        Claus Kalle
++**                        Pat Welch         <tpw@physics.orst.edu>
++**                        William LeFebvre  <lefebvre@dis.anl.gov>
++**                        Rainer Orth       <ro@techfak.uni-bielefeld.de>
++**
++*/
++//# $Id$
++
++#ifndef CASA_HOSTINFOHURD_H
++#define CASA_HOSTINFOHURD_H
++
++# if defined(HOSTINFO_DO_IMPLEMENT)
++
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++extern "C" {
++#include <mach/mach.h>
++}
++
++namespace casacore { //# NAMESPACE CASACORE - BEGIN
++
++// <summary>
++// HostInfo for GNU HURD machines.
++// </summary>
++
++// <use visibility=local>
++
++// <reviewed reviewer="UNKNOWN" date="before2004/08/25" tests="" demos="">
++// </reviewed>
++
++// <prerequisite>
++//   <li> <linkto class=HostInfo>HostInfo</linkto>
++// </prerequisite>
++
++// <synopsis> 
++// This file provides the GNU HURD specific functions for HostInfo.
++// It is selectively included by HostInfo.cc.
++// </synopsis>
++//
++// <group name="HostInfo">
++
++#if 0
++extern "C" {
++  kern_return_t host_info (host_t, int, host_info_t, mach_msg_type_number_t *);
++  host_t mach_host_self ();
++  kern_return_t vm_statistics (vm_task_t, vm_statistics_data_t *);
++  task_t mach_task_self ();
++}
++#endif
++
++/* Log base 2 of 1024 is 10 (2^10 == 1024) */
++#define LOG1024		10
++
++/* these are for getting the memory statistics */
++static int pageshift;		/* log base 2 of the pagesize */
++static int pagesize_;
++
++/* define pagetok in terms of pageshift */
++#define pagetok(size) ((size) << pageshift)
++
++class HostMachineInfo {
++friend class HostInfo;
++  
++    HostMachineInfo( );
++    void update_info( );
++
++    int valid;
++    int cpus;
++
++    ptrdiff_t memory_total;
++    ptrdiff_t memory_used;
++    ptrdiff_t memory_free;
++
++    ptrdiff_t swap_total;
++    ptrdiff_t swap_used;
++    ptrdiff_t swap_free;
++};
++
++// </group>
++
++
++HostMachineInfo::HostMachineInfo( ) : valid(1) {
++    int pagesize;
++
++    kern_return_t ret;
++    struct host_basic_info basic_info;
++    mach_msg_type_number_t count = HOST_BASIC_INFO_COUNT;
++
++    /* get the page size with "getpagesize" and calculate pageshift from it */
++    pagesize_ = pagesize = getpagesize();
++    pageshift = 0;
++    while (pagesize > 1)
++    {
++	pageshift++;
++	pagesize >>= 1;
++    }
++
++    /* we only need the amount of log(2)1024 for our conversion */
++    pageshift -= LOG1024;
++
++       ret = host_info( mach_host_self(), HOST_BASIC_INFO, (host_info_t) &basic_info, &count );
++    if ( ret != KERN_SUCCESS ) {
++	valid = 0;
++    } else {
++	memory_total = basic_info.memory_size / 1024;
++	cpus = basic_info.avail_cpus;
++    }
++}
++
++void HostMachineInfo::update_info( ) {
++
++    vm_statistics_data_t vmstats;
++    kern_return_t kr;
++
++    /* memory information */
++    kr = vm_statistics( mach_task_self(), &vmstats);
++    if ( kr != KERN_SUCCESS ) {
++      valid = 0;
++      return;
++    }
++
++    memory_used = pagetok(vmstats.active_count + vmstats.wire_count);
++    memory_free = memory_total - memory_used;
++    swap_used = pagetok( vmstats.active_count + vmstats.inactive_count + vmstats.wire_count );
++    swap_free = pagetok( vmstats.free_count );
++    swap_total = pagetok( vmstats.active_count + vmstats.inactive_count +
++			  vmstats.wire_count + vmstats.free_count );
++}
++
++
++} //# NAMESPACE CASACORE - END
++
++# endif
++#endif
+diff --git a/casa/OS/Path.cc b/casa/OS/Path.cc
+index 52d036a..0f4061e 100644
+--- a/casa/OS/Path.cc
++++ b/casa/OS/Path.cc
+@@ -143,12 +143,14 @@ const String& Path::absoluteName() const
+ 
+ String Path::resolvedName() const
+ {
+-    char name[PATH_MAX+1];
+-    char* ptr = realpath (absoluteName().c_str(), name);
++    char* ptr = realpath (absoluteName().c_str(), NULL);
+     if (ptr == 0) {
+         throw AipsError("resolvedName(" + absoluteName() + ") failed: " +
+                         strerror(errno));
+     }
++    char name[strlen(ptr)+1];
++    strcpy(name, ptr);
++    free(ptr);
+     return String(name);
+ }
+ 
+diff --git a/casa/OS/malloc.cc b/casa/OS/malloc.cc
+index 64cd3a3..3b576c2 100644
+--- a/casa/OS/malloc.cc
++++ b/casa/OS/malloc.cc
+@@ -29,7 +29,7 @@
+ 
+ #if !defined(AIPS_NO_LEA_MALLOC)
+ 
+-#if !defined(AIPS_LINUX)
++#if !defined(AIPS_LINUX) && !defined(AIPS_HURD) && !defined(__FreeBSD_kernel__)
+ /* Ignore for linux since it already uses gnu malloc! */
+ 
+ /*
+diff --git a/casa/aipsenv.h b/casa/aipsenv.h
+index 1943e5e..27947f6 100644
+--- a/casa/aipsenv.h
++++ b/casa/aipsenv.h
+@@ -127,6 +127,13 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+ #define AIPS_NOLARGEFILE
+ #endif
+ 
++#if defined(AIPS_HURD)
++#undef AIPS_HURD
++#endif
++#if defined(__gnu_hurd__)
++#define AIPS_HURD
++#endif
++
+ #if defined(AIPS_LINUX)
+ #undef AIPS_LINUX
+ #endif
+diff --git a/mirlib/bug.c b/mirlib/bug.c
+index d20041e..59bee4b 100644
+--- a/mirlib/bug.c
++++ b/mirlib/bug.c
+@@ -330,7 +330,7 @@ char *errmsg_c(int n)
+  * this should be removed in favor of HAVE_STRERROR once
+  * is only supported using autotools/configure
+  */
+-#if defined(linux) || (defined(HAVE_STRERROR) && HAVE_STRERROR)
++#if defined(linux) || defined(__GNU__) || (defined(HAVE_STRERROR) && HAVE_STRERROR)
+   /* new POSIX.1 style, 20 years old now... (1988) */
+   if(n == -1)
+     return "End of file detected";
