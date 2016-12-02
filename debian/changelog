@@ -1,3 +1,9 @@
+casacore (2.2.0-2) unstable; urgency=medium
+
+  * Fix multiarch lib path
+
+ -- Ole Streicher <olebole@debian.org>  Fri, 02 Dec 2016 18:07:56 +0100
+
 casacore (2.2.0-1) unstable; urgency=medium
 
   * Add myself as uploader
