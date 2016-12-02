@@ -1,10 +1,10 @@
 From: Ole Streicher <olebole@debian.org>
 Date: Thu, 24 Nov 2016 14:31:06 +0100
-Subject: Make the check for NFS a bit more portable (BSD) And provide a
- fallback (f.e. for HURD). . However,
- there is probably no real use case for that,
- since also other file systems may be slow or lack certain features.
+Subject: Make the check for NFS a bit more portable (BSD)
 
+And provide a fallback (f.e. for HURD).However, there is probably no
+real use case for that, since also other file systems may be slow or
+lack certain features.
 ---
  casa/OS/Directory.cc | 21 +++++++++++++++------
  1 file changed, 15 insertions(+), 6 deletions(-)

@@ -1,8 +1,8 @@
 From: Ole Streicher <olebole@debian.org>
 Date: Thu, 24 Nov 2016 14:31:06 +0100
-Subject: Use the correct symbol to detect Linux OS Otherwise the compilation
- fails on powerpc archs
+Subject: Use the correct symbol to detect Linux OS
 
+Otherwise the compilation fails on powerpc archs
 ---
  casa/aipsenv.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,97 @@
+From: Ole Streicher <olebole@debian.org>
+Date: Fri, 2 Dec 2016 11:11:28 +0100
+Subject: Disable known test failures
+
+---
+ casa/IO/test/CMakeLists.txt              | 4 ++--
+ casa/OS/test/CMakeLists.txt              | 8 ++++----
+ images/Images/test/CMakeLists.txt        | 2 +-
+ lattices/LatticeMath/test/CMakeLists.txt | 2 +-
+ tables/TaQL/test/CMakeLists.txt          | 4 ++--
+ 5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/casa/IO/test/CMakeLists.txt b/casa/IO/test/CMakeLists.txt
+index 188a6c4..3187b60 100644
+--- a/casa/IO/test/CMakeLists.txt
++++ b/casa/IO/test/CMakeLists.txt
+@@ -3,9 +3,9 @@ tAipsIOCarray
+ tAipsIO
+ tBucketBuffered
+ tBucketCache
+-tBucketFile
++# tBucketFile # https://github.com/casacore/casacore/issues/73
+ tBucketMapped
+-tByteIO
++# tByteIO # https://github.com/casacore/casacore/issues/73
+ tByteSink
+ tByteSinkSource
+ tFilebufIO
+diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
+index 5fc3c7f..e5c9ee3 100644
+--- a/casa/OS/test/CMakeLists.txt
++++ b/casa/OS/test/CMakeLists.txt
+@@ -3,10 +3,10 @@ tCanonicalConversion
+ tConversion
+ tConversionPerf
+ tDataConversion
+-tDirectory
++# tDirectory # https://github.com/casacore/casacore/issues/73
+ tDirectoryIterator
+ tEnvVar
+-tFile
++# tFile # https://github.com/casacore/casacore/issues/73
+ tHostInfo
+ tIBMConversion
+ tLECanonicalConversion
+@@ -15,8 +15,8 @@ tMemoryTrace
+ tModcompConversion
+ tMutex
+ tPrecTimer
+-tRegularFile
+-tSymLink
++# tRegularFile # https://github.com/casacore/casacore/issues/73
++# tSymLink # https://github.com/casacore/casacore/issues/73
+ tTime
+ tTimer
+ tVAXConversion
+diff --git a/images/Images/test/CMakeLists.txt b/images/Images/test/CMakeLists.txt
+index 4115c29..6865919 100644
+--- a/images/Images/test/CMakeLists.txt
++++ b/images/Images/test/CMakeLists.txt
+@@ -69,7 +69,7 @@ tMIRIADImage
+ # tPagedImage2 # requires geodetic/Observatories
+ # tRebinImage # requires geodetic/Observatories
+ tSubImage
+-tTempImage
++# tTempImage # https://github.com/casacore/casacore/issues/543
+ )
+ 
+ foreach (test ${tests})
+diff --git a/lattices/LatticeMath/test/CMakeLists.txt b/lattices/LatticeMath/test/CMakeLists.txt
+index 47e5c76..23f254f 100644
+--- a/lattices/LatticeMath/test/CMakeLists.txt
++++ b/lattices/LatticeMath/test/CMakeLists.txt
+@@ -11,7 +11,7 @@ tLatticeHistograms
+ tLatticeMathUtil
+ tLatticeSlice1D
+ tLatticeStatistics
+-tLatticeStatsDataProvider
++# tLatticeStatsDataProvider # tries to allocate a 1024*1024*1024 array, which is at least 4GiB 
+ tLatticeTwoPtCorr
+ # tLattStatsSpecialize
+ )
+diff --git a/tables/TaQL/test/CMakeLists.txt b/tables/TaQL/test/CMakeLists.txt
+index 9cf5223..1fcd338 100644
+--- a/tables/TaQL/test/CMakeLists.txt
++++ b/tables/TaQL/test/CMakeLists.txt
+@@ -35,8 +35,8 @@ tTaQLNode
+ # Only test scripts, no test programs.
+ set (testscripts
+ ttaql
+-tTableGramCretab
+-tTableGramAlttab
++# tTableGramCretab # https://github.com/casacore/casacore/issues/541
++# tTableGramAlttab # https://github.com/casacore/casacore/issues/541
+ tTableGramUpdate
+ tTableGramMasked
+ tTableGramNull

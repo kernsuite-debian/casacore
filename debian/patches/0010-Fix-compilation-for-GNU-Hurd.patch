@@ -1,15 +1,16 @@
 From: Ole Streicher <olebole@debian.org>
 Date: Wed, 30 Nov 2016 14:25:19 +0100
-Subject: Add HostInfoHurd.h
+Subject: Fix compilation for GNU Hurd
 
+However, the tests still fail.
 ---
  casa/OS/HostInfo.cc    |   7 +++
- casa/OS/HostInfoHurd.h | 167 +++++++++++++++++++++++++++++++++++++++++++++++++
+ casa/OS/HostInfoHurd.h | 157 +++++++++++++++++++++++++++++++++++++++++++++++++
  casa/OS/Path.cc        |   6 +-
  casa/OS/malloc.cc      |   2 +-
  casa/aipsenv.h         |   7 +++
  mirlib/bug.c           |   2 +-
- 6 files changed, 187 insertions(+), 4 deletions(-)
+ 6 files changed, 177 insertions(+), 4 deletions(-)
  create mode 100644 casa/OS/HostInfoHurd.h
 
 diff --git a/casa/OS/HostInfo.cc b/casa/OS/HostInfo.cc
@@ -32,10 +33,10 @@ index 054caa2..3519442 100644
  
 diff --git a/casa/OS/HostInfoHurd.h b/casa/OS/HostInfoHurd.h
 new file mode 100644
-index 0000000..64a22d4
+index 0000000..41be38f
 --- /dev/null
 +++ b/casa/OS/HostInfoHurd.h
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,157 @@
 +/*
 +**  This is a greatly MODIFIED version of a "top" machine dependent file.
 +**  The only resemblance it bears to the original is with respect to the
@@ -72,7 +73,6 @@ index 0000000..64a22d4
 +**                        Rainer Orth       <ro@techfak.uni-bielefeld.de>
 +**
 +*/
-+//# $Id$
 +
 +#ifndef CASA_HOSTINFOHURD_H
 +#define CASA_HOSTINFOHURD_H
@@ -109,15 +109,6 @@ index 0000000..64a22d4
 +// </synopsis>
 +//
 +// <group name="HostInfo">
-+
-+#if 0
-+extern "C" {
-+  kern_return_t host_info (host_t, int, host_info_t, mach_msg_type_number_t *);
-+  host_t mach_host_self ();
-+  kern_return_t vm_statistics (vm_task_t, vm_statistics_data_t *);
-+  task_t mach_task_self ();
-+}
-+#endif
 +
 +/* Log base 2 of 1024 is 10 (2^10 == 1024) */
 +#define LOG1024		10

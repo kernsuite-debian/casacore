@@ -1,14 +1,13 @@
 From: Benda Xu <heroxbd@gentoo.org>
 Date: Wed, 29 Oct 2014 16:40:47 +0900
-Subject: disable tPath test
+Subject: Disable tPath test
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
 
-Forwarded: no need
-Subject: sbuild gets HOME variable leaked into the build environment
-    Debian uses sbuild as official build farm.  Until the cause is pinned down,
-    this test is disabled.
+sbuild gets HOME variable leaked into the build environment.  Debian
+uses sbuild as official build farm.  Until the cause is pinned down,
+this test is disabled.
 
  98/425 Test #101: tPath ...............................***Failed    0.64 sec
 1,16d0
@@ -36,14 +35,14 @@ FAIL (output not verified): ./tPath
  1 file changed, 1 deletion(-)
 
 diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
-index 328bd9f..169dc7b 100644
+index 520ceed..5fc3c7f 100644
 --- a/casa/OS/test/CMakeLists.txt
 +++ b/casa/OS/test/CMakeLists.txt
-@@ -12,7 +12,6 @@ tMemory
+@@ -14,7 +14,6 @@ tMemory
  tMemoryTrace
  tModcompConversion
  tMutex
 -tPath
  tPrecTimer
- tTime
- tTimer
+ tRegularFile
+ tSymLink

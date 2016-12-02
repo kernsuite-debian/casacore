@@ -1,8 +1,8 @@
 From: Ole Streicher <olebole@debian.org>
 Date: Thu, 24 Nov 2016 14:31:06 +0100
-Subject: Loose some tests tFFTServer tests This shall help to compile for
- mips64el and hppa.
+Subject: Loose some tests tFFTServer tests
 
+This shall help to compile for mips64el and hppa.
 ---
  scimath/Mathematics/test/tFFTServer.cc  | 2 +-
  scimath/Mathematics/test/tFFTServer2.cc | 2 +-
