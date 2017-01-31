@@ -14,7 +14,7 @@ if (POLICY CMP0048)
 endif()
 
 set(PROJECT_VERSION_MAJOR 2)
-set(PROJECT_VERSION_MINOR 1)
+set(PROJECT_VERSION_MINOR 2)
 set(PROJECT_VERSION_PATCH 0)
 set(PROJECT_VERSION_REVISION 1)
 set(PROJECT_VERSION 
@@ -67,14 +67,14 @@ option (ENABLE_SHARED "Build shared libraries" YES)
 option (ENABLE_RPATH "Include rpath in executables and shared libraries" YES)
 
 # By default do not use HDF5, FFTW3, threads
-option (CXX11 "Compile as C++11 if possible" NO)
+option (CXX11 "Compile as C++11 if possible" YES)
 option (ENABLE_TABLELOCKING "Make locking for concurrent table access possible" YES)
 option (USE_HDF5 "Build HDF5 " NO)
 option (USE_FFTW3 "Use FFTW instead of FFTPack" NO)
 option (USE_THREADS "Use Mutex thread synchronization" NO)
 option (USE_OPENMP "Use OpenMP threading" NO)
 option (USE_STACKTRACE "Show stacktrace in case of exception" NO)
-option (CASA_BUILD "Building the in the CASA (http://casa.nrao.edu) environment" NO)
+option (CASA_BUILD "Building in the CASA (http://casa.nrao.edu) environment" NO)
 
 set(CASA_DEFAULT_ALIGNMENT "32" CACHE STRING "Default alignment of casa::AlignedAllocator")
 
@@ -82,6 +82,49 @@ set(CASA_DEFAULT_ALIGNMENT "32" CACHE STRING "Default alignment of casa::Aligned
 if( CASA_BUILD )
    if( NOT DATA_DIR )
       set(DATA_DIR "%CASAROOT%/data")
+   endif( )
+   set(USE_FFTW3 ON)
+   set(USE_OPENMP ON)
+   set(USE_THREADS ON)
+   set(UseCasacoreNamespace 1) # Force casacore routines to live in casacore rather than casa namespace
+   ###
+   ### after CASA switches from ASAP to libsakura, CASA will no longer
+   ### use casacore's python module and it will no longer use boost...
+   ###
+   set(BUILD_PYTHON ON)
+   set(Boost_NO_BOOST_CMAKE 1)
+   if (EXISTS "/opt/casa/02/include/python2.7")
+      ### RHEL7
+      set(PYTHON_LIBRARY "/opt/casa/02/lib/libpython2.7.so")
+      set(PYTHON_INCLUDE_DIR "/opt/casa/02/include/python2.7")
+      set(NUMPY_INCLUDE_DIRS "/opt/casa/02/lib/python2.7/site-packages/numpy/core/include")
+      set(PYTHON_EXECUTABLE:FILEPATH "/opt/casa/02/bin/python")
+      if (EXISTS "/usr/include/boost")
+         set(BOOST_ROOT "/usr")
+      endif( )
+      set(WCSLIB_INCLUDE_DIR "/opt/casa/02/include")
+      set(WCSLIB_LIBRARY "/opt/casa/02/lib/libwcs.so")
+      set(PYTHON2_NUMPY_INCLUDE_DIRS "/opt/casa/02/lib/python2.7/site-packages/numpy/core/include")
+   elseif (EXISTS "/opt/casa/01/include/python2.7")
+      ### RHEL7
+      set(PYTHON_LIBRARY "/opt/casa/01/lib/libpython2.7.so")
+      set(PYTHON_INCLUDE_DIR "/opt/casa/01/include/python2.7")
+      set(PYTHON_EXECUTABLE:FILEPATH "/opt/casa/01/bin/python")
+      if (EXISTS "/usr/include/boost")
+         set(BOOST_ROOT "/usr")
+      endif( )
+   elseif(EXISTS "/usr/lib64/casa/01/include/python2.7")
+      ### RHEL5/RHEL6
+      set(PYTHON_LIBRARY "/usr/lib64/casa/01/lib/libpython2.7.so")
+      set(PYTHON_INCLUDE_DIR "/usr/lib64/casa/01/include/python2.7")
+      set(PYTHON_EXECUTABLE:FILEPATH "/usr/lib64/casa/01/bin/python")
+      if (EXISTS "/usr/lib64/casa/01/include/boost")
+         ### RHEL5
+         set(BOOST_ROOT "/usr/lib64/casa/01")
+      elseif (EXISTS "/usr/include/boost")
+         ### RHEL6
+         set(BOOST_ROOT="/usr")
+      endif( )
    endif( )
 endif( )
 
@@ -115,12 +158,23 @@ else()
     option (BUILD_SHARED_LIBS "" NO)
 endif (ENABLE_SHARED)
 
+if (UseCasacoreNamespace)
+
+    add_definitions (-DUseCasacoreNamespace)
+    message (STATUS "Using namespace casacore.")
+
+else ()
+
+    message (STATUS "Namespace casacore 'merged' into namespace casa.")
+
+endif ()
+
 # Define the compiler flags to be used.
 # Note: -Wshadow and -Wunreachable-code give (too) many warnings.
 # Casacore uses longlong, so no warnings for it.
 # Clang gives warning on bison generated code; disable unneeded-internal-declaration.
 if (NOT CMAKE_CXX_FLAGS)
-    set (CMAKE_CXX_FLAGS "-Wextra -Wall -W -Wpointer-arith -Woverloaded-virtual -Wwrite-strings -pedantic -Wno-long-long -fsigned-char")
+    set (CMAKE_CXX_FLAGS "-Wextra -Wall -W -Wpointer-arith -Woverloaded-virtual -Wwrite-strings -pedantic -Wno-long-long")
 #SET(CMAKE_CXX_FLAGS="-g -O0 -Wall -Wextra -Wshadow -Wunused-variable
 # -Wunused-parameter -Wunused-function -Wunused -Wno-system-headers
 # -Wno-deprecated -Woverloaded-virtual -Wwrite-strings -fprofile-arcs
@@ -129,6 +183,7 @@ if (NOT CMAKE_CXX_FLAGS)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unneeded-internal-declaration")
     endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 endif (NOT CMAKE_CXX_FLAGS)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsigned-char")
 
 # Set build type if not given.
 if (NOT CMAKE_BUILD_TYPE)
@@ -218,30 +273,39 @@ endif (HDF5_ROOT_DIR)
 if (NOT MODULE)
    set (MODULE all)
 endif (NOT MODULE)
-set (_usebison NO)
-set (_uselapack NO)
+set (_usebison YES)
+set (_uselapack YES)
 set (_usefits NO)
 set (_usewcs NO)
 set (_modules casa)
+set (_modules2 )
 if (NOT ${MODULE} STREQUAL "casa")
     set (_modules ${_modules} tables)
     set (_usebison YES)
     if (NOT ${MODULE} STREQUAL "tables")
-        set (_modules ${_modules} scimath_f scimath measures meas lattices)
+        set (_modules ${_modules} scimath_f scimath measures meas)
         set (_uselapack YES)
         if (NOT ${MODULE} STREQUAL "measures")
-            set (_modules ${_modules} fits)
-            set (_usefits YES)
-            if (${MODULE} STREQUAL "ms" OR ${MODULE} STREQUAL "all")
-                set (_modules ${_modules} ms derivedmscal msfits)
-            endif (${MODULE} STREQUAL "ms" OR ${MODULE} STREQUAL "all")
+            if (${MODULE} STREQUAL "ms")
+                set (_modules ${_modules} ms derivedmscal)
+            endif()
+            if (${MODULE} STREQUAL "msfits" OR ${MODULE} STREQUAL "all")
+                set (_modules2 ${_modules2} ms msfits derivedmscal)
+                set (_usefits YES)
+            endif()
             if (${MODULE} STREQUAL "images" OR ${MODULE} STREQUAL "all")
-                set (_modules ${_modules} mirlib coordinates images)
+                set (_modules2 ${_modules2} lattices mirlib coordinates images)
                 set (_usewcs YES)
-            endif (${MODULE} STREQUAL "images" OR ${MODULE} STREQUAL "all")
-        endif (NOT ${MODULE} STREQUAL "measures")
-    endif (NOT ${MODULE} STREQUAL "tables")
-endif (NOT ${MODULE} STREQUAL "casa")
+                set (_usefits YES)
+            endif()
+        endif()
+    endif()
+endif()
+
+if (_usefits)
+    set (_modules ${_modules} fits)
+endif()
+set (_modules ${_modules} ${_modules2})
 
 if (BUILD_PYTHON)
     set (_modules ${_modules} python)
@@ -281,6 +345,10 @@ endif (_usefits STREQUAL YES)
 if (_usewcs STREQUAL YES)
 #    find_package (WCSLIB 4.20 REQUIRED)
     find_package (WCSLIB 4.7 REQUIRED)     # needed for CASA
+    if (WCSLIB_VERSION_STRING STREQUAL "5.14")
+      # WCSlib 5.14 throws segfaults on lots of tests, e.g. tTempImage
+      message(WARNING "Casacore is not compatible with wcslib 5.14, see issue gh-384.")
+    endif (WCSLIB_VERSION_STRING STREQUAL "5.14")
 endif (_usewcs STREQUAL YES)
  
 # Set the include directories and HAVE compiler variables
@@ -317,9 +385,13 @@ endif (READLINE_FOUND)
 
 if(USE_OPENMP)
     set (USE_THREADS YES)
-    find_package (OpenMP REQUIRED)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    find_package (OpenMP)
+    if (OPENMP_FOUND)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    else (OPENMP_FOUND)
+        message(WARNING "Cannot fullfill USE_OPENMP, compiler does not support it")
+    endif (OPENMP_FOUND)
 endif(USE_OPENMP)
 # Thread support?
 if(USE_THREADS)
@@ -346,47 +418,52 @@ if(USE_THREADS)
     endif(CMAKE_COMPILER_IS_GNUCXX)
 endif(USE_THREADS)
 
-# Check whether DATA_DIR contains data (only if measures is build)
+# Set default DATA_DIR if undefined.
 if (NOT DATA_DIR)
    set (DATA_DIR ${CMAKE_INSTALL_PREFIX}/share/casacore/data)
 endif (NOT DATA_DIR)
-if (";${_modules};" MATCHES ";measures;")
-    get_filename_component(ABS_DATA_DIR "${DATA_DIR}" ABSOLUTE)
-    if (NOT EXISTS "${ABS_DATA_DIR}/ephemerides/")
-        message(WARNING "No ephemerides data found in the specified DATA_DIR (\"${DATA_DIR}\"), so the location must be specified at runtime. If you have preinstalled casacore data, specify the location with -DDATA_DIR.")
-    endif()
-endif()
+# Let cmake cache DATA_DIR.
+set (DATA_DIR "${DATA_DIR}" CACHE PATH "Measures tables root")
 
 
-# Set compiler flag in no table locking.
+# Set compiler flag if no table locking.
 if (NOT ENABLE_TABLELOCKING)
     add_definitions(-DAIPS_TABLE_NOLOCKING)
 endif (NOT ENABLE_TABLELOCKING)
-
+# Set compiler flag if stack tracing.
 if(USE_STACKTRACE)
     add_definitions(-DUSE_STACKTRACE)
 endif(USE_STACKTRACE)
+
+# Enable cmake testing and add make check target that builds and runs the test
+enable_testing()
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND})
+# This legacy flag always builds the tests and runs them with make test. There
+# seems to be no good way to make test executable depend on the test target
+if (NOT BUILD_TESTING)
+    set(EXCL_ALL EXCLUDE_FROM_ALL)
+endif (NOT BUILD_TESTING)
+
+# Determine the SOVERSION and define as compile variable.
+if (casa_soversion)
+    set (LIB_VERSION "${casa_soversion}")
+    set (LIB_SOVERSION "${casa_soversion}")
+    set (CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib" )
+else( )
+    set (LIB_VERSION "${PROJECT_VERSION}")
+    set (LIB_SOVERSION "${PROJECT_VERSION_MAJOR}")
+endif( )
 
 # Add the modules to be built.
 add_subdirectory (build-tools)
 foreach (module ${_modules})
     add_subdirectory (${module})
-    if (casa_soversion)
-        set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib" )
-        set_target_properties(
-          casa_${module} 
-          PROPERTIES 
-              VERSION "${casa_soversion}"
-              SOVERSION "${casa_soversion}"
-        )
-    else( )
-        set_target_properties(
-          casa_${module} 
-          PROPERTIES 
-              VERSION "${PROJECT_VERSION}"
-              SOVERSION "${PROJECT_VERSION_MAJOR}"
-        )
-    endif( )
+    set_target_properties(
+      casa_${module} 
+      PROPERTIES 
+          VERSION "${LIB_VERSION}"
+          SOVERSION "${LIB_SOVERSION}"
+    )
     if (CASA_BUILD)
         if (PYTHON_SHARED_LINKER_FLAGS AND ${module} STREQUAL python)
             set_target_properties(casa_python PROPERTIES LINK_FLAGS ${PYTHON_SHARED_LINKER_FLAGS})
@@ -405,6 +482,7 @@ message (STATUS "CMAKE_BUILD_TYPE ...... = ${CMAKE_BUILD_TYPE}")
 message (STATUS "Modules to be built ... = ${_modules}")
 message (STATUS "BUILD_SHARED_LIBS ..... = ${BUILD_SHARED_LIBS}")
 message (STATUS "ENABLE_RPATH .......... = ${ENABLE_RPATH}")
+message (STATUS "CMAKE_INSTALL_NAME_DIR  = ${CMAKE_INSTALL_NAME_DIR}")
 message (STATUS "ENABLE_TABLELOCKING ... = ${ENABLE_TABLELOCKING}")
 message (STATUS "USE_OPENMP ............ = ${USE_OPENMP}")
 message (STATUS "USE_STACKTRACE ........ = ${USE_STACKTRACE}")
@@ -424,7 +502,7 @@ message (STATUS "HDF5 library? ......... = ${HDF5_hdf5_LIBRARY}")
 message (STATUS "FFTW3 library? ........ = ${FFTW3_LIBRARIES}")
 
 message (STATUS "BUILD_PYTHON .......... = ${BUILD_PYTHON}")
-message (STATUS "BUILD_PYTHON3 .......... = ${BUILD_PYTHON3}")
+message (STATUS "BUILD_PYTHON3 ......... = ${BUILD_PYTHON3}")
 
 if (BUILD_PYTHON)
     message (STATUS "PYTHON2_EXECUTABLE ......... = ${PYTHON2_EXECUTABLE}")
@@ -446,7 +524,7 @@ endif (BUILD_PYTHON3)
 #  BUILD_PYTHON                  NO
 #  ENABLE_SHARED                 YES
 #  ENABLE_RPATH                  YES
-#  CXX11                         NO
+#  CXX11                         YES
 #  ENABLE_TABLELOCKING           YES
 #  USE_HDF5                      NO
 #  USE_FFTW3                     NO
@@ -455,11 +533,13 @@ endif (BUILD_PYTHON3)
 #  USE_STACKTRACE                NO
 #  DATA_DIR                      ${CMAKE_INSTALL_PREFIX}/share/casacore/data
 #  MODULE                        all
-#                                Values for MODULE (incremental list):
-#                                - casa
-#                                - tables
-#                                - measures
-#                                - ms OR images
+#                                Possible value for MODULE (previous built too):
+#                                - casa     (casa)
+#                                - tables   (tables)
+#                                - measures (scimath,scimath_f,measures,meas)
+#                                -  ms      (ms,derivedmscal)
+#                                or msfits  (fits,ms,msfits,derivedmscal)
+#                                or images  (fits,lattices,mirlib,coordinates,images)
 #                                - all
 # 
 # List of possibly used external packages and where
@@ -469,8 +549,8 @@ endif (BUILD_PYTHON3)
 #  DL           casa (optional)
 #  READLINE     casa (optional)
 #  HDF5         casa (optional)
-#  BISON        tables,images
-#  FLEX         tables,images
+#  BISON        casa,tables,images
+#  FLEX         casa,tables,images
 #  LAPACK       scimath
 #  BLAS         scimath
 #  FFTW         scimath (optional)

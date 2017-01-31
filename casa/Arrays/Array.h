@@ -180,7 +180,7 @@ public:
     // Storage is allocated by <src>DefaultAllocator<T></src>.
     // Without initPolicy parameter, the initialization of elements depends on type <src>T</src>.
     // When <src>T</src> is a fundamental type like <src>int</src>, elements are NOT initialized.
-    // When <src>T</src> is a class type like <src>casa::Complex</src> or <src>std::string</src>, elements are initialized.
+    // When <src>T</src> is a class type like <src>casacore::Complex</src> or <src>std::string</src>, elements are initialized.
     // This inconsistent behavior confuses programmers and make it hard to write efficient and generic code using template.
     // Especially when <src>T</src> is of type <src>Complex</src> or <src>DComplex</src> and it is unnecessary to initialize,
     // provide initPolicy with value <src>NO_INIT</src> to skip the initialization.
@@ -555,6 +555,10 @@ public:
     // ArrayAccessor.</note>
     Array<T> operator[] (size_t i) const;
 
+    // Get the diagonal of each matrix part in the full array.
+    // The matrices are taken using axes firstAxes and firstAxis+1.
+    // diag==0 is main diagonal; diag>0 above the main diagonal; diag<0 below.
+    Array<T> diagonals (uInt firstAxis=0, Int64 diag=0) const;
 
     // The array is masked by the input LogicalArray.
     // This mask must conform to the array.
@@ -930,6 +934,7 @@ protected:
 #ifdef AIPS_CXX11
   extern template class Array<Bool>;
   extern template class Array<Char>;
+  extern template class Array<uChar>;
   extern template class Array<Short>;
   extern template class Array<uShort>;
   extern template class Array<Int>;

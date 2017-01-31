@@ -103,6 +103,14 @@ public:
 		const AccumType& datum, const LocationType& location
 	);
 
+	template <class LocationType, class DataType>
+	inline static void accumulate (
+	    Double& npts, AccumType& sum, AccumType& mean, AccumType& nvariance,
+	    AccumType& sumsq, DataType& datamin,
+	    DataType& datamax, LocationType& minpos, LocationType& maxpos,
+	    const DataType& datum, const LocationType& location
+	);
+
 	template <class LocationType>
 	inline static void waccumulate (
 		Double& npts, AccumType& sumofweights, AccumType& sum, AccumType& mean,
@@ -190,6 +198,16 @@ public:
 		typename DataRanges::const_iterator endRange, Bool isInclude
 	);
 
+    // use two statistics sets to get the statistics set that would
+    // result in combining the two data sets used to produce the
+    // individual statistics sets. The quantile related stats are
+    // not considered, since it is not in general possible to determine
+    // the resultant quantiles from the information provided; only
+    // the aggregate statistics make sense.
+    static StatsData<AccumType> combine(
+        const vector<StatsData<AccumType> >& stats
+    );
+
 private:
 
 	const static AccumType TWO;
@@ -211,23 +229,12 @@ inline Int StatisticsUtilities<casacore::DComplex>::getInt(const casacore::DComp
 	ThrowCc("Logic Error: This version for complex data types should never be called");
 }
 
-/*
- * there are errors linking these in casacode which I don't understand, but they are
- * useful for debugging casacore, so leaving them in but commented out
-
-ostream &operator<<(ostream &os, const StatisticsUtilities<Double>::BinDesc &desc) {
+template <class T>
+ostream &operator<<(ostream &os, const typename StatisticsUtilities<T>::BinDesc &desc) {
 	os << "min limit " << desc.minLimit << " bin width " << desc.binWidth
 		<< " nbins " << desc.nBins;
 	return os;
 }
-
-ostream &operator<<(ostream &os, const StatisticsUtilities<Complex>::BinDesc &desc) {
-	os << "min limit " << desc.minLimit << " bin width " << desc.binWidth
-		<< " nbins " << desc.nBins;
-	return os;
-}
-*/
-
 
 }
 

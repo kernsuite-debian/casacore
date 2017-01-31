@@ -21,6 +21,9 @@ tExprNode
 tExprNodeSet
 tExprUnitNode
 tExprNodeUDF
+tMArray
+tMArrayMath
+tMArrayUtil
 tRecordExpr
 tRecordGram
 tRecordGramTable
@@ -31,8 +34,15 @@ tTaQLNode
 
 # Only test scripts, no test programs.
 set (testscripts
+ttaql
+tTableGramCretab
+tTableGramAlttab
+tTableGramUpdate
+tTableGramMasked
+tTableGramNull
 tTableGramGroupAggr
 tTableGramGroupAggrAll
+tTableGramGroupAggrMaskAll
 )
 
 # Some test sources include a test .h file.
@@ -42,6 +52,7 @@ foreach (test ${tests})
     add_executable (${test} ${test}.cc)
     target_link_libraries (${test} casa_tables)
     add_test (${test} ${CMAKE_SOURCE_DIR}/cmake/cmake_assay ./${test})
+    add_dependencies(check ${test})
 endforeach (test)
 
 foreach (test ${testscripts})

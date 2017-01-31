@@ -161,6 +161,9 @@ inline Int min(Int a, Int b) { if (a > b) return b; else return a; }
 inline uInt max(uInt a, uInt b){ if (a>b) return a; else return b; }
 inline uInt min(uInt a, uInt b){ if (a>b) return b; else return a; }
 
+inline uInt64 max(uInt64 a, uInt64 b){ if (a>b) return a; else return b; }
+inline uInt64 min(uInt64 a, uInt64 b){ if (a>b) return b; else return a; }
+
 inline Double max(Double a, Double b) { if (a > b) return a; else return b; } 
 inline Double min(Double a, Double b) { if (a > b) return b; else return a; }
 inline Double max(Double a, Float b) { if (a > b) return a; else return b; } 
@@ -186,6 +189,7 @@ inline Float min(Float a, Float b) { if (a > b) return b; else return a; }
 // Return the square of a value.
 // <group>
 inline Int    square(Int val)    {return val*val;}
+inline Int64  square(Int64 val)  {return val*val;}
 inline Float  square(Float val)  {return val*val;}
 inline Double square(Double val) {return val*val;}
 // </group>
@@ -193,6 +197,7 @@ inline Double square(Double val) {return val*val;}
 // Return the cube of a value.
 // <group>
 inline Int    cube(Int val)    {return val*val*val;}
+inline Int64  cube(Int64 val)  {return val*val*val;}
 inline Float  cube(Float val)  {return val*val*val;}
 inline Double cube(Double val) {return val*val*val;}
 // </group>
@@ -200,8 +205,40 @@ inline Double cube(Double val) {return val*val*val;}
 // Return the sign of a value.
 // <group>
 inline Int    sign(Int val)    {return val<0 ? -1 : (val>0 ? 1:0);}
+inline Int64  sign(Int64 val)  {return val<0 ? -1 : (val>0 ? 1:0);}
 inline Float  sign(Float val)  {return val<0 ? -1 : (val>0 ? 1:0);}
 inline Double sign(Double val) {return val<0 ? -1 : (val>0 ? 1:0);}
+// </group>
+
+// Return the floor modulo as used by Python (unlike C); divisor sign is used.
+// Note that function fmod can be used for C behaviour; dividend sign is used.
+// In Python:   5%3=2  -5%3=1   5%-3=-1  -5%-3=-2
+// In C:        5%3=2  -5%3=-2  5%-3=2   -5%-3=-2
+// <group>
+inline Int floormod (Int x, Int y)
+{
+  Int r = x%y;
+  if (r != 0   &&  (x<0) != (y<0)) r+=y;
+  return r;
+}
+inline Int64 floormod (Int64 x, Int64 y)
+{
+  Int64 r = x%y;
+  if (r != 0  &&  (x<0) != (y<0)) r+=y;
+  return r;
+}
+inline Float floormod (Float x, Float y)
+{
+  Float r = fmod(x,y);
+  if (r != 0  &&  (x<0) != (y<0)) r+=y;
+  return r;
+}
+inline Double floormod (Double x, Double y)
+{
+  Double r = fmod(x,y);
+  if (r != 0  &&  (x<0) != (y<0)) r+=y;
+  return r;
+}
 // </group>
 
 // Functions to return whether a value is "relatively" near another. Returns

@@ -28,6 +28,7 @@
 #include <casacore/casa/Arrays/ArrayBase.h>
 #include <casacore/casa/Arrays/ArrayError.h>
 #include <casacore/casa/Utilities/Assert.h>
+#include <casacore/casa/BasicMath/Math.h>
 
 
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
@@ -377,15 +378,25 @@ size_t ArrayBase::makeSubset (ArrayBase& out,
 {
   if (b.nelements() != ndim() || e.nelements() != ndim() ||
       i.nelements() != ndim()) {
-    throw(ArrayError("ArrayBase::operator()(b,e,i) - ndim() differs from"
-		     " the array ndim"));
+      ostringstream os;
+      os << "ArrayBase::operator()(b,e,i) - ndim() b: " << b.nelements()
+         << " e: " << e.nelements() << " i: "
+         << i.nelements() << " differs from the array ndim " << ndim();
+      throw(ArrayError(os));
   }
   uInt j;
   for (j=0; j < ndim(); j++) {
     if (b(j) < 0 || b(j) > e(j)+1
     ||  e(j) >= length_p(j)  ||  i(j) < 1) {
-      throw(ArrayError("ArrayBase::operator()(b,e,i) - b,e or i "
-		       "incorrectly specified"));
+      ostringstream os;
+      os << "ArrayBase::operator()(b,e,i) - incorrectly specified" << endl;
+      os << "begin: " << b << endl;
+      os << "end:   " << e << endl;
+      os << "incr:  " << i << endl;
+      os << endl;
+      os << "array shape: " << length_p << endl;
+      os << "required: b >= 0; b <= e; e < shape; i >= 0" << endl;
+      throw(ArrayError(os));
     }
   }
   size_t offs=0;
@@ -402,6 +413,47 @@ size_t ArrayBase::makeSubset (ArrayBase& out,
   return offs;
 }
 
+size_t ArrayBase::makeDiagonal (uInt firstAxis, Int64 diag)
+{
+  AlwaysAssert (firstAxis+1 < ndimen_p, AipsError);
+  if (length_p[firstAxis] != length_p[firstAxis+1]) {
+    throw ArrayConformanceError("ArrayBase::diagonal() - "
+                                "non-square matrix");
+  }
+  if (std::abs(diag) >= length_p[firstAxis])
+    throw ArrayConformanceError("ArrayBase::diagonal() - "
+                                "diagonal out of range");
+  ///  cout<<length_p<<inc_p<<originalLength_p<<steps_p<<firstAxis<<endl;
+  // Remove the first axis to use.
+  ndimen_p--;
+  // Set originalLength and stride to both axes.
+  // Stride (in original array) is basically length+1.
+  ///  inc_p[firstAxis] *= inc_p[firstAxis+1];
+  inc_p[firstAxis] += (inc_p[firstAxis+1] * originalLength_p[firstAxis]);
+  originalLength_p[firstAxis] *= originalLength_p[firstAxis+1];
+  for (uInt i=firstAxis+1; i<ndimen_p; ++i) {
+    length_p[i] = length_p[i+1];
+    inc_p[i] = inc_p[i+1];
+    originalLength_p[i] = originalLength_p[i+1];
+  }
+  length_p.resize (ndimen_p);
+  inc_p.resize (ndimen_p);
+  originalLength_p.resize (ndimen_p);
+  // An off-diagonal 'diagonal' has a shorter length.
+  length_p[firstAxis] -= std::abs(diag);
+  nels_p = length_p.product();
+  contiguous_p = isStorageContiguous();
+  // Determine the offset of the first diagonal element (in original array).
+  size_t offs=0;
+  if (diag >= 0) {
+    offs = diag * steps_p[firstAxis+1];
+  } else {
+    offs = (-diag) * steps_p[firstAxis];
+  }
+  baseMakeSteps();
+  ///  cout<<length_p<<inc_p<<originalLength_p<<steps_p<<offs<<endl;
+  return offs;
+}
 
 // <thrown>
 //    <item> ArrayNDimErrror
@@ -727,6 +779,14 @@ void ArrayBase::freeVStorage(const void*&, Bool) const
   throw ArrayError ("ArrayBase::freeVStorage cannot be used");
 }
 
+void throwArrayShapes (const IPosition& shape1,
+                       const IPosition& shape2,
+                       const char* name)
+{
+  throw ArrayConformanceError ("ArrayMath/Logical function " + String(name) +
+                               ": array shapes " + shape1.toString() +
+                               " and " + shape2.toString() + " differ");
+}
 
 } //# NAMESPACE CASACORE - END
 
