@@ -1,10 +1,31 @@
+# 2.3.0
+
+## General
+- Bug fixes and improvements
+- Improved installation documentation in README
+- Add an option to use Ccache (`-DUseCcache`) (#549)
+- Add some statistics functionality (#569)
+
+## Python
+- Make some of the TableProxy functionality publicly available (#559)
+- Make version checking from python (or plain C) possible (#583)
+
+## TaQL
+- Fix transpose in TaQL (#563)
+- Added functions `delay` and `uvwapp` to `mscal` (#562)
+
+## FITS
+- MSFitsOutput now writes ant diams (#536)
+- Improvements to FITS-IDI conversion (#538, #590, #579)
+
+
 # 2.2.0
 
 ## General
 - Lots of bug fixes and improvements
 - Tests are not built by default anymore, use `-DBUILD_TESTING=True`
   to build them
-- Building with C++11 is now default, use `-DUSE_CXX11=False` if you do
+- Building with C++11 is now default, use `-DCXX11=False` if you do
   not have a recent compiler (#533)
 - Added JSON support (#506)
 

@@ -14,7 +14,7 @@ if (POLICY CMP0048)
 endif()
 
 set(PROJECT_VERSION_MAJOR 2)
-set(PROJECT_VERSION_MINOR 2)
+set(PROJECT_VERSION_MINOR 3)
 set(PROJECT_VERSION_PATCH 0)
 set(PROJECT_VERSION_REVISION 1)
 set(PROJECT_VERSION 
@@ -77,6 +77,20 @@ option (USE_STACKTRACE "Show stacktrace in case of exception" NO)
 option (CASA_BUILD "Building in the CASA (http://casa.nrao.edu) environment" NO)
 
 set(CASA_DEFAULT_ALIGNMENT "32" CACHE STRING "Default alignment of casa::AlignedAllocator")
+
+# ccache use is optional
+option( UseCcache OFF )
+
+if (UseCcache)
+    message (STATUS "Searching for ccache.")
+    find_program(CCACHE_FOUND ccache)
+    if(CCACHE_FOUND)
+        message (STATUS "Ccache found.")
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+        set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+    endif(CCACHE_FOUND)
+endif()
+
 
 # basic setup for building within CASA environment
 if( CASA_BUILD )
@@ -240,19 +254,21 @@ endif()
 #
 #This has measurable impact on e.g. applycal where the cpu performance improves
 #by about 20%.
-check_cxx_compiler_flag(-fcx-fortran-rules HAS_GXX_FORTRAN_RULES)
-check_c_compiler_flag(-fcx-fortran-rules HAS_GCC_FORTRAN_RULES)
-# added before cmake flags so it can be disabled with
-# -fno-cx-fortran-rules for testing
-if (HAS_GXX_FORTRAN_RULES)
-    set(CMAKE_CXX_FLAGS "-fcx-fortran-rules ${CMAKE_CXX_FLAGS}")
-endif()
-if (HAS_GCC_FORTRAN_RULES)
-    set(CMAKE_C_FLAGS "-fcx-fortran-rules ${CMAKE_C_FLAGS}")
-endif()
-
-# Ensure clang is not complaining about unused arguments.
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+# For one reason or another the check on the compiler flag has no
+# effect; it still adds the option which fails for clang.
+if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    check_cxx_compiler_flag(-fcx-fortran-rules HAS_GXX_FORTRAN_RULES)
+    check_c_compiler_flag(-fcx-fortran-rules HAS_GCC_FORTRAN_RULES)
+    # added before cmake flags so it can be disabled with
+    # -fno-cx-fortran-rules for testing
+    if (HAS_GXX_FORTRAN_RULES)
+        set(CMAKE_CXX_FLAGS "-fcx-fortran-rules ${CMAKE_CXX_FLAGS}")
+    endif()
+    if (HAS_GCC_FORTRAN_RULES)
+        set(CMAKE_C_FLAGS "-fcx-fortran-rules ${CMAKE_C_FLAGS}")
+    endif()
+else()
+    # Ensure clang is not complaining about unused arguments.
     set(CMAKE_CXX_FLAGS "-Qunused-arguments ${CMAKE_CXX_FLAGS}")    
     set(CMAKE_C_FLAGS "-Qunused-arguments ${CMAKE_C_FLAGS}")    
 endif()
@@ -383,12 +399,30 @@ if (READLINE_FOUND)
     add_definitions(-DHAVE_READLINE)
 endif (READLINE_FOUND)
 
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+   ## setting intel libraries with e.g.
+   ##
+   ##    find_library( INTEL_IRNG irng HINTS ${INTEL_PATH} )
+   ##
+   ## causes CMAKE to substitute fully qualified paths which makes
+   ## python shared object unrelocatable in the case of libirng.so
+   ##
+   get_filename_component(INTEL_PATH ${CMAKE_CXX_COMPILER} DIRECTORY)
+   set(INTEL_LIB_PATH ${INTEL_PATH}/../lib/intel64)
+   set(CASACORE_ARCH_LIBS ${CASACORE_ARCH_LIBS} -L${INTEL_LIB_PATH} -limf -lsvml -lirng -lintlc -lifport -lifcore -liomp5)
+endif()
+
 if(USE_OPENMP)
     set (USE_THREADS YES)
     find_package (OpenMP)
     if (OPENMP_FOUND)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qopenmp")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -qopenmp")
+        else( )
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        endif( )
     else (OPENMP_FOUND)
         message(WARNING "Cannot fullfill USE_OPENMP, compiler does not support it")
     endif (OPENMP_FOUND)
@@ -400,11 +434,13 @@ if(USE_THREADS)
     add_definitions(-DUSE_THREADS)
     if(CMAKE_COMPILER_IS_GNUCC)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+    elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
     else()
         if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
         else()
-            message(FATAL_ERROR "${_errmsg} ${CMAKE_C_COMPILER}")
+            message(FATAL_ERROR "${_errmsg} (${CMAKE_C_COMPILER_ID}): ${CMAKE_C_COMPILER}")
         endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     endif(CMAKE_COMPILER_IS_GNUCC)
     if(CMAKE_COMPILER_IS_GNUCXX)
@@ -412,8 +448,10 @@ if(USE_THREADS)
     else()
         if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+        elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
         else()
-            message(FATAL_ERROR "${_errmsg} ${CMAKE_CXX_COMPILER}")
+            message(FATAL_ERROR "${_errmsg} (${CMAKE_C_COMPILER_ID}): ${CMAKE_CXX_COMPILER}")
         endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     endif(CMAKE_COMPILER_IS_GNUCXX)
 endif(USE_THREADS)
