@@ -29,6 +29,7 @@
 
 #include <casacore/ms/MSOper/MSMetaData.h>
 
+#include <casacore/casa/Arrays/ArrayLogical.h>
 #include <casacore/casa/BasicMath/StdLogical.h>
 #include <casacore/casa/Containers/Record.h>
 #include <casacore/casa/OS/Directory.h>
@@ -528,19 +529,19 @@ void testIt(MSMetaData& md) {
             for (uInt i=0; i<md.nAntennas(); ++i) {
                 vector<uInt> ids(1);
                 ids[0] = i;
-                std::map<String, uInt> mymap;
+                std::map<String, std::set<uInt> > mymap;
                 AlwaysAssert(
                     md.getAntennaNames(mymap, ids)[0] == expnames[i],
                     AipsError
                 );
             }
             cout << "*** test getAntennaID()" << endl;
-            std::map<String, uInt> mymap;
+            std::map<String, std::set<uInt> > mymap;
             for (uInt i=0; i<md.nAntennas(); ++i) {
                 vector<uInt> ids(1);
                 ids[0] = i;
                 AlwaysAssert(
-                        md.getAntennaIDs(md.getAntennaNames(mymap, ids))[0]==i,
+                        *md.getAntennaIDs(md.getAntennaNames(mymap, ids))[0].begin()==i,
                         AipsError
                 );
             }
@@ -1147,10 +1148,10 @@ void testIt(MSMetaData& md) {
             names[0] = "DV02";
             names[1] = "DV05";
             names[2] = "DV03";
-            stations = md.getAntennaStations(names);
+            vector<vector<String> > stationsByName = md.getAntennaStations(names);
             AlwaysAssert(
-                stations[0] == "A077" && stations[1] == "A082"
-                && stations[2] == "A137", AipsError
+                stationsByName[0][0] == "A077" && stationsByName[1][0] == "A082"
+                && stationsByName[2][0] == "A137", AipsError
             );
         }
         {
@@ -2516,6 +2517,22 @@ void testIt(MSMetaData& md) {
             Vector<Int> expV = casacore::indgen(25, 0, 1);
             std::set<uInt> expec(expV.begin(), expV.end());
             AlwaysAssert(spws == expec, AipsError);
+        }
+        {
+            cout << "*** test getSourceTimes()" << endl;
+            SHARED_PTR<const Quantum<Vector<Double> > > times = md.getSourceTimes();
+            Vector<Double> v = times->getValue();
+            AlwaysAssert(v.size() == 200, AipsError);
+            AlwaysAssert(times->getUnit() == "s", AipsError);
+            Vector<Double> expec(200, 7033098335);
+            AlwaysAssert(allNear(v, expec, 1e-10), AipsError);
+        }
+        {
+            cout << "*** test getIntervalStatistics()" << endl;
+            MSMetaData::ColumnStats stats = md.getIntervalStatistics();
+            AlwaysAssert(near(stats.min, 1.008), AipsError);
+            AlwaysAssert(near(stats.max, 6.048), AipsError);
+            AlwaysAssert(near(stats.median, 1.008), AipsError);
         }
         {
             cout << "*** cache size " << md.getCache() << endl;

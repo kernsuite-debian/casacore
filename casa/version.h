@@ -32,7 +32,7 @@
 #include <casacore/casa/aips.h>
 
 #define CASACORE_MAJOR_VERSION 2
-#define CASACORE_MINOR_VERSION 2
+#define CASACORE_MINOR_VERSION 3
 #define CASACORE_PATCH_VERSION 0
 
 #define CASACORE_VERSION CASACORE_STRINGIFY(CASACORE_MAJOR_VERSION.CASACORE_MINOR_VERSION.CASACORE_PATCH_VERSION)
@@ -40,7 +40,7 @@
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
   // Get the casacore version.
-  const std::string getVersion();
+  extern "C" const char* getVersion();
 
   // Get the version of casacore on CASA's vendor branch
   // Note: CASA's private version of casacore has a lifecycle
