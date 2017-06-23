@@ -12,23 +12,23 @@ change measuresdata.csh shebang to /usr/bin/tcsh as in Debian.
  delete mode 100644 msfits/apps/CMakeLists.txt
 
 diff --git a/measures/apps/CMakeLists.txt b/measures/apps/CMakeLists.txt
-index 8eff961..b888c9d 100644
+index fcf2184..1bbf19f 100644
 --- a/measures/apps/CMakeLists.txt
 +++ b/measures/apps/CMakeLists.txt
 @@ -7,4 +7,4 @@ endforeach(prog findmeastable)
  add_executable (measuresdata  measuresdata/measuresdata.cc)
- target_link_libraries (measuresdata casa_measures)
+ target_link_libraries (measuresdata casa_measures ${CASACORE_ARCH_LIBS})
  install(TARGETS measuresdata DESTINATION bin)
 -install(PROGRAMS measuresdata/measuresdata-update DESTINATION bin)
 +install(PROGRAMS DESTINATION bin)
 diff --git a/msfits/apps/CMakeLists.txt b/msfits/apps/CMakeLists.txt
 deleted file mode 100644
-index d57af6d..0000000
+index d2775c8..0000000
 --- a/msfits/apps/CMakeLists.txt
 +++ /dev/null
 @@ -1,5 +0,0 @@
 -foreach(prog ms2uvfits)
 -    add_executable (${prog}  ${prog}.cc)
--    target_link_libraries (${prog} casa_msfits)
+-    target_link_libraries (${prog} casa_msfits ${CASACORE_ARCH_LIBS})
 -    install(TARGETS ${prog} DESTINATION bin)
 -endforeach(prog ms2uvfits)
