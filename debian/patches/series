@@ -9,3 +9,4 @@
 0009-Enable-hostinfo-for-kFreeBSD.patch
 0010-Fix-compilation-for-GNU-Hurd.patch
 0011-Fix-too-small-int-type-for-memory-on-32-bit-machines.patch
+Fix-FTBFS-tStatisticsUtilities-tLatticeStatistics-and-tLC.patch
