@@ -1,3 +1,9 @@
+casacore (2.3.0-3) unstable; urgency=low
+
+  * Fix accuracy for near(rms(pos), expRMS) in tLatticeStatistics
+
+ -- Ole Streicher <olebole@debian.org>  Tue, 04 Jul 2017 12:18:47 +0200
+
 casacore (2.3.0-2) unstable; urgency=low
 
   * Fix FTBFS tStatisticsUtilities, tLatticeStatistics and tLCEllipsoid
