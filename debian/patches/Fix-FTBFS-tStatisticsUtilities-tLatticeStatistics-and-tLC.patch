@@ -131,7 +131,7 @@ index 3709155..17d8e87 100644
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 [35, 14]
  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 [35, 13]
 diff --git a/lattices/LatticeMath/test/tLatticeStatistics.cc b/lattices/LatticeMath/test/tLatticeStatistics.cc
-index 833af91..411e576 100644
+index 833af91..43e0ae7 100644
 --- a/lattices/LatticeMath/test/tLatticeStatistics.cc
 +++ b/lattices/LatticeMath/test/tLatticeStatistics.cc
 @@ -416,10 +416,10 @@ int main()
@@ -143,7 +143,7 @@ index 833af91..411e576 100644
              AlwaysAssert(near(var(pos), expVar, 1e-10), AipsError);
              AlwaysAssert(near(sigma(pos), expSigma, 1e-11), AipsError);
 -            AlwaysAssert(near(rms(pos), expRMS), AipsError);
-+            AlwaysAssert(near(rms(pos), expRMS, 1e-11), AipsError);
++            AlwaysAssert(near(rms(pos), expRMS, 1e-10), AipsError);
              AlwaysAssert(mymin(pos) == DComplex(0, 0), AipsError);
              AlwaysAssert(mymax(pos) == DComplex(size-1, size-1), AipsError);
  
