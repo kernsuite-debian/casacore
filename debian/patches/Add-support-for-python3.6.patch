@@ -1,0 +1,26 @@
+From: Steve Langasek <steve.langasek@ubuntu.com>
+Date: Wed, 30 Aug 2017 08:40:46 +0200
+Subject: Add support for python3.6
+
+The python3 detection code only correctly picks up listed versions of
+python3 on Debian/Ubuntu.  Otherwise it incorrectly falls back to
+/usr/bin/python and python2.7!
+
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1710532
+---
+ python3/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/python3/CMakeLists.txt b/python3/CMakeLists.txt
+index 4300365..f8d77ab 100644
+--- a/python3/CMakeLists.txt
++++ b/python3/CMakeLists.txt
+@@ -18,7 +18,7 @@ if (PYTHON3_FIND_PACKAGE_MESSAGE_DETAILS_PythonLibs)
+ endif()
+ 
+ # Detect the python properties
+-set(Python_ADDITIONAL_VERSIONS 3.5 3.4)
++set(Python_ADDITIONAL_VERSIONS 3.6 3.5 3.4)
+ 
+ find_package(Python REQUIRED)
+ 
