@@ -29,6 +29,7 @@ Vcs-Browser: https://anonscm.debian.org/cgit/debian-astro/packages/casacore.git
 Package: casacore-dev
 Section: libdevel
 Architecture: any
+Multi-Arch: same
 Depends: libcasa-casa2 (= ${binary:Version}),
          libcasa-coordinates2 (= ${binary:Version}),
          libcasa-derivedmscal2 (= ${binary:Version}),
