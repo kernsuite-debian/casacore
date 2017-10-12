@@ -1,15 +1,3 @@
-casacore (2.2.0-2kern1zesty1) zesty; urgency=medium
-
-  * build for zesty
-
- -- Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>  Fri, 19 May 2017 12:20:29 +0200
-
-casacore (2.2.0-2kern1) xenial; urgency=medium
-
-  * build for KERN
-
- -- Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>  Tue, 31 Jan 2017 07:32:09 +0000
-
 casacore (2.2.0-2) unstable; urgency=medium
 
   * Fix multiarch lib path

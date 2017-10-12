@@ -1,14 +1,58 @@
 From: Ole Streicher <olebole@debian.org>
 Date: Fri, 2 Dec 2016 11:11:28 +0100
 Subject: Disable known test failures
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 
+Disable tPath test
+
+sbuild gets HOME variable leaked into the build environment.  Debian
+uses sbuild as official build farm.  Until the cause is pinned down,
+this test is disabled.
+
+ 98/425 Test #101: tPath ...............................***Failed    0.64 sec
+1,16d0
+< expanded: /home/heroxbd
+< expected: /«PKGBUILDDIR»
+< absolute: /home/heroxbd
+< expected: /«PKGBUILDDIR»
+< expanded: /home/heroxbd/test/test2
+< expected: /«PKGBUILDDIR»/test/test2
+< absolute: /home/heroxbd/test/test2
+< expected: /«PKGBUILDDIR»/test/test2
+< expanded: /home/heroxbd/test
+< expected: /«PKGBUILDDIR»/test
+< absolute: /home/heroxbd/test
+< expected: /«PKGBUILDDIR»/test
+< expanded: /home/heroxbd/test
+< expected: /«PKGBUILDDIR»/test
+< absolute: /home/heroxbd/test
+< expected: /«PKGBUILDDIR»/test
+33a18
+> OK
+FAIL (output not verified): ./tPath
+
+Disable tLSQaips and tLSQFit tests
+
+These tests fail, probably due to the test itself. From
+https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=838424#15
+
+I'm not sure what to do about the other two tests that fail on arm64,
+"tLSQaips" and "tLSQFit", because those two generate a load of output
+text containing floating-point numbers and compare that text with an
+expected output. It might not be so easy to make that work on all
+architectures. Perhaps one could simply disable those two tests.
+Preferably one would still run them, so that we can see what happens
+in the logs, but not have the build fail if only those tests fail.
 ---
  casa/IO/test/CMakeLists.txt              | 4 ++--
- casa/OS/test/CMakeLists.txt              | 8 ++++----
+ casa/OS/test/CMakeLists.txt              | 9 ++++-----
  images/Images/test/CMakeLists.txt        | 2 +-
  lattices/LatticeMath/test/CMakeLists.txt | 2 +-
+ scimath/Fitting/test/CMakeLists.txt      | 4 ++--
  tables/TaQL/test/CMakeLists.txt          | 4 ++--
- 5 files changed, 10 insertions(+), 10 deletions(-)
+ 6 files changed, 12 insertions(+), 13 deletions(-)
 
 diff --git a/casa/IO/test/CMakeLists.txt b/casa/IO/test/CMakeLists.txt
 index 188a6c4..3187b60 100644
@@ -27,7 +71,7 @@ index 188a6c4..3187b60 100644
  tByteSinkSource
  tFilebufIO
 diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
-index 5fc3c7f..e5c9ee3 100644
+index 520ceed..e5c9ee3 100644
 --- a/casa/OS/test/CMakeLists.txt
 +++ b/casa/OS/test/CMakeLists.txt
 @@ -3,10 +3,10 @@ tCanonicalConversion
@@ -43,9 +87,11 @@ index 5fc3c7f..e5c9ee3 100644
  tHostInfo
  tIBMConversion
  tLECanonicalConversion
-@@ -15,8 +15,8 @@ tMemoryTrace
+@@ -14,10 +14,9 @@ tMemory
+ tMemoryTrace
  tModcompConversion
  tMutex
+-tPath
  tPrecTimer
 -tRegularFile
 -tSymLink
@@ -80,6 +126,21 @@ index 47e5c76..23f254f 100644
  tLatticeTwoPtCorr
  # tLattStatsSpecialize
  )
+diff --git a/scimath/Fitting/test/CMakeLists.txt b/scimath/Fitting/test/CMakeLists.txt
+index 35d258f..de69738 100644
+--- a/scimath/Fitting/test/CMakeLists.txt
++++ b/scimath/Fitting/test/CMakeLists.txt
+@@ -3,8 +3,8 @@ dConstraints
+ dLSQFit
+ tFitGaussian
+ tLinearFitSVD
+-tLSQaips
+-tLSQFit
++#tLSQaips
++#tLSQFit
+ tNonLinearFitLM
+ )
+ 
 diff --git a/tables/TaQL/test/CMakeLists.txt b/tables/TaQL/test/CMakeLists.txt
 index 9cf5223..1fcd338 100644
 --- a/tables/TaQL/test/CMakeLists.txt

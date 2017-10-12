@@ -1,6 +1,6 @@
 Source: casacore
 Priority: optional
-Maintainer: Debian Astronomy & Astrophysics Maintainers <debian-astro-maintainers@lists.alioth.debian.org>
+Maintainer: Debian Astro Team <debian-astro-maintainers@lists.alioth.debian.org>
 Uploaders: Benda Xu <heroxbd@gentoo.org>, Ole Streicher <olebole@debian.org>
 Build-Depends: bison,
                cmake (>= 1.6.2),
@@ -20,7 +20,7 @@ Build-Depends: bison,
                python3-dev,
                python3-numpy,
                wcslib-dev
-Standards-Version: 3.9.8
+Standards-Version: 4.1.0
 Section: science
 Homepage: http://casacore.github.io/casacore
 Vcs-Git: https://anonscm.debian.org/git/debian-astro/packages/casacore.git
@@ -29,6 +29,7 @@ Vcs-Browser: https://anonscm.debian.org/cgit/debian-astro/packages/casacore.git
 Package: casacore-dev
 Section: libdevel
 Architecture: any
+Multi-Arch: same
 Depends: libcasa-casa2 (= ${binary:Version}),
          libcasa-coordinates2 (= ${binary:Version}),
          libcasa-derivedmscal2 (= ${binary:Version}),
