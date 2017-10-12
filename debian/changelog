@@ -1,3 +1,40 @@
+casacore (2.3.0-4kern1) trusty; urgency=medium
+
+  * repack for KERN
+
+ -- Gijs Molenaar (launchpad ppa build key) <gijs@pythonic.nl>  Thu, 12 Oct 2017 14:32:03 +0200
+
+casacore (2.3.0-4) unstable; urgency=low
+
+  * Add support for python3.6 (Closes: #873667)
+  * Push Standards-Version to 4.1.0. No changes needed.
+  * Set -dev package to Multi-Arch: same as suggested my Multiarch hinter
+
+ -- Ole Streicher <olebole@debian.org>  Wed, 30 Aug 2017 17:29:15 +0200
+
+casacore (2.3.0-3) unstable; urgency=low
+
+  * Fix accuracy for near(rms(pos), expRMS) in tLatticeStatistics
+
+ -- Ole Streicher <olebole@debian.org>  Tue, 04 Jul 2017 12:18:47 +0200
+
+casacore (2.3.0-2) unstable; urgency=low
+
+  * Fix FTBFS tStatisticsUtilities, tLatticeStatistics and tLCEllipsoid
+    on arm64
+  * Disable tLSQaips and tLSQFit tests. Closes: #838424
+  * Rediff patches, remove patch numbers
+
+ -- Ole Streicher <olebole@debian.org>  Tue, 04 Jul 2017 09:39:13 +0200
+
+casacore (2.3.0-1) unstable; urgency=low
+
+  * New upstream version 2.3.0
+  * Rediff patches
+  * Push Standards-Version to 4.0.0. No changes.
+
+ -- Ole Streicher <olebole@debian.org>  Fri, 23 Jun 2017 20:53:23 +0200
+
 casacore (2.2.0-2) unstable; urgency=medium
 
   * Fix multiarch lib path
