@@ -1,4 +1,4 @@
-casacore (2.3.0-4kern1) trusty; urgency=medium
+casacore (2.3.0-4kern2) xenial; urgency=medium
 
   * repack for KERN
 
