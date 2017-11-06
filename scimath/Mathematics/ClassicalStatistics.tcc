@@ -29,6 +29,7 @@
 
 #include <casacore/scimath/Mathematics/ClassicalStatistics.h>
 
+#include <casacore/scimath/Mathematics/ClassicalStatisticsData.h>
 #include <casacore/casa/Utilities/PtrHolder.h>
 #include <casacore/scimath/Mathematics/StatisticsIncrementer.h>
 #include <casacore/scimath/Mathematics/StatisticsUtilities.h>
@@ -40,12 +41,6 @@
 #endif
 
 namespace casacore {
-
-CASA_STATD
-const uInt ClassicalStatistics<CASA_STATP>::CACHE_PADDING = 8;
-
-CASA_STATD
-const uInt ClassicalStatistics<CASA_STATP>::BLOCK_SIZE = 4000;
 
 // min > max indicates that these quantities have not be calculated
 CASA_STATD
@@ -87,6 +82,11 @@ ClassicalStatistics<CASA_STATP>::operator=(
     _mustAccumulate = other._mustAccumulate;
     _hasData = other._hasData;
     return *this;
+}
+
+CASA_STATD
+StatisticsAlgorithm<CASA_STATP>* ClassicalStatistics<CASA_STATP>::clone() const {
+    return new ClassicalStatistics<CASA_STATP>(*this);
 }
 
 CASA_STATD
@@ -477,10 +477,12 @@ StatsData<AccumType> ClassicalStatistics<CASA_STATP>::_getStatistics() {
     _initIterators();
     uInt nThreadsMax = _nThreadsMax();
     PtrHolder<StatsData<AccumType> > tStats(
-        new StatsData<AccumType>[CACHE_PADDING*nThreadsMax], True
+        new StatsData<AccumType>[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     for (uInt i=0; i<nThreadsMax; ++i) {
-        uInt idx8 = CACHE_PADDING*i;
+        uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*i;
         tStats[idx8] = _getInitialStats();
         // set nominal max and mins so accumulate
         // doesn't segfault
@@ -505,11 +507,14 @@ StatsData<AccumType> ClassicalStatistics<CASA_STATP>::_getStatistics() {
         if (_hasMask) {
             stats.masked = True;
         }
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(nthreads)
+#endif
         for (uInt i=0; i<nBlocks; ++i) {
             uInt64 ngood = 0;
             uInt idx8 = _threadIdx();
-            uInt64 dataCount = _myCount - offset[idx8] < BLOCK_SIZE ? extra : BLOCK_SIZE;
+            uInt64 dataCount = _myCount - offset[idx8] < ClassicalStatisticsData::BLOCK_SIZE
+                ? extra : ClassicalStatisticsData::BLOCK_SIZE;
             LocationType location(_idataset, offset[idx8]);
             _computeStats(
                 tStats[idx8], ngood, location, dataIter[idx8], maskIter[idx8],
@@ -523,18 +528,19 @@ StatsData<AccumType> ClassicalStatistics<CASA_STATP>::_getStatistics() {
         for (uInt tid=0; tid<nthreads; ++tid) {
             // LattStatsDataProvider relies on min and max
             // being updated after each increment of the data provider
-            uInt idx8 = CACHE_PADDING*tid;
+            uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
             _updateDataProviderMaxMin(tStats[idx8]);
         }
         if (_increment(True)) {
             break;
         }
     }
-    vector<StatsData<AccumType> > xstats;
+    std::vector<StatsData<AccumType> > xstats;
     for (uInt i=0; i<nThreadsMax; ++i) {
         // in case no max/min was set, clear the nominal values
         // set above
-        StatsData<AccumType>& s = tStats[CACHE_PADDING*i];
+        StatsData<AccumType>& s 
+            = tStats[ClassicalStatisticsData::CACHE_PADDING*i];
         if (s.minpos.first < 0) {
             s.min.reset();
         }
@@ -575,7 +581,7 @@ void ClassicalStatistics<CASA_STATP>::_incrementThreadIters(
     DataIterator& dataIter, MaskIterator& maskIter,
     WeightsIterator& weightsIter, uInt64& offset, uInt nthreads
 ) const {
-    uInt increment = nthreads*BLOCK_SIZE*_myStride;
+    uInt increment = nthreads*ClassicalStatisticsData::BLOCK_SIZE*_myStride;
     if (offset+increment >= _myCount*_myStride) {
         // necessary because in some cases std::advance will segfault
         // if advanced past the end of the data structure
@@ -586,7 +592,7 @@ void ClassicalStatistics<CASA_STATP>::_incrementThreadIters(
         std::advance(weightsIter, increment);
     }
     if (_hasMask) {
-        std::advance(maskIter, nthreads*BLOCK_SIZE*_maskStride);
+        std::advance(maskIter, nthreads*ClassicalStatisticsData::BLOCK_SIZE*_maskStride);
     }
     offset += increment;
 }
@@ -903,6 +909,20 @@ void ClassicalStatistics<CASA_STATP>::_accumulate(
 CASA_STATD
 uInt ClassicalStatistics<CASA_STATP>::_nThreadsMax() const {
 #ifdef _OPENMP
+    if (omp_get_num_threads() > 1) {
+        // we are being called from an already parallized block of code,
+        // so we should not parallelize
+        return 1;
+    }
+    // we are being called from a single threaded block of code,
+    // so parallelize
+    const StatsDataProvider<CASA_STATP> *dataProvider = this->_getDataProvider();
+    if (dataProvider) {
+        uInt n = dataProvider->getNMaxThreads();
+        if (n > 0) {
+            return n;
+        }
+    }
     return omp_get_max_threads();
 #else
     return 1;
@@ -916,7 +936,7 @@ uInt ClassicalStatistics<CASA_STATP>::_threadIdx() const {
 #else
     uInt tid = 0;
 #endif
-    return tid * CACHE_PADDING;
+    return tid * ClassicalStatisticsData::CACHE_PADDING;
 }
 
 CASA_STATD
@@ -941,7 +961,7 @@ vector<vector<uInt64> > ClassicalStatistics<CASA_STATP>::_binCounts(
             ++iDesc;
         }
     }
-    vector<Bool> allSame(binDesc.size(), True);
+    std::vector<Bool> allSame(binDesc.size(), True);
     vector<vector<uInt64> > bins(binDesc.size());
     iDesc = bDesc;
     vector<vector<uInt64> >::iterator bBins = bins.begin();
@@ -964,18 +984,24 @@ vector<vector<uInt64> > ClassicalStatistics<CASA_STATP>::_binCounts(
         ++iDesc;
     }
     _initIterators();
-    uInt nThreadsMax = _nThreadsMax();
-    PtrHolder<vector<vector<uInt64> > > tBins(
-        new vector<vector<uInt64> >[CACHE_PADDING*nThreadsMax], True
+    const uInt nThreadsMax = _nThreadsMax();
+    PtrHolder<std::vector<std::vector<uInt64> > > tBins(
+        new std::vector<std::vector<uInt64> >[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
-    PtrHolder<vector<CountedPtr<AccumType> > > tSameVal(
-        new vector<CountedPtr<AccumType> >[CACHE_PADDING*nThreadsMax], True
+    PtrHolder<std::vector<CountedPtr<AccumType> > > tSameVal(
+        new std::vector<CountedPtr<AccumType> >[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     PtrHolder<vector<Bool> > tAllSame(
-        new vector<Bool>[CACHE_PADDING*nThreadsMax], True
+        new std::vector<Bool>[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     for (uInt tid=0; tid<nThreadsMax; ++tid) {
-        uInt idx8 = CACHE_PADDING*tid;
+        uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
         tBins[idx8] = bins;
         tSameVal[idx8] = sameVal;
         tAllSame[idx8] = allSame;
@@ -992,10 +1018,13 @@ vector<vector<uInt64> > ClassicalStatistics<CASA_STATP>::_binCounts(
             nBlocks, extra, nthreads, dataIter,
             maskIter, weightsIter, offset, nThreadsMax
         );
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(nthreads)
+#endif
         for (uInt i=0; i<nBlocks; ++i) {
             uInt idx8 = _threadIdx();
-            uInt64 dataCount = _myCount - offset[idx8] < BLOCK_SIZE ? extra : BLOCK_SIZE;
+            uInt64 dataCount = _myCount - offset[idx8] < ClassicalStatisticsData::BLOCK_SIZE
+                ? extra : ClassicalStatisticsData::BLOCK_SIZE;
             _computeBins(
                 tBins[idx8], tSameVal[idx8], tAllSame[idx8], dataIter[idx8],
                 maskIter[idx8], weightsIter[idx8], dataCount, binDesc, maxLimit
@@ -1030,7 +1059,7 @@ void ClassicalStatistics<CASA_STATP>::_mergeResults(
         typename vector<CountedPtr<AccumType> >::iterator siter;
         typename vector<CountedPtr<AccumType> >::iterator send = sameVal.end();
         vector<Bool>::iterator aiter;
-        uInt idx8 = CACHE_PADDING*tid;
+        uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
         vector<vector<uInt64> >::const_iterator titer = tBins[idx8].begin();
         for (iter=bins.begin(); iter!=end; ++iter, ++titer) {
             std::transform(
@@ -1151,12 +1180,14 @@ void ClassicalStatistics<CASA_STATP>::_computeBins(
 
 CASA_STATD
 void ClassicalStatistics<CASA_STATP>::_createDataArray(
-    vector<AccumType>& ary
+    std::vector<AccumType>& ary
 ) {
     _initIterators();
-    uInt nThreadsMax = _nThreadsMax();
-    PtrHolder<vector<AccumType> > tAry(
-        new vector<AccumType>[CACHE_PADDING*nThreadsMax], True
+    const uInt nThreadsMax = _nThreadsMax();
+    PtrHolder<std::vector<AccumType> > tAry(
+        new std::vector<AccumType>[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     while (True) {
         _initLoopVars();
@@ -1170,10 +1201,13 @@ void ClassicalStatistics<CASA_STATP>::_createDataArray(
             nBlocks, extra, nthreads, dataIter,
             maskIter, weightsIter, offset, nThreadsMax
         );
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(nthreads)
+#endif
         for (uInt i=0; i<nBlocks; ++i) {
             uInt idx8 = _threadIdx();
-            uInt64 dataCount = _myCount - offset[idx8] < BLOCK_SIZE ? extra : BLOCK_SIZE;
+            uInt64 dataCount = _myCount - offset[idx8] < ClassicalStatisticsData::BLOCK_SIZE
+                ? extra : ClassicalStatisticsData::BLOCK_SIZE;
             _computeDataArray(
                 tAry[idx8], dataIter[idx8], maskIter[idx8],
                 weightsIter[idx8], dataCount
@@ -1189,7 +1223,7 @@ void ClassicalStatistics<CASA_STATP>::_createDataArray(
     }
     // merge the per-thread arrays
     for (uInt tid=0; tid<nThreadsMax; ++tid) {
-        const vector<AccumType>& v = tAry[CACHE_PADDING*tid];
+        const std::vector<AccumType>& v = tAry[ClassicalStatisticsData::CACHE_PADDING*tid];
         ary.insert(ary.end(), v.begin(), v.end());
     }
 }
@@ -1261,12 +1295,13 @@ void ClassicalStatistics<CASA_STATP>::_computeDataArray(
 
 CASA_STATD
 void ClassicalStatistics<CASA_STATP>::_createDataArrays(
-    vector<vector<AccumType> >& arys, const vector<std::pair<AccumType, AccumType> >& includeLimits,
+    std::vector<std::vector<AccumType> >& arys,
+    const std::vector<std::pair<AccumType, AccumType> >& includeLimits,
     uInt64 maxCount
 ) {
-    typename vector<std::pair<AccumType, AccumType> >::const_iterator bLimits = includeLimits.begin();
-    typename vector<std::pair<AccumType, AccumType> >::const_iterator iLimits = bLimits;
-    typename vector<std::pair<AccumType, AccumType> >::const_iterator eLimits = includeLimits.end();
+    typename std::vector<std::pair<AccumType, AccumType> >::const_iterator bLimits = includeLimits.begin();
+    typename std::vector<std::pair<AccumType, AccumType> >::const_iterator iLimits = bLimits;
+    typename std::vector<std::pair<AccumType, AccumType> >::const_iterator eLimits = includeLimits.end();
     std::pair<AccumType, AccumType> prevLimits;
     while(iLimits != eLimits) {
         // sanity checks
@@ -1289,15 +1324,19 @@ void ClassicalStatistics<CASA_STATP>::_createDataArrays(
         ++iLimits;
     }
     _initIterators();
-    uInt nThreadsMax = _nThreadsMax();
-    PtrHolder<vector<vector<AccumType> > > tArys(
-        new vector<vector<AccumType> >[CACHE_PADDING*nThreadsMax], True
+    const uInt nThreadsMax = _nThreadsMax();
+    PtrHolder<std::vector<std::vector<AccumType> > > tArys(
+        new std::vector<std::vector<AccumType> >[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     PtrHolder<uInt64> tCurrentCount(
-        new uInt64[CACHE_PADDING*nThreadsMax], True
+        new uInt64[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     for (uInt tid=0; tid<nThreadsMax; ++tid) {
-        uInt idx8 = CACHE_PADDING*tid;
+        uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
         tArys[idx8] = arys;
     }
     uInt64 currentCount = 0;
@@ -1314,13 +1353,16 @@ void ClassicalStatistics<CASA_STATP>::_createDataArrays(
             maskIter, weightsIter, offset, nThreadsMax
         );
         for (uInt tid=0; tid<nThreadsMax; ++tid) {
-            uInt idx8 = CACHE_PADDING*tid;
+            uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
             tCurrentCount[idx8] = currentCount;
         }
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(nthreads)
+#endif
         for (uInt i=0; i<nBlocks; ++i) {
             uInt idx8 = _threadIdx();
-            uInt64 dataCount = _myCount - offset[idx8] < BLOCK_SIZE ? extra : BLOCK_SIZE;
+            uInt64 dataCount = _myCount - offset[idx8] < ClassicalStatisticsData::BLOCK_SIZE
+                ? extra : ClassicalStatisticsData::BLOCK_SIZE;
             _computeDataArrays(
                 tArys[idx8], tCurrentCount[idx8], dataIter[idx8], maskIter[idx8],
                 weightsIter[idx8], dataCount, includeLimits, maxCount
@@ -1337,7 +1379,7 @@ void ClassicalStatistics<CASA_STATP>::_createDataArrays(
         // circuiting earlier vs performance hits if that does not happen
         uInt64 prevCount = currentCount;
         for (uInt tid=0; tid<nThreadsMax; ++tid) {
-            uInt idx8 = CACHE_PADDING*tid;
+            uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
             currentCount += (tCurrentCount[idx8] - prevCount);
         }
         if (_increment(False)) {
@@ -1347,7 +1389,7 @@ void ClassicalStatistics<CASA_STATP>::_createDataArrays(
     AlwaysAssert(currentCount == maxCount, AipsError);
     // merge the per-thread arrays
     for (uInt tid=0; tid<nThreadsMax; ++tid) {
-        uInt idx8 = CACHE_PADDING*tid;
+        uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
         typename vector<vector<AccumType> >::iterator iter = arys.begin();
         typename vector<vector<AccumType> >::iterator end = arys.end();
         typename vector<vector<AccumType> >::const_iterator titer = tArys[idx8].begin();
@@ -1648,12 +1690,16 @@ void ClassicalStatistics<CASA_STATP>::_doMinMax(
     AccumType& datamin, AccumType& datamax
 ) {
     _initIterators();
-    uInt nThreadsMax = _nThreadsMax();
+    const uInt nThreadsMax = _nThreadsMax();
     PtrHolder<CountedPtr<AccumType> > tmin(
-        new CountedPtr<AccumType>[CACHE_PADDING*nThreadsMax], True
+        new CountedPtr<AccumType>[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     PtrHolder<CountedPtr<AccumType> > tmax(
-        new CountedPtr<AccumType>[CACHE_PADDING*nThreadsMax], True
+        new CountedPtr<AccumType>[
+            ClassicalStatisticsData::CACHE_PADDING*nThreadsMax
+        ], True
     );
     while (True) {
         _initLoopVars();
@@ -1667,10 +1713,13 @@ void ClassicalStatistics<CASA_STATP>::_doMinMax(
             nBlocks, extra, nthreads, dataIter,
             maskIter, weightsIter, offset, nThreadsMax
         );
+#ifdef _OPENMP
 #pragma omp parallel for num_threads(nthreads)
+#endif
         for (uInt i=0; i<nBlocks; ++i) {
             uInt idx8 = _threadIdx();
-            uInt64 dataCount = _myCount - offset[idx8] < BLOCK_SIZE ? extra : BLOCK_SIZE;
+            uInt64 dataCount = _myCount - offset[idx8] < ClassicalStatisticsData::BLOCK_SIZE
+                ? extra : ClassicalStatisticsData::BLOCK_SIZE;
             _computeMinMax(
                 tmax[idx8], tmin[idx8], dataIter[idx8], maskIter[idx8],
                 weightsIter[idx8], dataCount
@@ -1687,7 +1736,7 @@ void ClassicalStatistics<CASA_STATP>::_doMinMax(
     CountedPtr<AccumType> mymax;
     CountedPtr<AccumType> mymin;
     for (uInt i=0; i<nThreadsMax; ++i) {
-        uInt idx8 = i * CACHE_PADDING;
+        uInt idx8 = i * ClassicalStatisticsData::CACHE_PADDING;
         if (! tmin[idx8].null()) {
             if (mymin.null() || *tmin[idx8] < *mymin) {
                 mymin = tmin[idx8];
@@ -2295,13 +2344,13 @@ void ClassicalStatistics<CASA_STATP>::_initThreadVars(
     PtrHolder<MaskIterator>& maskIter, PtrHolder<WeightsIterator>& weightsIter,
     PtrHolder<uInt64>& offset, uInt nThreadsMax
 ) const {
-    uInt n = CACHE_PADDING*nThreadsMax;
+    uInt n = ClassicalStatisticsData::CACHE_PADDING*nThreadsMax;
     dataIter.set(new DataIterator[n], True);
     maskIter.set(new MaskIterator[n], True);
     weightsIter.set(new WeightsIterator[n], True);
     offset.set(new uInt64[n], True);
-    nBlocks = _myCount/BLOCK_SIZE;
-    extra = _myCount % BLOCK_SIZE;
+    nBlocks = _myCount/ClassicalStatisticsData::BLOCK_SIZE;
+    extra = _myCount % ClassicalStatisticsData::BLOCK_SIZE;
     if (extra > 0) {
         ++nBlocks;
     }
@@ -2309,9 +2358,9 @@ void ClassicalStatistics<CASA_STATP>::_initThreadVars(
     for (uInt tid=0; tid<nthreads; ++tid) {
         // advance the per-thread iterators to their correct starting
         // locations
-        uInt idx8 = CACHE_PADDING*tid;
+        uInt idx8 = ClassicalStatisticsData::CACHE_PADDING*tid;
         dataIter[idx8] = _myData;
-        offset[idx8] = tid*BLOCK_SIZE*_myStride;
+        offset[idx8] = tid*ClassicalStatisticsData::BLOCK_SIZE*_myStride;
         std::advance(dataIter[idx8], offset[idx8]);
         if (_hasWeights) {
             weightsIter[idx8] = _myWeights;
@@ -2319,7 +2368,7 @@ void ClassicalStatistics<CASA_STATP>::_initThreadVars(
         }
         if (_hasMask) {
             maskIter[idx8] = _myMask;
-            std::advance(maskIter[idx8], tid*BLOCK_SIZE*_maskStride);
+            std::advance(maskIter[idx8], tid*ClassicalStatisticsData::BLOCK_SIZE*_maskStride);
         }
     }
 }
