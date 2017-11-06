@@ -29,6 +29,7 @@
 #include <casacore/casa/Arrays/ArrayIO.h> 
 #include <casacore/casa/Arrays/ArrayLogical.h>
 #include <casacore/casa/Arrays/ArrayMath.h>
+#include <casacore/casa/Arrays/ArrayPartMath.h>
 #include <casacore/casa/Arrays/ArrayUtil.h>
 #include <casacore/casa/Arrays/Cube.h>
 #include <casacore/casa/Arrays/IPosition.h> 
@@ -103,6 +104,8 @@
 
 #include <casacore/casa/iomanip.h>
 
+#include <casacore/scimath/Mathematics/FFTPack.h>
+
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
 //local debug switch 
@@ -155,11 +158,13 @@ Bool FITSIDItoMS1::firstWeather = True; // initialize the class variable firstWe
 Double FITSIDItoMS1::rdate = 0.; // initialize the class variable rdate
 String FITSIDItoMS1::array_p = ""; // initialize the class variable array_p
 SimpleOrderedMap<Int,Int> FITSIDItoMS1::antIdFromNo(-1); // initialize the class variable antIdFromNo
+SimpleOrderedMap<Int,Int> FITSIDItoMS1::digiLevels(0); // initialize the class variable digiLevels
+Vector<Double> FITSIDItoMS1::effChBw;
 
 //	
 // Constructor
 //	
-  FITSIDItoMS1::FITSIDItoMS1(FitsInput& fitsin, const Int& obsType, const Bool& initFirstMain)
+FITSIDItoMS1::FITSIDItoMS1(FitsInput& fitsin, const String& correlat, const Int& obsType, const Bool& initFirstMain)
   : BinaryTableExtension(fitsin),
     itsNrMSKs(10),
     itsMSKC(itsNrMSKs," "),
@@ -168,11 +173,12 @@ SimpleOrderedMap<Int,Int> FITSIDItoMS1::antIdFromNo(-1); // initialize the class
     itsgotMSK(itsNrMSKs,False),
     ///infile_p(fitsin),
     itsObsType(obsType),
+    itsCorrelat(correlat),
     msc_p(0)
 {
 
   itsLog = new LogIO();
-  
+
   //
   // Get some things to remember.
   //
@@ -189,6 +195,7 @@ SimpleOrderedMap<Int,Int> FITSIDItoMS1::antIdFromNo(-1); // initialize the class
       weather_hasWater_p = False;
       weather_hasElectron_p = False;
       antIdFromNo.clear();
+      digiLevels.clear();
       rdate = 0.;
   }
   
@@ -876,7 +883,7 @@ void FITSIDItoMS1::describeColumns()
 		weightyp_p = kw->asString();
 		weightyp_p.upcase();
 		weightyp_p.trim();
-		if(weightyp_p!="NORMAL"){
+		if(weightyp_p!="NORMAL" && weightyp_p!="CORRELAT"){
 		  *itsLog << LogIO::WARN << "Found WEIGHTYP keyword with value \"" << weightyp_p
 			  << "\" in UV_DATA table. Presently this keyword is ignored."
 			  << LogIO::POST;
@@ -1579,6 +1586,7 @@ void FITSIDItoMS1::setupMeasurementSet(const String& MSFileName, Bool useTSM,
   // weight per visibility) if the FITS IDI data actually contains it
   if(uv_data_hasWeights_p){
     MS::addColumnToDesc(td, MS::WEIGHT_SPECTRUM, 2);
+    MS::addColumnToDesc(td, MS::SIGMA_SPECTRUM, 2);
   }
   
   if(mainTbl && useTSM) {
@@ -1747,6 +1755,24 @@ void FITSIDItoMS1::setupMeasurementSet(const String& MSFileName, Bool useTSM,
   msc_p=new MSColumns(ms_p);
 }
 
+// Van Vleck relationship
+static double rho_2(Double r)
+{
+  return sin((C::pi * r) / 2);
+}
+
+// Fred Schwab's rational approximation for 2-bit sampling with n =
+// 3.336 and optimally chosen v_0.  See VLBA Correlat Memo 75.
+static Double rho_4(Double r)
+{
+  Double rr = r*r;
+  Double num, den;
+
+  num = 1.1329552 - 3.1056902 * rr + 2.9296994 * rr*rr - 0.90122460 * rr*rr*rr;
+  den = 1 - 2.7056559 * rr + 2.5012473 * rr*rr - 0.73985978 * rr*rr*rr;
+
+  return (num / den) * r;
+}
 
 void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& nSpW)
 {
@@ -1798,9 +1824,14 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
   //cout << "nChan=" << nChan << endl;
 
   Matrix<Complex> vis(nCorr,nChan);
-  Vector<Float> sigma(nCorr);
+  Matrix<Float> sigmaSpec(nCorr, nChan);
   Matrix<Float> weightSpec(nCorr, nChan);
-  Vector<Float> weight(nCorr);
+
+  Vector<Float> tmp(nChan + 1);
+  Vector<Float> work(3 * (nChan + 1) + 15);
+  Bool worksave;
+  Float *workptr = work.getStorage(worksave);
+  FFTPack::costi(nChan + 1, workptr);
 
   const Int nCat = 3; // three initial categories
   // define the categories
@@ -2069,7 +2100,7 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
 
 	  const Int p = corrIndex_p[pol];
 
- 	  if (visWeight < 0.0) {
+ 	  if (visWeight <= 0.0) {
 	    weightSpec(p, chan) = -visWeight;
 	    flag(p, chan) = True;
 	  } else {                            
@@ -2087,6 +2118,132 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
  	}
       }
 
+      // Apply digital corrections to data correlated with the DiFX
+      // correlator as these have not been applied at the correlator.
+      // Various constants have been taken from VLBA Scientific Memo
+      // 12 as the DiFX tries to emulate the original VLBA FX
+      // correlator as closely as possible.  Note that DiFX doesn't
+      // suffer from saturation so the saturation correction is
+      // omitted here.  DiFX currently doesn't support Hanning
+      // weighting.
+      //
+      // The correction applied here matches what the AIPS FITLD task
+      // does for DiFX-correlated data as closely as possible.  Two
+      // notable differences in the implementation.  This code simply
+      // uses the FFTPACK cosine tranform where FITLD implements its
+      // own cosine tranform based on an FFT.  And this code simply
+      // uses the expressions for rho_2 and rho_4 given in the
+      // literature instead of using a lookup table.
+      if (itsCorrelat == "DIFX") {
+	const double A = 5.36;
+	const Double H = 0.87890625;
+	Double bfacta, bfactc;
+	Double Rm, gamma, alfa;
+	Double (*rho)(Double) = NULL;
+
+	if (digiLevels(ant1) == 4 && digiLevels(ant2) == 4) {
+	  Rm = 4.3048;
+	  alfa = 0.882518;
+	  gamma = 3.335875 * 64.0 / 63.0;
+	  rho = rho_4;
+	} else if (digiLevels(ant1) == 2 && digiLevels(ant2) == 2) {
+	  Rm = 1.0;
+	  alfa = 2.0 / C::pi;
+	  gamma = 1.0 * 64.0 / 63.0;
+	  rho = rho_2;
+	} else {
+	  Rm = 5.8784;
+	  alfa = 0.882518;
+	  gamma = 3.335875 * 64.0 / 63.0;
+	}
+
+	bfactc = (gamma*gamma) / (A * Rm * alfa * H);
+	bfacta = (gamma*gamma) / (A * Rm * H);
+
+	if (ant1 != ant2) {
+	  // Cross-correlations
+	  vis *= Complex(bfactc);
+	} else {
+	  // Auto-correlations
+	  for (Int p=0; p<nCorr; p++) {
+	    if (corrProduct_p(0, p) == corrProduct_p(1, p)) {
+	      Bool tmpsave;
+	      Float *tmpptr;
+
+	      for (Int chan=0; chan<nChan; chan++)
+		tmp(chan) = bfacta * vis(p, chan).real();
+
+	      if (abs(tmp(0)) < 1e-20)
+		continue;
+
+	      // Extrapolate spectrum as this point has been thrown
+	      // away by the correlator.
+	      tmp(nChan) = 2 * tmp(nChan-1) - tmp(nChan-2);
+
+	      // Cosine transform to lag domain
+	      tmpptr = tmp.getStorage(tmpsave);
+	      FFTPack::cost(nChan + 1, tmpptr, workptr);
+	      tmp.putStorage(tmpptr, tmpsave);
+
+	      // Apply digital correction.
+	      for (Int chan = 1; chan<nChan; chan++) {
+		Float wt = 1.0 - ((Float)chan / nChan);
+		tmp(chan) = (wt * tmp(0)) * rho(tmp(chan) / (wt * tmp(0)));
+	      }
+	      tmp(nChan) = 0.0;
+
+	      // Cosine trandorm back to frequency domain
+	      tmpptr = tmp.getStorage(tmpsave);
+	      FFTPack::cost(nChan + 1, tmpptr, workptr);
+	      tmp.putStorage(tmpptr, tmpsave);
+
+	      for (Int chan=0; chan<nChan; chan++)
+		vis(p, chan) = tmp(chan) / (2*nChan);
+	    } else {
+	      for (Int chan=0; chan<nChan; chan++)
+		vis(p, chan) *= Complex(bfactc);
+	    }
+	  }
+	}
+      }
+
+      if (weightyp_p == "CORRELAT")
+	vis /= weightSpec;
+
+      // determine the spectralWindowId
+      Int spW = ifno;
+      if (iFreq>=0) {
+	memcpy(&spW, (static_cast<Int *>(data_addr[iFreq])), sizeof(Int));
+	spW *= (Int)tscal(iFreq);
+	spW += (Int)tzero(iFreq); 
+	spW--; // make 0-based
+	if (nIF_p>0) {
+	  spW *=nIF_p; 
+	  spW+=ifno;
+	}
+      }
+      if (spW!=lastSpW) {
+	msc.dataDescId().put(putrow,spW);
+	nSpW = max(nSpW, spW+1);
+	lastSpW=spW;
+      }
+
+      for (Int chan=0; chan<nChan; chan++) {
+	for (Int pol=0; pol<nCorr; pol++) {
+	  const Int p = corrIndex_p[pol];
+
+	  if (ant1 == ant2)
+	    weightSpec(p, chan) *= interval * effChBw(spW);
+	  else
+	    weightSpec(p, chan) *= 2 * interval * effChBw(spW);
+
+	  if (weightSpec(p, chan) > 0.0)
+	    sigmaSpec(p, chan) = 1.0f / sqrt(weightSpec(p, chan));
+	  else
+	    sigmaSpec(p, chan) = 1.0f;
+	}
+      }
+
       // fill in values for all the unused columns
       msc.feed1().put(putrow,0);
       msc.feed2().put(putrow,0);
@@ -2095,8 +2252,10 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
       msc.observationId().put(putrow,0);
       msc.stateId().put(putrow,-1);
 
-      Vector<Float> tmp(nCorr); tmp=1.0;
+      Vector<Float> tmp(nCorr);
+      tmp=1.0;
       msc.sigma().put(putrow,tmp);
+      tmp=0.0;
       msc.weight().put(putrow,tmp);
 
       msc.interval().put(putrow,interval);
@@ -2104,17 +2263,17 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
       msc.scanNumber().put(putrow,nScan);
 
       msc.data().put(putrow,vis);
-      // single channel case: make weight and weightSpectrum identical.
-      // multichannel case: weight should not be used.
-      if (nChan==1 || !uv_data_hasWeights_p) {
- 	const Vector<Float> weight(weightSpec.column(0).copy());
 
-	msc.weight().put(putrow,weight);
-      }
+      const Vector<Float> sigma = partialMedians(sigmaSpec, IPosition(1, 1));
+      const Vector<Float> weight = partialMedians(weightSpec, IPosition(1, 1));
+      msc.sigma().put(putrow,sigma);
+      msc.weight().put(putrow,weight);
 
       if(uv_data_hasWeights_p){
+	msc.sigmaSpectrum().put(putrow,sigmaSpec);
 	msc.weightSpectrum().put(putrow,weightSpec); 
       }
+
       msc.flag().put(putrow,flag);
       msc.flagCategory().put(putrow,flagCat);
 
@@ -2128,25 +2287,6 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
       msc.timeCentroid().put(putrow,time+interval/2.);
       msc.uvw().put(putrow,uvw);
       
-      // determine the spectralWindowId
-      Int spW = ifno;
-      if (iFreq>=0) {
-        memcpy(&spW, (static_cast<Int *>(data_addr[iFreq])), sizeof(Int));
-        spW *= (Int)tscal(iFreq);
-        spW += (Int)tzero(iFreq); 
- 	spW--; // make 0-based
- 	if (nIF_p>0) {
- 	  spW *=nIF_p; 
- 	  spW+=ifno;
- 	}
-      }
-      if (spW!=lastSpW) {
- 	//msc.dataDescId().put(row,spW);
- 	msc.dataDescId().put(putrow,spW);
- 	nSpW = max(nSpW, spW+1);
- 	lastSpW=spW;
-      }
-    
       // store the sourceId 
       Int sourceId = 0;
       if (iSource>=0) {
@@ -2165,6 +2305,8 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
   // fill the receptorAngle with defaults, just in case there is no AN table
   receptorAngle_p=0;
 
+  // Free FFTPack work buffer
+  work.putStorage(workptr, worksave);
 }
 
 // fill Observation table
@@ -2349,7 +2491,6 @@ void FITSIDItoMS1::fillAntennaTable()
    }
    else{
      if (arrnam=="ATCA") diameter=22.;
-     if (arrnam=="VLBA") diameter=25.;
      if (arrnam=="SMA")  diameter=6.;
      *itsLog << LogIO::WARN 
 	     << "ARRAY_GEOMETRY input table does not contain dish DIAMETER column.\n Will assume default diameter for TELESCOPE " 
@@ -2394,7 +2535,8 @@ void FITSIDItoMS1::fillAntennaTable()
      case 1: mount="EQUATORIAL"; break;
      case 2: mount="X-Y"; break;
      case 3: mount="ORBITING"; break;
-     case 4: mount="BIZARRE"; break;
+     case 4: mount="ALT-AZ+NASMYTH-R"; break;
+     case 5: mount="ALT-AZ+NASMYTH-L"; break;
      default: mount="UNKNOWN"; break;
      }
      ant.flagRow().put(row,False);
@@ -2405,17 +2547,17 @@ void FITSIDItoMS1::fillAntennaTable()
      }
      if(name(i)==""){
        ant.name().put(row,String("ANT")+temps);
+       ant.station().put(row,arrnam+":"+temps);     
      }
      else{
        ant.name().put(row, name(i));
+       ant.station().put(row,name(i));
      }
      Vector<Float> tempf=offset(i);
      Vector<Double> tempd(3);
      for (Int j=0; j<3; j++) tempd[j]=tempf[j];
      ant.offset().put(row,tempd);
 
-     //ant.station().put(row,name(i));
-     ant.station().put(row,arrnam+":"+temps);     
      ant.type().put(row,"GROUND-BASED");
 
      // Do UVFITS-dependent position corrections:
@@ -2566,6 +2708,14 @@ void FITSIDItoMS1::fillFeedTable() {
     }
   }
 
+  // record number of digitizer levels for each antenna
+  for (Int inRow=0; inRow<nAnt; inRow++) {
+    digiLevels.define(antIdFromNo(anNo(inRow)),digLev(inRow));
+    if (itsCorrelat == "DIFX" && digLev(inRow) != 2 && digLev(inRow) != 4) {
+      *itsLog << LogIO::SEVERE << "unsupported number of digitizer levels for ANTENNA_NO " << anNo(inRow) << LogIO::POST;
+    }
+  }
+
   // fill the feed table
   Int outRow=-1;
   for (Int inRow=0; inRow<nAnt; inRow++) {
@@ -2673,6 +2823,7 @@ void FITSIDItoMS1::fillSpectralWindowTable()
 
 
   Int nSpW = nIF_p;
+  effChBw.resize(nSpW);
 
   // The type of the column changes according to the number of entries
   if (nIF_p==1) {
@@ -2727,6 +2878,7 @@ void FITSIDItoMS1::fillSpectralWindowTable()
     for (Int i=0; i < nChan; i++) {
       chanFreq(i)= refFreq + (i+1-refChan) * chanBandwidth;
     }
+    effChBw(spw)=abs(chanBandwidth);
     resolution=abs(chanBandwidth);
     msSpW.chanFreq().put(spw,chanFreq);
     msSpW.chanWidth().put(spw,resolution);
@@ -2986,16 +3138,32 @@ Bool FITSIDItoMS1::fillSysCalTable()
 
   Int nVal=nrows();
   Bool dualPol=False;
+  Bool TSYSisScalar=False;
 
   Table tyTab = oldfullTable("");
   ROScalarColumn<Double> time(tyTab, "TIME");
   ROScalarColumn<Float> timeint(tyTab, "TIME_INTERVAL");
   ROScalarColumn<Int> anNo(tyTab, "ANTENNA_NO");
-  ROArrayColumn<Float> tsys_1(tyTab, "TSYS_1");
+  ROArrayColumn<Float> tsys_1;
   ROArrayColumn<Float> tsys_2;
-  if(tyTab.tableDesc().isColumn("TSYS_2")) {
-    tsys_2.attach(tyTab, "TSYS_2"); // this column is optional
-    dualPol=True;
+  ROScalarColumn<Float> tsys_1S;
+  ROScalarColumn<Float> tsys_2S;
+  try{
+    tsys_1.attach(tyTab, "TSYS_1");
+    if(tyTab.tableDesc().isColumn("TSYS_2")) {
+      tsys_2.attach(tyTab, "TSYS_2"); // this column is optional
+      dualPol=True;
+    }
+  }
+  catch(AipsError){
+    tsys_1S.attach(tyTab, "TSYS_1");
+    if(tyTab.tableDesc().isColumn("TSYS_2")) {
+      tsys_2S.attach(tyTab, "TSYS_2"); // this column is optional
+      dualPol=True;
+    }
+    TSYSisScalar=True;
+    *itsLog << LogIO::WARN << "Treating TSYS_1 and TSYS_2 columns in input SYSTEM_TEMPERATURE table as scalar,"
+	    << endl << " i.e. using same value for all bands." << LogIO::POST;
   }
   Vector<Float> tsys(dualPol ? 2 : 1);
 
@@ -3013,9 +3181,15 @@ Bool FITSIDItoMS1::fillSysCalTable()
       msSysCal.time().put(outRow,time(inRow)*C::day + rdate);
       msSysCal.interval().put(outRow,timeint(inRow)*C::day);
       msSysCal.spectralWindowId().put(outRow,inIF);
-      tsys(0)=tsys_1(inRow)(IPosition(1,inIF));
-      if (dualPol)
-	tsys(1)=tsys_2(inRow)(IPosition(1,inIF));
+      if (TSYSisScalar) {
+	tsys(0)=tsys_1S(inRow);
+	if (dualPol)
+	  tsys(1)=tsys_2S(inRow);
+      } else {
+	tsys(0)=tsys_1(inRow)(IPosition(1,inIF));
+	if (dualPol)
+	  tsys(1)=tsys_2(inRow)(IPosition(1,inIF));
+      }
       msSysCal.tsys().put(outRow,tsys);
     }
   }

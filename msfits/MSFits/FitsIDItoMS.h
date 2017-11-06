@@ -118,17 +118,24 @@ class FITSIDItoMS1 : public BinaryTableExtension
 public: 
 
   //
-  // The only constructor is from a FitsInput.
+  // The only constructor is from a FitsInput.  The correlat string
+  // should be set to the correlator name/type as contained in the
+  // CORRELAT keyword from the FITS-IDI primary header.  If it is set
+  // to "DIFX" (case-sensitive) additional digital corrections
+  // appropriate for the DiFX software correlator will be applied.
+  // Other valid values include "VLBA" (for the original VLBA hardware
+  // correlator; currently unsupported) and "SFXC" (for the SFXC
+  // software correlator used by the EVN).
   //
 
-  FITSIDItoMS1(FitsInput& in, const Int& obsType=0, const Bool& initFirstMain=True);
+  FITSIDItoMS1(FitsInput& in, const String& correlat, const Int& obsType=0, const Bool& initFirstMain=True);
 
   ~FITSIDItoMS1();
   
   //
   // Get the full table, using the supplied arguments to construct
   // the table.  The table will contain all data from the current
-  // row to the end of the BinarTableExtension.
+  // row to the end of the BinaryTableExtension.
   //
   
   Table oldfullTable(const String& tabName);
@@ -290,6 +297,7 @@ protected:
   Double startTime_p;
   Double lastTime_p;
   Int itsObsType;
+  String itsCorrelat;
   MeasurementSet ms_p;
   MSColumns* msc_p;
   static Bool firstMain;
@@ -303,6 +311,8 @@ protected:
   Int nStokes_p;
   Int nBand_p;
   static SimpleOrderedMap<Int,Int> antIdFromNo;
+  static SimpleOrderedMap<Int,Int> digiLevels;
+  static Vector<Double> effChBw;
 
   //
   //# Member Functions
