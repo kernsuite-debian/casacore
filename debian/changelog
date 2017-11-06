@@ -1,3 +1,10 @@
+casacore (2.4.0-1kern1) xenial; urgency=medium
+
+  * new upstream release
+  * remove patches which are accepted upstream
+
+ -- KERN packaging <packaging@kernsuite.info>  Mon, 06 Nov 2017 14:39:27 +0200
+
 casacore (2.3.0-4) unstable; urgency=low
 
   * Add support for python3.6 (Closes: #873667)
