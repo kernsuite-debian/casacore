@@ -13,6 +13,7 @@ Functionals/FuncExprData.cc
 Functionals/FunctionFactoryErrors.cc
 Functionals/FunctionalProxy.cc
 Functionals/SerialHelper.cc
+Mathematics/ClassicalStatisticsData.cc
 Mathematics/Combinatorics.cc
 Mathematics/FFTPack.cc
 Mathematics/FFTServer.cc
@@ -233,6 +234,7 @@ Mathematics/ChauvenetCriterionStatistics.h
 Mathematics/ChauvenetCriterionStatistics.tcc
 Mathematics/ClassicalStatistics.h
 Mathematics/ClassicalStatistics.tcc
+Mathematics/ClassicalStatisticsData.h
 Mathematics/Combinatorics.h
 Mathematics/ConstrainedRangeStatistics.h
 Mathematics/ConstrainedRangeStatistics.tcc
@@ -294,6 +296,8 @@ Mathematics/StatsDataProvider.h
 Mathematics/StatsDataProvider.tcc
 Mathematics/StatisticsAlgorithm.h
 Mathematics/StatisticsAlgorithm.tcc
+Mathematics/StatisticsAlgorithmFactory.h
+Mathematics/StatisticsAlgorithmFactory.tcc
 Mathematics/StatisticsData.h
 Mathematics/StatisticsIncrementer.h
 Mathematics/StatisticsIncrementer.tcc
