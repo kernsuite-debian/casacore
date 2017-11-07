@@ -1,0 +1,42 @@
+.TH readms "1" "2017-11-01" "casacore"
+.SH NAME
+readms \- Read one or more MeasurementSets
+.SH SYNOPSIS
+\fBreadms\fR \fPparm=\fIvalue\fR ...
+.SH Parameters
+.TP
+\fBnms\fR
+Number of MeasurementSets to read (0 means 1 MS without suffix; default)
+.TP
+\fBmsname\fR
+Name of the MeasurementSet (suffix _p<i> is added if nms>0)
+.TP
+\fBdata\fR
+Read DATA column? (default=true)
+.TP
+\fBflag\fR
+Read FLAG column? (default=true)
+.TP
+\fBweightspectrum\fR
+Read WEIGHT_SPECTRUM column? (default=false)
+.TP
+\fBfields\fR
+Fields to read 
+.TP
+\fBntime\fR
+Number of time steps to read (0=all; default)
+.TP
+\fBspw\fR
+Spectral window numbers to read
+.TP
+\fBnpol\fR
+Number of polarizations to read (0=all; default)
+.TP
+\fBnchan\fR
+Number of channels to read (0=all; default)
+.TP
+\fBbaselines\fR
+Baselines to read (CASA baseline selection)
+.TP
+\fBrowwise\fR
+Read the data row wise (thus a get per row) (default=true)

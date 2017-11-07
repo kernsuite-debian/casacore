@@ -1,0 +1,98 @@
+.TH writems "1" "2017-11-01" "casacore"
+.SH NAME
+writems \- Create one or more MeasurementSets
+.SH SYNOPSIS
+\fBwritems\fR \fPparm=\fIvalue\fR ...
+.SH Parameters
+.TP
+\fBnms\fR
+Number of MeasurementSets to create (0 means 1 MS without suffix;
+default, >0 also creates MultiMS)
+.TP
+\fBmsname\fR
+Name of the output MeasurementSet (suffix _p<i> is added if nms>0)
+.TP
+\fBra\fR
+One or more J2000 Right Ascensions (as hh:mm:ss.sss); defines the fields
+.TP
+\fBdec\fR
+One or more J2000 Declinations (as dd.mm.ss.sss); defines the fields
+.TP
+\fBanttab\fR
+Name of the ANTENNA table giving the antenna parameters to use
+(zero/empty values if not given)
+.TP
+\fBstartfreq\fR
+Start frequency (Hz) per spw (1 value counts on for other spws;
+default: 1e9)
+.TP
+\fBchanwidth\fR
+Channel frequency width (Hz) per spw (1 value applies to all spws;
+default: 1e6)
+.TP
+\fBstarttime\fR
+Start time (e.g., 23Mar2016/12:00:00)
+.TP
+\fBtimestep\fR
+Time interval (sec; default: 1)
+.TP
+\fBntime\fR
+Number of time steps (default: 1)
+\fBntimefield\fR
+Number of time steps per field (0=all fields for all times; default)
+.TP
+\fBnspw\fR
+Number of spectral windows (default: 1)
+.TP
+\fBnpol\fR
+Number of polarizations per spectral window; 1 value applies to all
+spws (default: 4)
+.TP
+\fBnchan\fR
+Number of channels per spectral window; 1 value applies to all spws
+(default: 256)
+.TP
+\fBnant\fR
+Number of antennae to use; it anttab is given maximum to use is its
+size (default: 0)
+.TP
+\fBcalcuvw\fR
+Calculate UVW coordinates? (default: false)
+.TP
+\fBautocorr\fR
+Write autocorrelations? (default: true)
+.TP
+\fBweightspectrum\fR
+Write WEIGHT_SPECTRUM column? (default: false)
+.TP
+\fBimagercolumns\fR
+Write imager columns (MODEL_DATA, CORRECTED_DATA)? (default: false)
+.TP
+\fBrowwise\fR
+Write the data row wise (thus a put per row) (default: true)
+.TP
+\fBnflagbits\fR
+int\fR
+Write multiple flag bits (0, 8, 16 or 32) mapped to FLAG (default: 0)
+.TP
+\fBflagcolumn\fR
+Name of the FlagBits column if nflagbits>0 (default: "FLAG_BITS")
+.TP
+\fBtilesize\fR
+Size of data tiles (KBytes); default is 1024 
+.TP
+\fBtilesizefreq\fR
+Number of channels in data tiles; default is all channels
+.TP
+\fBmultifile\fR
+Use the MultiFile feature? (default: false)
+.TP
+\fBmultihdf5\fR
+Use the MultiHDF5 feature? (default: false)
+.TP
+\fBmfsize\fR
+MultiFile/HDF5 block size (KBytes); default is tilesize
+.TP
+\fBashdf5\fR
+bool\fR
+Write the data in HDF5 format (default: false)
