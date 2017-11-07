@@ -8,5 +8,4 @@ Use-the-correct-symbol-to-detect-Linux-OS.patch
 Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
 Fix-too-small-int-type-for-memory-on-32-bit-machines.patch
-Fix-FTBFS-tStatisticsUtilities-tLatticeStatistics-and-tLC.patch
 Add-support-for-python3.6.patch
