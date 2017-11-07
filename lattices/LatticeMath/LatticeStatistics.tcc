@@ -69,8 +69,6 @@
 #include <casacore/casa/stdlib.h>
 #include <casacore/casa/sstream.h>
 
-#include <casacore/casa/OS/Timer.h>
-
 #include <casacore/scimath/Mathematics/ChauvenetCriterionStatistics.h>
 #include <casacore/scimath/Mathematics/FitToHalfStatistics.h>
 #include <casacore/scimath/Mathematics/HingesFencesStatistics.h>
@@ -103,7 +101,7 @@ LatticeStatistics<T>::LatticeStatistics (const MaskedLattice<T>& lattice,
   showProgress_p(showProgress),
   forceDisk_p(forceDisk),
   doneFullMinMax_p(False),
-  _algConf(), _chauvIters() {
+  _saf(), _chauvIters() {
    nxy_p.resize(0);
    statsToPlot_p.resize(0);   
    range_p.resize(0);
@@ -121,7 +119,6 @@ LatticeStatistics<T>::LatticeStatistics (const MaskedLattice<T>& lattice,
       goodParameterStatus_p = False;
    }
 }
-
 
 template <class T>
 LatticeStatistics<T>::LatticeStatistics (const MaskedLattice<T>& lattice,
@@ -147,7 +144,7 @@ LatticeStatistics<T>::LatticeStatistics (const MaskedLattice<T>& lattice,
   showProgress_p(showProgress),
   forceDisk_p(forceDisk),
   doneFullMinMax_p(False),
-  _algConf(), _chauvIters()
+  _saf(), _chauvIters()
 {
    nxy_p.resize(0);
    statsToPlot_p.resize(0);
@@ -167,11 +164,10 @@ LatticeStatistics<T>::LatticeStatistics (const MaskedLattice<T>& lattice,
    }
 }
 
-
 template <class T>
 LatticeStatistics<T>::LatticeStatistics(const LatticeStatistics<T> &other) 
 : pInLattice_p(0), pStoreLattice_p(0),
-  _algConf(other._algConf), _chauvIters(other._chauvIters),
+  _saf(other._saf), _chauvIters(other._chauvIters),
   _aOld(other._aOld), _bOld(other._bOld), _aNew(other._aNew), _bNew(other._bNew)
 //
 // Copy constructor.  Storage lattice is not copied.
@@ -179,7 +175,6 @@ LatticeStatistics<T>::LatticeStatistics(const LatticeStatistics<T> &other)
 {
    operator=(other);
 }
-
 
 template <class T>
 LatticeStatistics<T> &LatticeStatistics<T>::operator=(const LatticeStatistics<T> &other)
@@ -236,7 +231,7 @@ LatticeStatistics<T> &LatticeStatistics<T>::operator=(const LatticeStatistics<T>
       doneFullMinMax_p= other.doneFullMinMax_p;
       minFull_p = other.minFull_p;
       maxFull_p = other.maxFull_p;
-      _algConf = other._algConf;
+      _saf = other._saf;
       _chauvIters = other._chauvIters;
       _aNew = other._aNew;
       _bNew = other._bNew;
@@ -678,7 +673,10 @@ Bool LatticeStatistics<T>::calculateStatistic (Array<AccumType>& slice,
 
 template <class T>
 void LatticeStatistics<T>::configureClassical() {
-    _algConf.algorithm = StatisticsData::CLASSICAL;
+    if (_saf.algorithm() != StatisticsData::CLASSICAL) {
+        _saf.configureClassical();
+        needStorageLattice_p = True;
+    }
     _setDefaultCoeffs();
 }
 
@@ -686,7 +684,10 @@ template <class T>
 void LatticeStatistics<T>::configureClassical(
     Double aOld, Double bOld, Double aNew, Double bNew
 ) {
-    _algConf.algorithm = StatisticsData::CLASSICAL;
+    if (_saf.algorithm() != StatisticsData::CLASSICAL) {
+        _saf.configureClassical();
+        needStorageLattice_p = True;
+    }
     _aOld = aOld;
     _bOld = bOld;
     _aNew = aNew;
@@ -696,11 +697,10 @@ void LatticeStatistics<T>::configureClassical(
 template <class T>
 void LatticeStatistics<T>::configureHingesFences(Double f) {
     if (
-        _algConf.algorithm != StatisticsData::HINGESFENCES
-        || ! near(f, _algConf.hf)
+        _saf.algorithm() != StatisticsData::HINGESFENCES
+        || ! near(f, _saf.hingesFencesFactor())
     ) {
-        _algConf.algorithm = StatisticsData::HINGESFENCES;
-        _algConf.hf = f;
+        _saf.configureHingesFences(f);
         needStorageLattice_p = True;
     }
 }
@@ -711,19 +711,18 @@ void LatticeStatistics<T>::configureFitToHalf(
     FitToHalfStatisticsData::USE_DATA useData,
     AccumType centerValue
 ) {
-    if (
-        _algConf.algorithm != StatisticsData::FITTOHALF
-        || centerType != _algConf.ct
-        || useData != _algConf.ud
-        || (
-            centerType == FitToHalfStatisticsData::CVALUE
-            && ! near(centerValue, _algConf.cv)
-        )
-    ) {
-        _algConf.algorithm = StatisticsData::FITTOHALF;
-        _algConf.ct = centerType;
-        _algConf.ud = useData;
-        _algConf.cv = centerValue;
+    Bool reconfig = _saf.algorithm() != StatisticsData::FITTOHALF;
+    if (! reconfig) {
+        typename StatisticsAlgorithmFactory<AccumType, const T*, const Bool*>::FitToHalfData data
+            = _saf.fitToHalfData();
+        reconfig = centerType != data.center || useData != data.side
+            || (
+                centerType == FitToHalfStatisticsData::CVALUE
+                && ! near(centerValue, data.centerValue)
+            );
+    }
+    if (reconfig) {
+        _saf.configureFitToHalf(centerType, useData, centerValue);
         needStorageLattice_p = True;
     }
 }
@@ -732,14 +731,14 @@ template <class T>
 void LatticeStatistics<T>::configureChauvenet(
     Double zscore, Int maxIterations
 ) {
-    if (
-        _algConf.algorithm != StatisticsData::CHAUVENETCRITERION
-        || ! near(zscore, _algConf.zs)
-        || maxIterations != _algConf.mi
-    ) {
-        _algConf.algorithm = StatisticsData::CHAUVENETCRITERION;
-        _algConf.zs = zscore;
-        _algConf.mi = maxIterations;
+    Bool reconfig = _saf.algorithm() != StatisticsData::CHAUVENETCRITERION;
+    if (! reconfig) {
+        typename StatisticsAlgorithmFactory<AccumType, const T*, const Bool*>::ChauvenetData data
+            = _saf.chauvenetData();
+        reconfig = ! near(zscore, data.zScore) || maxIterations != data.maxIter;
+    }
+    if (reconfig) {
+        _saf.configureChauvenet(zscore, maxIterations);
         needStorageLattice_p = True;
     }
 }
@@ -794,20 +793,18 @@ Bool LatticeStatistics<T>::generateStorageLattice() {
     Double timeOld = 0;
     Double timeNew = 0;
     uInt nsets = pStoreLattice_p->size()/storeLatticeShape.getLast(1)[0];
-    Bool tryOldMethod = _algConf.algorithm == StatisticsData::CLASSICAL;
+    Bool tryOldMethod = _saf.algorithm() == StatisticsData::CLASSICAL;
     if (tryOldMethod) {
         uInt nel = pInLattice_p->size()/nsets;
         timeOld = nsets*(_aOld + _bOld*nel);
         timeNew = nsets*(_aNew + _bNew*nel);
         tryOldMethod = timeOld < timeNew;
     }
-    //Timer timer;
     Bool ranOldMethod = False;
     uInt ndim = shape.nelements();
     if (tryOldMethod) {
         // use older method for higher performance in the large loop count
         // regime
-        //timer.mark();
         minPos_p.resize(ndim);
         maxPos_p.resize(ndim);
         StatsTiledCollapser<T,AccumType> collapser(
@@ -867,7 +864,8 @@ void LatticeStatistics<T>::_doStatsLoop(
     T overallMin = 0;
     Bool isReal = whatType(&currentMax);
 
-    CountedPtr<StatisticsAlgorithm<AccumType, const T*, const Bool*> > sa = _createStatsAlgorithm();
+    CountedPtr<StatisticsAlgorithm<AccumType, const T*, const Bool*> > sa = _saf.createStatsAlgorithm();
+    Bool isChauv = _saf.algorithm() == StatisticsData::CHAUVENETCRITERION;
     LatticeStatsDataProvider<T> lattDP;
     MaskedLatticeStatsDataProvider<T> maskedLattDP;
     LatticeStatsDataProviderBase<T> *dataProvider;
@@ -902,16 +900,6 @@ void LatticeStatistics<T>::_doStatsLoop(
         slicer.setStart(curPos);
         slicer.setEnd(stepper.endPosition());
         subLat.setRegion(slicer);
-        if (
-            stepper.atStart() && ! progressMeter.null()
-            && ! nsetsIsLarge
-        ) {
-            uInt64 nelem = subLat.size();
-            uInt nSublatticeSteps = nelem > 4096*4096
-                ? nelem/subLat.advisedMaxPixels()
-                : 1;
-            progressMeter->init(nsets*nSublatticeSteps);
-        }
         if(subLat.isMasked()) {
             maskedLattDP.setLattice(subLat);
             dataProvider = &maskedLattDP;
@@ -920,9 +908,15 @@ void LatticeStatistics<T>::_doStatsLoop(
             lattDP.setLattice(subLat);
             dataProvider = &lattDP;
         }
+        if (
+            stepper.atStart() && ! progressMeter.null()
+            && ! nsetsIsLarge
+        ) {
+            progressMeter->init(nsets*dataProvider->estimatedSteps());
+        }
         sa->setDataProvider(dataProvider);
         stats = sa->getStatistics();
-        if (_algConf.algorithm == StatisticsData::CHAUVENETCRITERION) {
+        if (isChauv) {
             ChauvenetCriterionStatistics<AccumType, const T*, const Bool*> *ch
                 = dynamic_cast<ChauvenetCriterionStatistics<AccumType, const T*, const Bool*> *>(
                     &*sa
@@ -1059,7 +1053,7 @@ void LatticeStatistics<T>::generateRobust () {
     static const uInt maxArraySizeBytes = 1e8;
     fractions.insert(0.25);
     fractions.insert(0.75);
-    sa = _createStatsAlgorithm();
+    sa = _saf.createStatsAlgorithm();
     _configureDataProviders(lattDP, maskedLattDP);
     slicer = Slicer(stepper.position(), stepper.endPosition(), Slicer::endIsLast);
     subLat = SubLattice<T>(*pInLattice_p, slicer);
@@ -1134,38 +1128,6 @@ void LatticeStatistics<T>::generateRobust () {
         pStoreLattice_p->putAt(quantiles[0.75] - quantiles[0.25], pos3);
         pStoreLattice_p->putAt(quantiles[0.25], posQ1);
         pStoreLattice_p->putAt(quantiles[0.75], posQ3);
-    }
-}
-
-template <class T>
-CountedPtr<StatisticsAlgorithm<typename LatticeStatistics<T>::AccumType, const T*, const Bool*> >
-LatticeStatistics<T>::_createStatsAlgorithm() const {
-    CountedPtr<StatisticsAlgorithm<AccumType, const T*, const Bool*> > sa;
-    switch (_algConf.algorithm) {
-    case StatisticsData::CLASSICAL:
-        sa = new ClassicalStatistics<AccumType, const T*, const Bool*>();
-        return sa;
-    case StatisticsData::HINGESFENCES: {
-        sa = new HingesFencesStatistics<AccumType, const T*, const Bool*>(_algConf.hf);
-        return sa;
-    }
-    case StatisticsData::FITTOHALF: {
-        sa = new FitToHalfStatistics<AccumType, const T*, const Bool*>(
-            _algConf.ct, _algConf.ud, _algConf.cv
-        );
-        return sa;
-    }
-    case StatisticsData::CHAUVENETCRITERION: {
-        sa = new ChauvenetCriterionStatistics<AccumType, const T*, const Bool*>(
-            _algConf.zs, _algConf.mi
-        );
-        return sa;
-    }
-    default:
-        ThrowCc(
-            "Logic Error: Unhandled algorithm "
-                + String::toString(_algConf.algorithm)
-        );
     }
 }
 

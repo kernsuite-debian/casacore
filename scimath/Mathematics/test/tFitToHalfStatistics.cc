@@ -38,7 +38,7 @@
 
 int main() {
     try {
-        vector<Double> v0(5);
+        std::vector<Double> v0(5);
         v0[0] = 2;
         v0[1] = 1;
         v0[2] = 1.5;
@@ -88,6 +88,28 @@ int main() {
             AlwaysAssert(fh.getStatistic(
                 StatisticsData::RMS) == sqrt(sumsq/npts), AipsError
             );
+        }
+        {
+            // CAS-10760, test that setStatsToCalculate() works correctly
+            FitToHalfStatistics<
+                Double, std::vector<Double>::const_iterator,
+                std::vector<Bool>::const_iterator
+            > fh(
+                FitToHalfStatisticsData::CMEAN, FitToHalfStatisticsData::LE_CENTER
+            );
+            fh.setData(v0.begin(), v0.size());
+            std::set<StatisticsData::STATS> x;
+            x.insert(StatisticsData::VARIANCE);
+            fh.setStatsToCalculate(x);
+            StatsData<Double> sd = fh.getStatistics();
+            AlwaysAssert(! sd.masked, AipsError);
+            AlwaysAssert(! sd.weighted, AipsError);
+            Double variance = fh.getStatistic(StatisticsData::VARIANCE);
+            Double npts = 6;
+            Double nvariance = 3.94;
+            AlwaysAssert(near(variance, nvariance/(npts - 1)), AipsError);
+            Double mean = fh.getStatistic(StatisticsData::MEAN);
+            AlwaysAssert(near(mean, 13.2/6), AipsError);
         }
         {
             FitToHalfStatistics<Double, vector<Double>::const_iterator, vector<Bool>::const_iterator> fh(
@@ -550,6 +572,56 @@ int main() {
             AlwaysAssert(
                 near(
                     fh.getStatistic(StatisticsData::RMS),
+                    sqrt(sumsq/npts)
+                ), AipsError
+            );
+
+            // test cloning gives same results
+            SHARED_PTR<
+                FitToHalfStatistics<
+                    Double, std::vector<Double>::const_iterator,
+                    std::vector<Bool>::const_iterator
+                >
+            > fh1(
+                dynamic_cast<
+                    FitToHalfStatistics<
+                        Double, std::vector<Double>::const_iterator,
+                        std::vector<Bool>::const_iterator
+                    >*
+                >(fh.clone())
+            );
+            StatsData<Double> sd1 = fh1->getStatistics();
+            AlwaysAssert(sd1.masked == sd.masked, AipsError);
+            AlwaysAssert(sd1.weighted == sd.weighted, AipsError);
+            AlwaysAssert(*sd1.max == *sd.max, AipsError);
+            AlwaysAssert(sd1.maxpos.first == sd.maxpos.first, AipsError);
+            AlwaysAssert(sd1.maxpos.second == sd.maxpos.second, AipsError);
+            AlwaysAssert(sd1.mean == sd.mean, AipsError);
+            AlwaysAssert(*sd1.min == *sd.min, AipsError);
+            AlwaysAssert(sd1.minpos.first == sd.minpos.first, AipsError);
+            AlwaysAssert(sd1.minpos.second == sd.minpos.second, AipsError);
+            AlwaysAssert(sd1.npts == sd.npts, AipsError);
+            AlwaysAssert(sd1.rms == sd.rms, AipsError);
+            AlwaysAssert(sd1.stddev == sd.stddev, AipsError);
+            AlwaysAssert(sd1.sum == sd.sum, AipsError);
+            AlwaysAssert(sd1.sumsq == sd.sumsq, AipsError);
+            AlwaysAssert(sd1.variance == sd.variance, AipsError);
+            AlwaysAssert(
+                fh1->getStatisticIndex(StatisticsData::MAX)
+                == std::pair<Int64 COMMA Int64>(-1, -1),
+                AipsError
+            );
+            AlwaysAssert(
+                fh1->getStatisticIndex(StatisticsData::MIN)
+                == std::pair<Int64 COMMA Int64>(0, 4),
+                AipsError
+            );
+            AlwaysAssert(fh1->getStatistic(
+                StatisticsData::NPTS) == npts, AipsError
+            );
+            AlwaysAssert(
+                near(
+                    fh1->getStatistic(StatisticsData::RMS),
                     sqrt(sumsq/npts)
                 ), AipsError
             );

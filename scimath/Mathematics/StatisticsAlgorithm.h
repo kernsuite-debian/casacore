@@ -108,6 +108,9 @@ public:
 
     virtual ~StatisticsAlgorithm();
 
+    // Clone this instance
+    virtual StatisticsAlgorithm<CASA_STATP>* clone() const = 0;
+
     // <group>
     // Add a dataset to an existing set of datasets on which statistics are
     // to be calculated. nr is the number of points to be considered.
@@ -311,6 +314,10 @@ protected:
     const vector<DataIterator>& _getData() const { return _data; }
 
     StatsDataProvider<CASA_STATP>* _getDataProvider() {
+        return _dataProvider;
+    }
+
+    const StatsDataProvider<CASA_STATP>* _getDataProvider() const {
         return _dataProvider;
     }
 

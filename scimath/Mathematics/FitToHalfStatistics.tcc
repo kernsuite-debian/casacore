@@ -76,6 +76,11 @@ FitToHalfStatistics<CASA_STATP>::operator=(
 }
 
 CASA_STATD
+StatisticsAlgorithm<CASA_STATP>* FitToHalfStatistics<CASA_STATP>::clone() const {
+    return new FitToHalfStatistics<CASA_STATP>(*this);
+}
+
+CASA_STATD
 AccumType FitToHalfStatistics<CASA_STATP>::getMedian(
     CountedPtr<uInt64> , CountedPtr<AccumType> ,
     CountedPtr<AccumType> , uInt , Bool , uInt64
@@ -330,6 +335,16 @@ void FitToHalfStatistics<CASA_STATP>::reset() {
     _statsData = initializeStatsData<AccumType>();
     _rangeIsSet = False;
     ConstrainedRangeStatistics<CASA_STATP>::reset();
+}
+
+CASA_STATD
+void FitToHalfStatistics<CASA_STATP>::setStatsToCalculate(
+    std::set<StatisticsData::STATS>& stats
+) {
+    if (! stats.empty() && _centerType == FitToHalfStatisticsData::CMEAN) {
+        stats.insert(StatisticsData::MEAN);
+    }
+    ClassicalStatistics<CASA_STATP>::setStatsToCalculate(stats);
 }
 
 CASA_STATD
