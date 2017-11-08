@@ -1,9 +1,17 @@
 casacore (2.4.0-1kern1) xenial; urgency=medium
 
-  * new upstream release
-  * remove patches which are accepted upstream
+  * build for KERN
 
  -- KERN packaging <packaging@kernsuite.info>  Mon, 06 Nov 2017 14:39:27 +0200
+
+casacore (2.4.0-1) unstable; urgency=low
+
+  * New upstream version 2.4.0
+  * Rediff patches
+  * Push Standards-Version to 4.1.1. Change homepage URL to https
+  * Add manpages for writems and readms; move manpages to debian/man
+
+ -- Ole Streicher <olebole@debian.org>  Tue, 07 Nov 2017 13:28:09 +0100
 
 casacore (2.3.0-4) unstable; urgency=low
 
