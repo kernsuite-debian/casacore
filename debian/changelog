@@ -1,3 +1,12 @@
+casacore (2.4.1-1) xenial; urgency=medium
+
+  * Add manpages for writems and readms; move manpages to debian/man
+
+  [ KERN packaging ]
+  * New upstream version 2.4.1
+
+ -- KERN packaging <packaging@kernsuite.info>  Mon, 18 Dec 2017 15:13:39 +0200
+
 casacore (2.4.0-1kern1) xenial; urgency=medium
 
   * build for KERN
