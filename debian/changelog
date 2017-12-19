@@ -1,3 +1,12 @@
+casacore (2.4.1-1) unstable; urgency=low
+
+  [ Ole Streicher ]
+  * New upstream version 2.4.1
+  * Rediff patches
+  * Push Standards-Version to 4.1.2. Switch remaining URL to https
+
+ -- Ole Streicher <olebole@debian.org>  Tue, 19 Dec 2017 12:02:29 +0100
+
 casacore (2.4.0-1) unstable; urgency=low
 
   * New upstream version 2.4.0
