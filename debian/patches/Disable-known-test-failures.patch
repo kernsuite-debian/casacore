@@ -1,9 +1,6 @@
 From: Ole Streicher <olebole@debian.org>
 Date: Fri, 2 Dec 2016 11:11:28 +0100
 Subject: Disable known test failures
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
 
 Disable tPath test
 
@@ -14,21 +11,21 @@ this test is disabled.
  98/425 Test #101: tPath ...............................***Failed    0.64 sec
 1,16d0
 < expanded: /home/heroxbd
-< expected: /«PKGBUILDDIR»
+< expected: /<<PKGBUILDDIR>>
 < absolute: /home/heroxbd
-< expected: /«PKGBUILDDIR»
+< expected: /<<PKGBUILDDIR>>
 < expanded: /home/heroxbd/test/test2
-< expected: /«PKGBUILDDIR»/test/test2
+< expected: /<<PKGBUILDDIR>>/test/test2
 < absolute: /home/heroxbd/test/test2
-< expected: /«PKGBUILDDIR»/test/test2
+< expected: /<<PKGBUILDDIR>>/test/test2
 < expanded: /home/heroxbd/test
-< expected: /«PKGBUILDDIR»/test
+< expected: /<<PKGBUILDDIR>>/test
 < absolute: /home/heroxbd/test
-< expected: /«PKGBUILDDIR»/test
+< expected: /<<PKGBUILDDIR>>/test
 < expanded: /home/heroxbd/test
-< expected: /«PKGBUILDDIR»/test
+< expected: /<<PKGBUILDDIR>>/test
 < absolute: /home/heroxbd/test
-< expected: /«PKGBUILDDIR»/test
+< expected: /<<PKGBUILDDIR>>/test
 33a18
 > OK
 FAIL (output not verified): ./tPath
