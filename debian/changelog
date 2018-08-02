@@ -1,3 +1,13 @@
+casacore (2.4.1-2) unstable; urgency=medium
+
+  * Update VCS fields to use salsa.d.o
+  * Removed unused manpage of showtable (1)
+  * Keep numpy 1.13 printoption for numpy 1.14 or above (Closes: #904853)
+  * Push Standards-Version to 4.1.5. No changes needed.
+  * Push compat to 11
+
+ -- Ole Streicher <olebole@debian.org>  Thu, 02 Aug 2018 10:56:27 +0800
+
 casacore (2.4.1-1) unstable; urgency=low
 
   [ Ole Streicher ]
