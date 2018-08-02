@@ -1,0 +1,27 @@
+From: Zheng Meyer-Zhao <zheng.meyer@gmail.com>
+Date: Tue, 13 Mar 2018 18:57:19 +0100
+Subject: keep numpy 1.13 printoption for numpy 1.14 or above
+
+Otherwise doctest for tConvert will fail
+
+Closes: #904853
+---
+ python/Converters/test/tConvert.py | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/python/Converters/test/tConvert.py b/python/Converters/test/tConvert.py
+index 8ffa622..199eca6 100644
+--- a/python/Converters/test/tConvert.py
++++ b/python/Converters/test/tConvert.py
+@@ -181,7 +181,10 @@ def testnp():
+ 
+ if __name__ == "__main__":
+ 
+-    import numpy as NUM;
++    import numpy as NUM
++    from distutils.version import LooseVersion
++    if LooseVersion(NUM.version.version) > LooseVersion("1.13"):
++        NUM.set_printoptions(legacy="1.13")
+     t = tConvert();
+     print "Doing numpy/array test ..."
+     testnp();
