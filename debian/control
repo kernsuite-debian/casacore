@@ -4,7 +4,7 @@ Maintainer: Debian Astro Team <debian-astro-maintainers@lists.alioth.debian.org>
 Uploaders: Benda Xu <heroxbd@gentoo.org>, Ole Streicher <olebole@debian.org>
 Build-Depends: bison,
                cmake (>= 1.6.2),
-               debhelper (>= 9),
+               debhelper (>= 11),
                doxygen,
                flex,
                gfortran,
