@@ -10,7 +10,7 @@ Closes: #904853
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/python/Converters/test/tConvert.py b/python/Converters/test/tConvert.py
-index 8ffa622..199eca6 100644
+index 8ffa622..0c5c46a 100644
 --- a/python/Converters/test/tConvert.py
 +++ b/python/Converters/test/tConvert.py
 @@ -181,7 +181,10 @@ def testnp():
