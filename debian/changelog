@@ -1,3 +1,10 @@
+casacore (2.4.1-3) unstable; urgency=low
+
+  * Fix version number comparison for numpy
+  * Fix boost-python detection for the new upstream sonames.
+
+ -- Ole Streicher <olebole@debian.org>  Mon, 06 Aug 2018 10:10:20 +0200
+
 casacore (2.4.1-2) unstable; urgency=medium
 
   * Update VCS fields to use salsa.d.o
@@ -10,7 +17,6 @@ casacore (2.4.1-2) unstable; urgency=medium
 
 casacore (2.4.1-1) unstable; urgency=low
 
-  [ Ole Streicher ]
   * New upstream version 2.4.1
   * Rediff patches
   * Push Standards-Version to 4.1.2. Switch remaining URL to https
