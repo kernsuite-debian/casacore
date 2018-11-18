@@ -43,10 +43,10 @@
 #include <casacore/casa/Utilities/DataType.h>
 #include <casacore/casa/BasicSL/String.h>
 #include <casacore/casa/Logging/LogIO.h>
-#include <casacore/scimath/Mathematics/FitToHalfStatisticsData.h>
-#include <casacore/scimath/Mathematics/StatisticsData.h>
-#include <casacore/scimath/Mathematics/StatisticsAlgorithm.h>
-#include <casacore/scimath/Mathematics/StatisticsAlgorithmFactory.h>
+#include <casacore/scimath/StatsFramework/FitToHalfStatisticsData.h>
+#include <casacore/scimath/StatsFramework/StatisticsData.h>
+#include <casacore/scimath/StatsFramework/StatisticsAlgorithm.h>
+#include <casacore/scimath/StatsFramework/StatisticsAlgorithmFactory.h>
 
 #include <vector>
 #include <list>
@@ -55,11 +55,11 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
 //# Forward Declarations
 template <class T> class MaskedLattice;
+template <class T> class SubLattice;
 template <class T> class TempLattice;
 class IPosition;
 
 #include <casacore/casa/iosstrfwd.h>
-
 
 // <summary>
 // Compute and display various statistics from a lattice
@@ -194,32 +194,12 @@ class IPosition;
 //   <li> Retrieve statistics at specified location of display axes
 // </todo>
 
-
 template <class T> class LatticeStatistics : public LatticeStatsBase
 {
 
 public:
 
-
     typedef typename NumericTraits<T>::PrecisionType AccumType;
-
-    // DEPRECATED. WILL BE REMOVED, USE scimath/Mathematics/StatisticsAlgorithmFactory
-    // instead
-    struct AlgConf {
-        StatisticsData::ALGORITHM algorithm;
-        // hinges-fences f factor
-        Double hf;
-        // fit to have center type
-        FitToHalfStatisticsData::CENTER ct;
-        // fit to half data portion to use
-        FitToHalfStatisticsData::USE_DATA ud;
-        // fit to half center value
-        AccumType cv;
-        // Chauvenet zscore
-        Double zs;
-        // Chauvenet max iterations
-        Int mi;
-    };
 
 // Constructor takes the lattice and a <src>LogIO</src> object for logging.
 // You can specify whether you want to see progress meters or not.
@@ -377,6 +357,13 @@ public:
 // Did we construct with a logger ?
    Bool hasLogger () const {return haveLogger_p;};
 
+   // The configure methods return True if reconfiguration is actually
+   // necessary (ie if the underlying storage lattice needs to be recomputed).
+   // If no reconfiguration is necessary, False is returned.
+
+   // configure to use biweight algorithm.
+   Bool configureBiweight(Int maxIter, Double c);
+
    // configure object to use Classical Statistics
    // The time, t_x, it takes to compute classical statistics using algorithm x, can
    // be modeled by
@@ -396,28 +383,49 @@ public:
    // coeffecients that is important
    // The version that takes no parameters uses the default values of the coefficients;
    // <group>
-   void configureClassical();
+   Bool configureClassical();
 
-   void configureClassical(Double aOld, Double bOld, Double aNew, Double bNew);
+   Bool configureClassical(Double aOld, Double bOld, Double aNew, Double bNew);
    // </group>
 
    // configure to use fit to half algorithm.
-   void configureFitToHalf(
+   Bool configureFitToHalf(
            FitToHalfStatisticsData::CENTER centerType=FitToHalfStatisticsData::CMEAN,
            FitToHalfStatisticsData::USE_DATA useData=FitToHalfStatisticsData::LE_CENTER,
            AccumType centerValue=0
    );
 
    // configure to use hinges-fences algorithm
-   void configureHingesFences(Double f);
+   Bool configureHingesFences(Double f);
 
    // configure to use Chauvenet's criterion
-   void configureChauvenet(
+   Bool configureChauvenet(
            Double zscore=-1, Int maxIterations=-1
    );
 
+   // <group>
+   // The force* methods are really only for testing. They in general shouldn't
+   // be called in production code. The last one to be called will be the one to
+   // be attempted to be used.
+   void forceUseStatsFrameworkUsingDataProviders();
+
+   void forceUseStatsFrameworkUsingArrays();
+
+   void forceUseOldTiledApplyMethod();
+   // </group>
+
+   void forceAllowCodeDecideWhichAlgortihmToUse();
+
    // get number of iterations associated with Chauvenet criterion algorithm
    std::map<String, uInt> getChauvenetNiter() const { return _chauvIters; }
+
+   // should quantile-like stats (median, quartiles, medabsdevmed) be computed?
+   // When the stats framework is used, It is better to set this before computing
+   // any statistics, to avoid unnecessary duplicate creations of the
+   // stats algorithm objects. Unnecessary recreation of these is a performance
+   // bottleneck for iterative stats algorithms (eg Chauvenet), especially for
+   // large images (CAS-10947/10948).
+   void setComputeQuantiles(Bool b);
 
 protected:
 
@@ -469,13 +477,7 @@ protected:
    virtual Bool listLayerStats (
              const Matrix<AccumType>& ord,
              ostringstream& rslt, Int zLayer); 
-/*
-// Gets labels for higher order axes and x axis.
-// dPos is the location of the start of the cursor in the
-// storage image for this row. 
-   virtual void getLabels(String& higherOrderLabel, String& xAxisLabel,
-                          const IPosition& dPos) const;
-*/
+
 // Given a location in the storage lattice, convert those locations on the   
 // non-statistics axis (the last one) and optionally account for the 
 // lattice subsectioning
@@ -510,10 +512,18 @@ protected:
            IPosition& storagePos, const IPosition& latticePos
    );
 
+   StatisticsData::ALGORITHM _getAlgorithm() const;
+
 private:
 
+   enum LatticeStatsAlgorithm {
+       STATS_FRAMEWORK_ARRAYS,
+       STATS_FRAMEWORK_DATA_PROVIDERS,
+       TILED_APPLY
+   };
+
    const MaskedLattice<T>* pInLattice_p;
-   SHARED_PTR<const MaskedLattice<T> > _inLatPtrMgr;
+   std::shared_ptr<const MaskedLattice<T> > _inLatPtrMgr;
 
    CountedPtr<TempLattice<AccumType> > pStoreLattice_p;
    Vector<Int> nxy_p, statsToPlot_p;
@@ -530,6 +540,9 @@ private:
    std::map<String, uInt> _chauvIters;
 
    Double _aOld, _bOld, _aNew, _bNew;
+   
+   // unset means let the code decide
+   PtrHolder<LatticeStatsAlgorithm> _latticeStatsAlgortihm;
 
    void _setDefaultCoeffs() {
        // coefficients from timings run on PagedImages on
@@ -544,17 +557,30 @@ private:
 // Summarize the statistics found over the entire lattice
    virtual void summStats();
 
-       virtual void displayStats(
-           AccumType nPts, AccumType sum, AccumType median,
-           AccumType medAbsDevMed, AccumType quartile, AccumType sumSq, AccumType mean,
-           AccumType var, AccumType rms, AccumType sigma, AccumType dMin, AccumType dMax,
-           AccumType q1, AccumType q3
-       );
+   virtual void displayStats(
+       AccumType nPts, AccumType sum, AccumType median,
+       AccumType medAbsDevMed, AccumType quartile, AccumType sumSq, AccumType mean,
+       AccumType var, AccumType rms, AccumType sigma, AccumType dMin, AccumType dMax,
+       AccumType q1, AccumType q3
+   );
 
 // Calculate statistic from storage lattice and return in an array
    Bool calculateStatistic (Array<AccumType>& slice, 
                             LatticeStatsBase::StatisticsTypes type,
                             Bool dropDeg);
+
+   template <class U, class V>
+   void _computeQuantiles(
+       AccumType& median, AccumType& medAbsDevMed, AccumType& q1, AccumType& q3,
+       CountedPtr<StatisticsAlgorithm<AccumType, U, V> > statsAlg,
+       uInt64 knownNpts, AccumType knownMin, AccumType knownMax
+   ) const;
+
+   template <class U, class V>
+   void _computeQuantilesForStatsFramework(
+        StatsData<AccumType>& stats, AccumType& q1, AccumType& q3,
+        CountedPtr<StatisticsAlgorithm<AccumType, U, V> > statsAlg
+   ) const;
 
 // Find the median per cursorAxes chunk
    void generateRobust (); 
@@ -596,9 +622,42 @@ private:
    void _configureDataProviders(
            LatticeStatsDataProvider<T>& lattDP,
            MaskedLatticeStatsDataProvider<T>& maskedLattDP
-    ) const;
+   ) const;
 
    void _doStatsLoop(uInt nsets, CountedPtr<LattStatsProgress> progressMeter);
+
+   void _computeStatsUsingArrays(
+       SubLattice<T> subLat, CountedPtr<LattStatsProgress> progressMeter, 
+       const IPosition& cursorShape
+   );
+
+   void _computeStatsUsingLattDataProviders(
+       LatticeStepper& stepper, SubLattice<T> subLat, Slicer& slicer,
+       CountedPtr<LattStatsProgress> progressMeter, uInt nsets
+   );
+
+   IPosition _cursorShapeForArrayMethod(uInt setSize) const;
+
+   void _doComputationUsingArrays(
+       std::vector<
+           CountedPtr<
+               StatisticsAlgorithm<
+                   AccumType, typename Array<T>::const_iterator,
+                   Array<Bool>::const_iterator
+               >
+           >
+       >& sa, T& overallMin, T& overallMax, IPosition& arrayShape,
+       std::vector<Array<T> >& dataArray,
+       std::vector<Array<Bool> >& maskArray, std::vector<IPosition>& curPos,
+       uInt nthreads, const SubLattice<T>& subLat, Bool isChauv,
+       Bool isMasked, Bool isReal, CountedPtr<const DataRanges> range
+   );
+
+   void _fillStorageLattice(
+       T currentMin, T currentMax, const IPosition& curPos,
+       const StatsData<AccumType>& stats, Bool doQuantiles,
+       AccumType q1=0, AccumType q3=0
+   );
 
    inline static AccumType _mean(const AccumType& sum, const AccumType& npts) {
        return npts <= 0 ? 0 : sum/npts;
@@ -608,12 +667,16 @@ private:
        return npts <= 0 ? 0 : sqrt(sumsq/npts);
    }
 
+   void _updateMinMaxPos(
+       T& overallMin, T& overallMax, T currentMin, T currentMax,
+       const IPosition& minPos, const IPosition& maxPos,
+       Bool atStart, const SubLattice<T>& subLat
+   );
+
 };
 
 //# Declare extern templates for often used types.
-#ifdef AIPS_CXX11
   extern template class LatticeStatistics<Float>;
-#endif
 
 
 } //# NAMESPACE CASA - END

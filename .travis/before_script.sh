@@ -13,12 +13,7 @@ cd build
 wget ftp://ftp.astron.nl/outgoing/Measures/WSRT_Measures.ztar
 tar zxvf WSRT_Measures.ztar
 
-# no extern templates makes the build a lot larger
-if [ "$CXX11" = "False" ]; then
-  ccache -M 160M
-else
-  ccache -M 80M
-fi
+ccache -M 80M
 
 if [ "$TRAVIS_OS_NAME" = osx ]; then
   PATH=$HOME/miniconda/bin:$PATH
@@ -37,8 +32,8 @@ if [ "$TRAVIS_OS_NAME" = osx ]; then
     BUILD_PYTHON3=On
   fi
 
-  CMAKE_PREFIX_PATH=/Users/travis/miniconda/envs/testenv/lib
-  ls /Users/travis/miniconda/envs/testenv/lib
+  CMAKE_PREFIX_PATH=/Users/travis/miniconda/envs/testenv/
+  ls /Users/travis/miniconda/envs/testenv/
 else
   PYTHON2_EXECUTABLE=/usr/bin/python2.7
   PYTHON3_EXECUTABLE=/usr/bin/python3.4
@@ -56,12 +51,10 @@ CXX="ccache $CXX" cmake .. \
     -DUSE_HDF5=ON \
     -DBUILD_PYTHON=${BUILD_PYTHON} \
     -DBUILD_PYTHON3=${BUILD_PYTHON3} \
-    -DCXX11=${CXX11} \
     -DPYTHON2_EXECUTABLE=${PYTHON2_EXECUTABLE} \
     -DPYTHON3_EXECUTABLE=${PYTHON3_EXECUTABLE} \
     -DCMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} \
     -DDATA_DIR=$PWD \
     -DSOFA_ROOT_DIR=$HOME \
-    -DUseCasacoreNamespace=True \
     -DCMAKE_INSTALL_PREFIX=${TRAVIS_BUILD_DIR}/installed
 

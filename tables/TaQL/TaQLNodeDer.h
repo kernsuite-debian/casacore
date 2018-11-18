@@ -69,12 +69,13 @@ public:
 	     CTString =4,
 	     CTTime   =5};
   explicit TaQLConstNodeRep (Bool value);
-  explicit TaQLConstNodeRep (Int64 value, Bool isTableName=False);
+  explicit TaQLConstNodeRep (Int64 value);
   explicit TaQLConstNodeRep (Double value);
   explicit TaQLConstNodeRep (Double value, const String& unit);
   explicit TaQLConstNodeRep (DComplex value);
   explicit TaQLConstNodeRep (const String& value, Bool isTableName=False);
   explicit TaQLConstNodeRep (const MVTime& value);
+  explicit TaQLConstNodeRep (Int64 value, const String& subTableName);
   virtual ~TaQLConstNodeRep();
   void setIsTableName()
     { itsIsTableName = True; }
@@ -807,11 +808,13 @@ private:
 class TaQLSelectNodeRep: public TaQLQueryNodeRep
 {
 public:
-  TaQLSelectNodeRep (const TaQLNode& columns, const TaQLNode& where,
+  TaQLSelectNodeRep (const TaQLNode& columns,
+                     const TaQLMultiNode& withTables, const TaQLNode& where,
 		     const TaQLNode& groupby, const TaQLNode& having,
 		     const TaQLNode& sort, const TaQLNode& limitoff,
 		     const TaQLNode& giving, const TaQLMultiNode& dminfo);
-  TaQLSelectNodeRep (const TaQLNode& columns, const TaQLMultiNode& tables,
+  TaQLSelectNodeRep (const TaQLNode& columns,
+                     const TaQLMultiNode& withTables, const TaQLMultiNode& fromTables,
 		     const TaQLNode& join, const TaQLNode& where,
 		     const TaQLNode& groupby, const TaQLNode& having,
 		     const TaQLNode& sort, const TaQLNode& limitoff,
@@ -823,6 +826,7 @@ public:
   static TaQLSelectNodeRep* restore (AipsIO& aio);
 
   TaQLNode      itsColumns;
+  TaQLMultiNode itsWith;
   TaQLMultiNode itsTables;
   TaQLNode      itsJoin;
   TaQLNode      itsWhere;
@@ -852,14 +856,15 @@ public:
 class TaQLCountNodeRep: public TaQLQueryNodeRep
 {
 public:
-  TaQLCountNodeRep (const TaQLNode& columns, const TaQLMultiNode& tables,
-                    const TaQLNode& where);
+  TaQLCountNodeRep (const TaQLMultiNode& with, const TaQLNode& columns,
+                    const TaQLMultiNode& tables, const TaQLNode& where);
   virtual ~TaQLCountNodeRep();
   virtual TaQLNodeResult visit (TaQLNodeVisitor&) const;
   virtual void showDerived (std::ostream& os) const;
   virtual void save (AipsIO& aio) const;
   static TaQLCountNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLNode      itsColumns;
   TaQLMultiNode itsTables;
   TaQLNode      itsWhere;
@@ -885,7 +890,8 @@ public:
 class TaQLUpdateNodeRep: public TaQLNodeRep
 {
 public:
-  TaQLUpdateNodeRep (const TaQLMultiNode& tables, const TaQLMultiNode& update,
+  TaQLUpdateNodeRep (const TaQLMultiNode& with,
+                     const TaQLMultiNode& tables, const TaQLMultiNode& update,
 		     const TaQLMultiNode& from, const TaQLNode& where,
 		     const TaQLNode& sort, const TaQLNode& limitoff);
   virtual ~TaQLUpdateNodeRep();
@@ -894,6 +900,7 @@ public:
   virtual void save (AipsIO& aio) const;
   static TaQLUpdateNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLMultiNode itsTables;
   TaQLMultiNode itsUpdate;
   TaQLMultiNode itsFrom;
@@ -921,15 +928,18 @@ public:
 class TaQLInsertNodeRep: public TaQLNodeRep
 {
 public:
-  TaQLInsertNodeRep (const TaQLMultiNode& tables, const TaQLMultiNode& columns,
+  TaQLInsertNodeRep (const TaQLMultiNode& with, const TaQLMultiNode& tables,
+                     const TaQLMultiNode& columns,
 		     const TaQLNode& values, const TaQLNode& limit);
-  TaQLInsertNodeRep (const TaQLMultiNode& tables, const TaQLMultiNode& insert);
+  TaQLInsertNodeRep (const TaQLMultiNode& with, const TaQLMultiNode& tables,
+                     const TaQLMultiNode& insert);
   virtual ~TaQLInsertNodeRep();
   virtual TaQLNodeResult visit (TaQLNodeVisitor&) const;
   virtual void show (std::ostream& os) const;
   virtual void save (AipsIO& aio) const;
   static TaQLInsertNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLMultiNode itsTables;
   TaQLMultiNode itsColumns;
   TaQLNode      itsValues;
@@ -954,7 +964,8 @@ public:
 class TaQLDeleteNodeRep: public TaQLNodeRep
 {
 public:
-  TaQLDeleteNodeRep (const TaQLMultiNode& tables, const TaQLNode& where,
+  TaQLDeleteNodeRep (const TaQLMultiNode& with, const TaQLMultiNode& tables,
+                     const TaQLNode& where,
 		     const TaQLNode& sort, const TaQLNode& limitoff);
   virtual ~TaQLDeleteNodeRep();
   virtual TaQLNodeResult visit (TaQLNodeVisitor&) const;
@@ -962,6 +973,7 @@ public:
   virtual void save (AipsIO& aio) const;
   static TaQLDeleteNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLMultiNode itsTables;
   TaQLNode      itsWhere;
   TaQLNode      itsSort;
@@ -986,8 +998,8 @@ public:
 class TaQLCalcNodeRep: public TaQLNodeRep
 {
 public:
-  TaQLCalcNodeRep (const TaQLMultiNode& tables, const TaQLNode& expr,
-                   const TaQLNode& where,
+  TaQLCalcNodeRep (const TaQLMultiNode& withTables, const TaQLMultiNode& fromTables,
+                   const TaQLNode& expr, const TaQLNode& where,
                    const TaQLNode& sort, const TaQLNode& limitoff);
   virtual ~TaQLCalcNodeRep();
   virtual TaQLNodeResult visit (TaQLNodeVisitor&) const;
@@ -995,6 +1007,7 @@ public:
   virtual void save (AipsIO& aio) const;
   static TaQLCalcNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLMultiNode itsTables;
   TaQLNode      itsExpr;
   TaQLNode      itsWhere;
@@ -1020,7 +1033,8 @@ public:
 class TaQLCreTabNodeRep: public TaQLQueryNodeRep
 {
 public:
-  TaQLCreTabNodeRep (const TaQLNode& giving, const TaQLMultiNode& cols,
+  TaQLCreTabNodeRep (const TaQLMultiNode& with,
+                     const TaQLNode& giving, const TaQLMultiNode& cols,
 		     const TaQLNode& limit, const TaQLMultiNode& dminfo);
   virtual ~TaQLCreTabNodeRep();
   virtual TaQLNodeResult visit (TaQLNodeVisitor&) const;
@@ -1028,6 +1042,7 @@ public:
   virtual void save (AipsIO& aio) const;
   static TaQLCreTabNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLNode      itsGiving;
   TaQLMultiNode itsColumns;
   TaQLNode      itsLimit;
@@ -1148,7 +1163,7 @@ public:
 class TaQLAltTabNodeRep: public TaQLQueryNodeRep
 {
 public:
-  TaQLAltTabNodeRep (const TaQLNode& table,
+  TaQLAltTabNodeRep (const TaQLMultiNode& with, const TaQLNode& table,
                      const TaQLMultiNode& from,
                      const TaQLMultiNode& commands);
   virtual ~TaQLAltTabNodeRep();
@@ -1157,6 +1172,7 @@ public:
   virtual void save (AipsIO& aio) const;
   static TaQLAltTabNodeRep* restore (AipsIO& aio);
 
+  TaQLMultiNode itsWith;
   TaQLNode      itsTable;
   TaQLMultiNode itsFrom;
   TaQLMultiNode itsCommands;
