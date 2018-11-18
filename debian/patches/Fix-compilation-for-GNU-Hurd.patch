@@ -14,7 +14,7 @@ However, the tests still fail.
  create mode 100644 casa/OS/HostInfoHurd.h
 
 diff --git a/casa/OS/HostInfo.cc b/casa/OS/HostInfo.cc
-index 054caa2..3519442 100644
+index f539886..23dc4d1 100644
 --- a/casa/OS/HostInfo.cc
 +++ b/casa/OS/HostInfo.cc
 @@ -279,6 +279,13 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
@@ -229,10 +229,10 @@ index 64cd3a3..3b576c2 100644
  
  /*
 diff --git a/casa/aipsenv.h b/casa/aipsenv.h
-index 1943e5e..27947f6 100644
+index 8cd6ac0..f78cf94 100644
 --- a/casa/aipsenv.h
 +++ b/casa/aipsenv.h
-@@ -127,6 +127,13 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+@@ -133,6 +133,13 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
  #define AIPS_NOLARGEFILE
  #endif
  

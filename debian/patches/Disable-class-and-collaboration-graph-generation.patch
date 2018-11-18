@@ -11,7 +11,7 @@ further save space (bug #751947).
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/doxygen.cfg b/doxygen.cfg
-index 9071e88..94b7ccb 100644
+index 6680723..4814d2d 100644
 --- a/doxygen.cfg
 +++ b/doxygen.cfg
 @@ -2103,7 +2103,7 @@ DOT_FONTPATH           =

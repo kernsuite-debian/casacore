@@ -139,10 +139,10 @@ index 35d258f..de69738 100644
  )
  
 diff --git a/tables/TaQL/test/CMakeLists.txt b/tables/TaQL/test/CMakeLists.txt
-index 9cf5223..1fcd338 100644
+index 4dc7140..840f8f9 100644
 --- a/tables/TaQL/test/CMakeLists.txt
 +++ b/tables/TaQL/test/CMakeLists.txt
-@@ -35,8 +35,8 @@ tTaQLNode
+@@ -36,8 +36,8 @@ tTaQLNode
  # Only test scripts, no test programs.
  set (testscripts
  ttaql

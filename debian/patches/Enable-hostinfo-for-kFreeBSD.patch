@@ -7,10 +7,10 @@ Subject: Enable hostinfo for kFreeBSD
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/casa/aipsenv.h b/casa/aipsenv.h
-index 25912b8..1943e5e 100644
+index 64139ec..8cd6ac0 100644
 --- a/casa/aipsenv.h
 +++ b/casa/aipsenv.h
-@@ -122,7 +122,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
+@@ -128,7 +128,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
  #if defined(AIPS_BSD)
  #undef AIPS_BSD
  #endif

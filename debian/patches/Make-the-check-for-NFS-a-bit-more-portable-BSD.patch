@@ -6,11 +6,11 @@ And provide a fallback (f.e. for HURD).However, there is probably no
 real use case for that, since also other file systems may be slow or
 lack certain features.
 ---
- casa/OS/Directory.cc | 21 +++++++++++++++------
- 1 file changed, 15 insertions(+), 6 deletions(-)
+ casa/OS/Directory.cc | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
 
 diff --git a/casa/OS/Directory.cc b/casa/OS/Directory.cc
-index 82e6efc..b79ce0f 100644
+index 03b67ce..b79ce0f 100644
 --- a/casa/OS/Directory.cc
 +++ b/casa/OS/Directory.cc
 @@ -488,29 +488,38 @@ Vector<String> Directory::shellExpand (const Vector<String>& files, Bool stripPa
@@ -20,9 +20,8 @@ index 82e6efc..b79ce0f 100644
 -#ifndef __APPLE__
 +#if defined(__linux__)
  #include <sys/vfs.h>
--#include <linux//nfs_fs.h>
+ #include <linux/nfs_fs.h>
 -#else
-+#include <linux/nfs_fs.h>
 +#elif defined( __APPLE__)
  #include <sys/param.h>
  #include <sys/mount.h>
