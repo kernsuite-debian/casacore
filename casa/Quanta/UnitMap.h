@@ -332,6 +332,8 @@ public:
   // FITS unit list inclusion
   static Bool doneFITS;
   static Mutex fitsMutex;
+  // Object to ensure safe multi-threaded lazy single initialization
+  static CallOnce0 theirCallOnce;
   
   //# member functions
   // Get the name of a FITS unit
@@ -353,8 +355,12 @@ public:
 
 };
 
-//# Inline Implementations
-
+//# static initialization
+static struct unit_map_initialize_ {
+    static unsigned long count;
+    unit_map_initialize_( ) { if ( count++ == 0 ) UnitMap::clearCache( ); }
+    ~unit_map_initialize_( ) { if ( --count == 0 ) UnitMap::releaseUM( ); }
+} unit_map_initialize_instance_;
 
 } //# NAMESPACE CASACORE - END
 

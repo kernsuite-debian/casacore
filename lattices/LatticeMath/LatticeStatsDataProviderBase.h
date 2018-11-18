@@ -27,7 +27,7 @@
 #ifndef LATTICES_LATTICESTATSDATAPROVIDERBASE_H
 #define LATTICES_LATTICESTATSDATAPROVIDERBASE_H
 
-#include <casacore/scimath/Mathematics/StatsDataProvider.h>
+#include <casacore/scimath/StatsFramework/StatsDataProvider.h>
 
 #include <casacore/scimath/Mathematics/NumericTraits.h>
 #include <casacore/lattices/Lattices/LatticeIterator.h>
@@ -45,8 +45,6 @@ template <class T> class LatticeStatsDataProviderBase
 	: public StatsDataProvider<typename NumericTraits<T>::PrecisionType, const T*, const Bool*> {
 
 public:
-
-	//typedef typename NumericTraits<T>::PrecisionType AccumType;
 
 	virtual ~LatticeStatsDataProviderBase();
 
@@ -92,8 +90,6 @@ public:
 
 protected:
 	LatticeStatsDataProviderBase();
-
-	//virtual uInt _nsteps() const = 0;
 
 	void _updateMaxPos(const IPosition& maxPos) { _maxPos = maxPos; }
 

@@ -2,16 +2,12 @@ set (tests
 dAutoDiff
 dSparseDiff
 tAutoDiff
-tChauvenetCriterionStatistics
-tClassicalStatistics
 tCombinatorics
 tConvolver
 tFFTServer
 tFFTServer2
-tFitToHalfStatistics
 tGaussianBeam
 tGeometry
-tHingesFencesStatistics
 tHistAcc
 tInterpolateArray1D
 tMathFunc
@@ -20,12 +16,8 @@ tMedianSlider
 tSmooth
 tSparseDiff
 tStatAcc
-tStatisticsAlgorithmFactory
-tStatisticsTypes
-tStatisticsUtilities
 tVanVleck
 tVectorKernel
-tZScoreCalculator
 tInterpolate2D
 )
 

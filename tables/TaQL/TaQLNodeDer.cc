@@ -37,16 +37,27 @@
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
 
+// A global function to show the tables in a WITH clause (if used).
+void showWithTables (ostream& os, const TaQLMultiNode& with)
+{
+  if (with.isValid()) {
+    os << "WITH ";
+    with.show (os);
+    os << ' ';
+  }
+}
+
+  
 TaQLConstNodeRep::TaQLConstNodeRep (Bool value)
   : TaQLNodeRep (TaQLNode_Const),
     itsType        (CTBool),
     itsIsTableName (False),
     itsBValue      (value)
 {}
-TaQLConstNodeRep::TaQLConstNodeRep (Int64 value, Bool isTableName)
+TaQLConstNodeRep::TaQLConstNodeRep (Int64 value)
   : TaQLNodeRep (TaQLNode_Const),
     itsType        (CTInt),
-    itsIsTableName (isTableName),
+    itsIsTableName (False),
     itsIValue      (value),
     itsRValue      (value),
     itsCValue      (value, 0.) 
@@ -87,6 +98,15 @@ TaQLConstNodeRep::TaQLConstNodeRep (const MVTime& value)
     itsCValue      (value, 0.),
     itsTValue      (value)
 {}
+TaQLConstNodeRep::TaQLConstNodeRep (Int64 value, const String& subTableName)
+  : TaQLNodeRep (TaQLNode_Const),
+    itsType        (CTInt),
+    itsIsTableName (True),
+    itsIValue      (value),
+    itsRValue      (value),
+    itsCValue      (value, 0.),
+    itsSValue      (subTableName)
+{}
 TaQLConstNodeRep::~TaQLConstNodeRep()
 {}
 const String& TaQLConstNodeRep::getString() const
@@ -114,9 +134,10 @@ void TaQLConstNodeRep::show (std::ostream& os) const
     break;
   case CTInt:
     if (itsIsTableName) {
-      os << '$';
+      os << itsSValue;       // tablename (including $i)
+    } else {
+      os << itsIValue;
     }
-    os << itsIValue;
     break;
   case CTReal:
     os << std::setprecision(16) << itsRValue;
@@ -154,6 +175,9 @@ void TaQLConstNodeRep::save (AipsIO& aio) const
     break;
   case CTInt:
     aio << itsIValue;
+    if (itsIsTableName) {
+      aio << itsSValue;
+    }
     break;
   case CTReal:
     aio << itsRValue;
@@ -186,7 +210,13 @@ TaQLConstNodeRep* TaQLConstNodeRep::restore (AipsIO& aio)
     {
       Int64 value;
       aio >> value;
-      return new TaQLConstNodeRep (value, isTableName);
+      if (isTableName) {
+        String name;
+        aio >> name;
+        return new TaQLConstNodeRep (value, name);
+      } else {
+        return new TaQLConstNodeRep (value);
+      }
     }
   case CTReal:
     {
@@ -689,7 +719,7 @@ TaQLNodeResult TaQLJoinNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLJoinNodeRep::show (std::ostream& os) const
 {
-  os << "JOIN ";
+  os << " JOIN ";
   if (itsTables.isValid()) {
     itsTables.show (os);
     os << ' ';
@@ -1134,6 +1164,7 @@ void TaQLQueryNodeRep::restoreSuper (AipsIO& aio)
 }
 
 TaQLSelectNodeRep::TaQLSelectNodeRep (const TaQLNode& columns,
+                                      const TaQLMultiNode& with,
                                       const TaQLNode& where,
                                       const TaQLNode& groupby,
                                       const TaQLNode& having,
@@ -1142,12 +1173,13 @@ TaQLSelectNodeRep::TaQLSelectNodeRep (const TaQLNode& columns,
                                       const TaQLNode& giving,
                                       const TaQLMultiNode& dminfo)
   : TaQLQueryNodeRep (TaQLNode_Select),
-    itsColumns(columns),
+    itsColumns(columns), itsWith(with),
     itsWhere(where), itsGroupby(groupby), itsHaving(having),
     itsSort(sort), itsLimitOff(limitoff), itsGiving(giving),
     itsDMInfo(dminfo)
 {} 
 TaQLSelectNodeRep::TaQLSelectNodeRep (const TaQLNode& columns,
+                                      const TaQLMultiNode& with,
                                       const TaQLMultiNode& tables,
                                       const TaQLNode& join,
                                       const TaQLNode& where,
@@ -1158,8 +1190,8 @@ TaQLSelectNodeRep::TaQLSelectNodeRep (const TaQLNode& columns,
                                       const TaQLNode& giving,
                                       const TaQLMultiNode& dminfo)
   : TaQLQueryNodeRep (TaQLNode_Select),
-    itsColumns(columns), itsTables(tables), itsJoin(join),
-    itsWhere(where), itsGroupby(groupby), itsHaving(having),
+    itsColumns(columns), itsWith(with), itsTables(tables),
+    itsJoin(join), itsWhere(where), itsGroupby(groupby), itsHaving(having),
     itsSort(sort), itsLimitOff(limitoff), itsGiving(giving),
     itsDMInfo(dminfo)
 {}
@@ -1171,6 +1203,7 @@ TaQLNodeResult TaQLSelectNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLSelectNodeRep::showDerived (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "SELECT";
   itsColumns.show (os);
   if (itsTables.isValid()) {
@@ -1203,6 +1236,7 @@ void TaQLSelectNodeRep::showDerived (std::ostream& os) const
 void TaQLSelectNodeRep::save (AipsIO& aio) const
 {
   itsColumns.saveNode (aio);
+  itsWith.saveNode (aio);
   itsTables.saveNode (aio);
   itsJoin.saveNode (aio);
   itsWhere.saveNode (aio);
@@ -1217,6 +1251,7 @@ void TaQLSelectNodeRep::save (AipsIO& aio) const
 TaQLSelectNodeRep* TaQLSelectNodeRep::restore (AipsIO& aio)
 {
   TaQLNode columns = TaQLNode::restoreNode (aio);
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode tables = TaQLNode::restoreMultiNode (aio);
   TaQLNode join = TaQLNode::restoreMultiNode (aio);
   TaQLNode where = TaQLNode::restoreNode (aio);
@@ -1226,7 +1261,8 @@ TaQLSelectNodeRep* TaQLSelectNodeRep::restore (AipsIO& aio)
   TaQLNode limitoff = TaQLNode::restoreNode (aio);
   TaQLNode giving = TaQLNode::restoreNode (aio);
   TaQLMultiNode dminfo = TaQLNode::restoreMultiNode (aio);
-  TaQLSelectNodeRep* node = new TaQLSelectNodeRep (columns, tables, join,
+  TaQLSelectNodeRep* node = new TaQLSelectNodeRep (columns, with,
+                                                   tables, join,
 						   where, groupby, having,
 						   sort, limitoff, giving,
                                                    dminfo);
@@ -1234,11 +1270,12 @@ TaQLSelectNodeRep* TaQLSelectNodeRep::restore (AipsIO& aio)
   return node;
 }
 
-TaQLCountNodeRep::TaQLCountNodeRep (const TaQLNode& columns,
+TaQLCountNodeRep::TaQLCountNodeRep (const TaQLMultiNode& with,
+                                    const TaQLNode& columns,
                                     const TaQLMultiNode& tables,
                                     const TaQLNode& where)
   : TaQLQueryNodeRep (TaQLNode_Count),
-    itsColumns(columns), itsTables(tables), itsWhere(where)
+    itsWith(with), itsColumns(columns), itsTables(tables), itsWhere(where)
 {}
 TaQLCountNodeRep::~TaQLCountNodeRep()
 {}
@@ -1248,6 +1285,7 @@ TaQLNodeResult TaQLCountNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLCountNodeRep::showDerived (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "COUNT ";
   itsColumns.show (os);
   os << " FROM ";
@@ -1259,6 +1297,7 @@ void TaQLCountNodeRep::showDerived (std::ostream& os) const
 }
 void TaQLCountNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsColumns.saveNode (aio);
   itsTables.saveNode (aio);
   itsWhere.saveNode (aio);
@@ -1266,21 +1305,24 @@ void TaQLCountNodeRep::save (AipsIO& aio) const
 }
 TaQLCountNodeRep* TaQLCountNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLNode columns = TaQLNode::restoreNode (aio);
   TaQLMultiNode tables = TaQLNode::restoreMultiNode (aio);
   TaQLNode where = TaQLNode::restoreNode (aio);
-  TaQLCountNodeRep* node = new TaQLCountNodeRep (columns, tables, where);
+  TaQLCountNodeRep* node = new TaQLCountNodeRep (with, columns, tables, where);
   node->restoreSuper (aio);
   return node;
 }
 
-TaQLUpdateNodeRep::TaQLUpdateNodeRep (const TaQLMultiNode& tables,
+TaQLUpdateNodeRep::TaQLUpdateNodeRep (const TaQLMultiNode& with,
+                                      const TaQLMultiNode& tables,
                                       const TaQLMultiNode& update,
                                       const TaQLMultiNode& from,
                                       const TaQLNode& where,
                                       const TaQLNode& sort,
                                       const TaQLNode& limitoff)
   : TaQLNodeRep (TaQLNode_Update),
+    itsWith     (with),
     itsTables   (tables),
     itsUpdate   (update),
     itsFrom     (from),
@@ -1296,6 +1338,7 @@ TaQLNodeResult TaQLUpdateNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLUpdateNodeRep::show (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "UPDATE ";
   itsTables.show (os);
   os << " SET ";
@@ -1313,6 +1356,7 @@ void TaQLUpdateNodeRep::show (std::ostream& os) const
 }
 void TaQLUpdateNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsTables.saveNode (aio);
   itsUpdate.saveNode (aio);
   itsFrom.saveNode (aio);
@@ -1322,28 +1366,33 @@ void TaQLUpdateNodeRep::save (AipsIO& aio) const
 }
 TaQLUpdateNodeRep* TaQLUpdateNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode tables = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode update = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode from = TaQLNode::restoreMultiNode (aio);
   TaQLNode where = TaQLNode::restoreNode (aio);
   TaQLNode sort = TaQLNode::restoreNode (aio);
   TaQLNode limitoff = TaQLNode::restoreNode (aio);
-  return new TaQLUpdateNodeRep (tables, update, from, where, sort, limitoff);
+  return new TaQLUpdateNodeRep (with, tables, update, from, where, sort, limitoff);
 }
 
-TaQLInsertNodeRep::TaQLInsertNodeRep (const TaQLMultiNode& tables,
+TaQLInsertNodeRep::TaQLInsertNodeRep (const TaQLMultiNode& with,
+                                      const TaQLMultiNode& tables,
                                       const TaQLMultiNode& columns,
                                       const TaQLNode& values,
                                       const TaQLNode& limit)
   : TaQLNodeRep (TaQLNode_Insert),
+    itsWith    (with),
     itsTables  (tables),
     itsColumns (columns),
     itsValues  (values),
     itsLimit   (limit)
 {}
-TaQLInsertNodeRep::TaQLInsertNodeRep (const TaQLMultiNode& tables,
+TaQLInsertNodeRep::TaQLInsertNodeRep (const TaQLMultiNode& with,
+                                      const TaQLMultiNode& tables,
                                       const TaQLMultiNode& insert)
   : TaQLNodeRep (TaQLNode_Insert),
+    itsWith    (with),
     itsTables  (tables),
     itsColumns (False)
 {
@@ -1379,6 +1428,7 @@ TaQLNodeResult TaQLInsertNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLInsertNodeRep::show (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "INSERT";
   if (itsLimit.isValid()) {
     os << " LIMIT ";
@@ -1396,6 +1446,7 @@ void TaQLInsertNodeRep::show (std::ostream& os) const
 }
 void TaQLInsertNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsTables.saveNode (aio);
   itsColumns.saveNode (aio);
   itsValues.saveNode (aio);
@@ -1403,18 +1454,21 @@ void TaQLInsertNodeRep::save (AipsIO& aio) const
 }
 TaQLInsertNodeRep* TaQLInsertNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode tables = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode columns = TaQLNode::restoreMultiNode (aio);
   TaQLNode values = TaQLNode::restoreNode (aio);
   TaQLNode limit  = TaQLNode::restoreNode (aio);
-  return new TaQLInsertNodeRep (tables, columns, values, limit);
+  return new TaQLInsertNodeRep (with, tables, columns, values, limit);
 }
 
-TaQLDeleteNodeRep::TaQLDeleteNodeRep (const TaQLMultiNode& tables,
+TaQLDeleteNodeRep::TaQLDeleteNodeRep (const TaQLMultiNode& with,
+                                      const TaQLMultiNode& tables,
                                       const TaQLNode& where,
                                       const TaQLNode& sort,
                                       const TaQLNode& limitoff)
   : TaQLNodeRep (TaQLNode_Delete),
+    itsWith     (with),
     itsTables   (tables),
     itsWhere    (where),
     itsSort     (sort),
@@ -1428,6 +1482,7 @@ TaQLNodeResult TaQLDeleteNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLDeleteNodeRep::show (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "DELETE FROM ";
   itsTables.show (os);
   if (itsWhere.isValid()) {
@@ -1439,6 +1494,7 @@ void TaQLDeleteNodeRep::show (std::ostream& os) const
 }
 void TaQLDeleteNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsTables.saveNode (aio);
   itsWhere.saveNode (aio);
   itsSort.saveNode (aio);
@@ -1446,19 +1502,22 @@ void TaQLDeleteNodeRep::save (AipsIO& aio) const
 }
 TaQLDeleteNodeRep* TaQLDeleteNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode tables = TaQLNode::restoreMultiNode (aio);
   TaQLNode where = TaQLNode::restoreNode (aio);
   TaQLNode sort = TaQLNode::restoreNode (aio);
   TaQLNode limitoff = TaQLNode::restoreNode (aio);
-  return new TaQLDeleteNodeRep (tables, where, sort, limitoff);
+  return new TaQLDeleteNodeRep (with, tables, where, sort, limitoff);
 }
 
-TaQLCalcNodeRep::TaQLCalcNodeRep (const TaQLMultiNode& tables,
+TaQLCalcNodeRep::TaQLCalcNodeRep (const TaQLMultiNode& with,
+                                  const TaQLMultiNode& tables,
                                   const TaQLNode& expr,
                                   const TaQLNode& where,
                                   const TaQLNode& sort,
                                   const TaQLNode& limitoff)
   : TaQLNodeRep (TaQLNode_Calc),
+    itsWith     (with),
     itsTables   (tables),
     itsExpr     (expr),
     itsWhere    (where),
@@ -1473,6 +1532,7 @@ TaQLNodeResult TaQLCalcNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLCalcNodeRep::show (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "CALC ";
   itsExpr.show (os);
   if (itsTables.isValid()) {
@@ -1488,6 +1548,7 @@ void TaQLCalcNodeRep::show (std::ostream& os) const
 }
 void TaQLCalcNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsTables.saveNode (aio);
   itsExpr.saveNode (aio);
   itsWhere.saveNode (aio);
@@ -1496,19 +1557,22 @@ void TaQLCalcNodeRep::save (AipsIO& aio) const
 }
 TaQLCalcNodeRep* TaQLCalcNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode tables = TaQLNode::restoreMultiNode (aio);
   TaQLNode expr = TaQLNode::restoreNode (aio);
   TaQLNode where = TaQLNode::restoreNode (aio);
   TaQLNode sort = TaQLNode::restoreNode (aio);
   TaQLNode limitoff = TaQLNode::restoreNode (aio);
-  return new TaQLCalcNodeRep (tables, expr, where, sort, limitoff);
+  return new TaQLCalcNodeRep (with, tables, expr, where, sort, limitoff);
 }
 
-TaQLCreTabNodeRep::TaQLCreTabNodeRep (const TaQLNode& giving,
+TaQLCreTabNodeRep::TaQLCreTabNodeRep (const TaQLMultiNode& with,
+                                      const TaQLNode& giving,
                                       const TaQLMultiNode& cols,
                                       const TaQLNode& limit,
                                       const TaQLMultiNode& dminfo)
   : TaQLQueryNodeRep (TaQLNode_CreTab),
+    itsWith    (with),
     itsGiving  (giving),
     itsColumns (cols),
     itsLimit   (limit),
@@ -1522,6 +1586,7 @@ TaQLNodeResult TaQLCreTabNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLCreTabNodeRep::showDerived (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "CREATE TABLE ";
   itsGiving.show (os);
   os << ' ';
@@ -1537,6 +1602,7 @@ void TaQLCreTabNodeRep::showDerived (std::ostream& os) const
 }
 void TaQLCreTabNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsGiving.saveNode (aio);
   itsColumns.saveNode (aio);
   itsLimit.saveNode (aio);
@@ -1545,11 +1611,12 @@ void TaQLCreTabNodeRep::save (AipsIO& aio) const
 }
 TaQLCreTabNodeRep* TaQLCreTabNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with = TaQLNode::restoreMultiNode (aio);
   TaQLNode giving = TaQLNode::restoreNode (aio);
   TaQLMultiNode columns = TaQLNode::restoreMultiNode (aio);
   TaQLNode limit = TaQLNode::restoreNode (aio);
   TaQLMultiNode dminfo = TaQLNode::restoreMultiNode (aio);
-  TaQLCreTabNodeRep* node = new TaQLCreTabNodeRep (giving, columns,
+  TaQLCreTabNodeRep* node = new TaQLCreTabNodeRep (with, giving, columns,
                                                    limit, dminfo);
   node->restoreSuper (aio);
   return node;
@@ -1691,10 +1758,12 @@ TaQLUnitNodeRep* TaQLUnitNodeRep::restore (AipsIO& aio)
   return new TaQLUnitNodeRep (unit, node);
 }
 
-TaQLAltTabNodeRep::TaQLAltTabNodeRep (const TaQLNode& table,
+TaQLAltTabNodeRep::TaQLAltTabNodeRep (const TaQLMultiNode& with,
+                                      const TaQLNode& table,
                                       const TaQLMultiNode& from,
                                       const TaQLMultiNode& commands)
   : TaQLQueryNodeRep (TaQLNode_AltTab),
+    itsWith     (with),
     itsTable    (table),
     itsFrom     (from),
     itsCommands (commands)
@@ -1707,6 +1776,7 @@ TaQLNodeResult TaQLAltTabNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLAltTabNodeRep::showDerived (std::ostream& os) const
 {
+  showWithTables (os, itsWith);
   os << "ALTER TABLE ";
   itsTable.show (os);
   if (itsFrom.isValid()) {
@@ -1718,16 +1788,18 @@ void TaQLAltTabNodeRep::showDerived (std::ostream& os) const
 }
 void TaQLAltTabNodeRep::save (AipsIO& aio) const
 {
+  itsWith.saveNode (aio);
   itsTable.saveNode (aio);
   itsFrom.saveNode (aio);
   itsCommands.saveNode (aio);
 }
 TaQLAltTabNodeRep* TaQLAltTabNodeRep::restore (AipsIO& aio)
 {
+  TaQLMultiNode with     = TaQLNode::restoreMultiNode (aio);
   TaQLNode table         = TaQLNode::restoreNode (aio);
   TaQLMultiNode from     = TaQLNode::restoreMultiNode (aio);
   TaQLMultiNode commands = TaQLNode::restoreMultiNode (aio);
-  return new TaQLAltTabNodeRep (table, from, commands);
+  return new TaQLAltTabNodeRep (with, table, from, commands);
 }
 
 TaQLAddColNodeRep::TaQLAddColNodeRep (const TaQLMultiNode& cols,
@@ -1904,6 +1976,7 @@ TaQLNodeResult TaQLShowNodeRep::visit (TaQLNodeVisitor& visitor) const
 }
 void TaQLShowNodeRep::show (std::ostream& os) const
 {
+  os << "SHOW ";
   if (itsNames.isValid()) {
     itsNames.show (os);
   }

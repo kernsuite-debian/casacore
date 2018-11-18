@@ -223,7 +223,7 @@ void showExpr(const TableExprNode& expr)
   // Print the index if possible.
   // Get internal node.
   const TableExprNodeArrayPart* nodePtr =
-               dynamic_cast<const TableExprNodeArrayPart*>(expr.getNodeRep());
+    dynamic_cast<const TableExprNodeArrayPart*>(expr.getRep().get());
   if (nodePtr != 0) {
     // The node represents a part of an array; get its index node.
     const TableExprNodeIndex* inxNode = nodePtr->getIndexNode();
@@ -291,6 +291,13 @@ void showExpr(const TableExprNode& expr)
 	  cout << arr.array();
 	  break;
 	}
+      case TpInt:
+	{
+	  MArray<Int64> arr;
+	  expr.get (i, arr);
+	  cout << arr.array();
+	  break;
+	}
       case TpDouble:
 	{
 	  MArray<Double> arr;
@@ -335,7 +342,7 @@ void seltab (const String& str)
     } else {
       s = str.substr(spos, epos-spos);
       s.downcase();
-      addCalc = !(s=="select" || s=="update" || s=="insert" ||
+      addCalc = !(s=="with" || s=="select" || s=="update" || s=="insert" ||
                   s=="calc" || s=="delete" || s=="count" ||
                   s=="create" || s=="createtable" ||
                   s=="alter" || s=="altertable" ||
