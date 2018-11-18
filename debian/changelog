@@ -1,3 +1,11 @@
+casacore (3.0.0-1) experimental; urgency=medium
+
+  * New upstream version 3.0.0 Rediff patches
+  * Push Standards-Version to 4.2.1. No changes needed
+  * Adjust SOVERSION for all libs. Switch to experimental to prepare transition
+
+ -- Ole Streicher <olebole@debian.org>  Sun, 18 Nov 2018 14:49:06 +0100
+
 casacore (2.4.1-3) unstable; urgency=low
 
   * Fix version number comparison for numpy
