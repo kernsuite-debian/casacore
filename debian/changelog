@@ -1,3 +1,10 @@
+casacore (3.0.0-2) experimental; urgency=medium
+
+  * Fix compile error in LatticeApply in 32 bit platforms
+  * Fix another kfreebsd64 problem
+
+ -- Ole Streicher <olebole@debian.org>  Wed, 21 Nov 2018 13:56:28 +0100
+
 casacore (3.0.0-1) experimental; urgency=medium
 
   * New upstream version 3.0.0 Rediff patches
