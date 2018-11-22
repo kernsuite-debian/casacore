@@ -1,3 +1,9 @@
+casacore (3.0.0-3) experimental; urgency=medium
+
+  * Fix another compile error in LatticeMath on 32 bit platforms
+
+ -- Ole Streicher <olebole@debian.org>  Thu, 22 Nov 2018 08:13:35 +0100
+
 casacore (3.0.0-2) experimental; urgency=medium
 
   * Fix compile error in LatticeApply in 32 bit platforms
