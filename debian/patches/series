@@ -8,4 +8,4 @@ Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
 Add-support-for-python3.6.patch
 new-boost-python-soname.patch
-Fixed-compile-error-in-LatticeApply.patch
+Fixed-compile-error-in-LatticeMath.patch

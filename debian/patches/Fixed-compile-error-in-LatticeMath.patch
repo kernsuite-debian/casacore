@@ -1,0 +1,43 @@
+From: Ger van Diepen <diepen@astron.nl>
+Date: Wed, 21 Nov 2018 10:15:17 +0000
+Subject: Fixed compile error in LatticeMath
+
+---
+ lattices/LatticeMath/LatticeApply.tcc      | 4 ++--
+ lattices/LatticeMath/LatticeStatistics.tcc | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/lattices/LatticeMath/LatticeApply.tcc b/lattices/LatticeMath/LatticeApply.tcc
+index 675d31e..19b3221 100644
+--- a/lattices/LatticeMath/LatticeApply.tcc
++++ b/lattices/LatticeMath/LatticeApply.tcc
+@@ -355,10 +355,10 @@ IPosition LatticeApply<T,U>::_chunkShape(
+         // can only go row by row
+         return chunkShape;
+     }
+-    uInt x = maxChunkSize;
++    ssize_t x = maxChunkSize;
+     for (uInt i=0; i<ndim; ++i) {
+         if (i != axis) {
+-            chunkShape[i] = min(x, latShape[i]);
++            chunkShape[i] = std::min(x, latShape[i]);
+             // integer division
+             x /= chunkShape[i];
+             if (x == 0) {
+diff --git a/lattices/LatticeMath/LatticeStatistics.tcc b/lattices/LatticeMath/LatticeStatistics.tcc
+index 7609415..9943c2c 100644
+--- a/lattices/LatticeMath/LatticeStatistics.tcc
++++ b/lattices/LatticeMath/LatticeStatistics.tcc
+@@ -1067,10 +1067,10 @@ IPosition LatticeStatistics<T>::_cursorShapeForArrayMethod(uInt setSize) const {
+         uInt curAx = cursorAxes_p[i];
+         cursorShape[curAx] = latShape[curAx];
+     }
+-    uInt x = nIterToAccum;
++    ssize_t x = nIterToAccum;
+     uInt nDisplayAxes = displayAxes_p.size();
+     for (uInt i=0; i<nDisplayAxes; ++i) {
+-        cursorShape[displayAxes_p[i]] = min(x, latShape[displayAxes_p[i]]);
++        cursorShape[displayAxes_p[i]] = std::min(x, latShape[displayAxes_p[i]]);
+         x /= cursorShape[displayAxes_p[i]];
+         if (x == 0) {
+             break;
