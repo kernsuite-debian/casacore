@@ -7,5 +7,5 @@ Make-the-check-for-NFS-a-bit-more-portable-BSD.patch
 Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
 Add-support-for-python3.6.patch
-new-boost-python-soname.patch
+#new-boost-python-soname.patch
 Fixed-compile-error-in-LatticeMath.patch
