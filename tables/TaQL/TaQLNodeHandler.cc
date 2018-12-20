@@ -107,7 +107,6 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
       break;
     case TaQLConstNodeRep::CTTime:
       expr = TableExprNode(node.itsTValue);
-      expr.useUnit ("d");
       break;
     }
     if (! node.getUnit().empty()) {
@@ -320,12 +319,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
     TaQLNodeHRValue* hrval = new TaQLNodeHRValue;
     TaQLNodeResult res(hrval);
     if (node.itsTable.nodeType() == TaQLNode_Const) {
-      TaQLConstNodeRep* tabnm = (TaQLConstNodeRep*)(node.itsTable.getRep());
-      if (tabnm->itsType == TaQLConstNodeRep::CTInt) {
-	hrval->setInt (tabnm->itsIValue);
-      } else {
-	hrval->setString (tabnm->getString());
-      }
+      handleTableName (hrval, node.itsTable);
     } else {
       TaQLNodeResult res = visitNode (node.itsTable);
       hrval->setTable (getHR(res).getTable());
@@ -510,6 +504,8 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
     TableParseSelect* curSel = pushStack (TableParseSelect::PSELECT);
     // First handle LIMIT/OFFSET, because limit is needed when creating
     // a temp table for a select without a FROM.
+    // In its turn limit/offset might use WITH tables, so do them very first.
+    handleTables (node.itsWith, False);
     visitNode (node.itsLimitOff);
     if (node.itsTables.isValid()) {
       handleTables (node.itsTables);
@@ -554,6 +550,10 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitUpdateNode (const TaQLUpdateNodeRep& node)
   {
     TableParseSelect* curSel = pushStack (TableParseSelect::PUPDATE);
+    // First handle LIMIT/OFFSET, because limit is needed when creating
+    // a temp table for a select without a FROM.
+    // In its turn limit/offset might use WITH tables, so do them very first.
+    handleTables  (node.itsWith, False);
     handleTables  (node.itsTables);
     handleTables  (node.itsFrom);
     handleUpdate  (node.itsUpdate);
@@ -573,6 +573,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitInsertNode (const TaQLInsertNodeRep& node)
   {
     TableParseSelect* curSel = pushStack (TableParseSelect::PINSERT);
+    handleTables  (node.itsWith, False);
     handleTables  (node.itsTables);
     handleInsCol  (node.itsColumns);
     if (node.itsLimit.isValid()) {
@@ -607,6 +608,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitDeleteNode (const TaQLDeleteNodeRep& node)
   {
     TableParseSelect* curSel = pushStack (TableParseSelect::PDELETE);
+    handleTables  (node.itsWith, False);
     handleTables  (node.itsTables);
     handleWhere   (node.itsWhere);
     visitNode     (node.itsSort);
@@ -624,6 +626,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   {
     Bool outer = itsStack.empty();
     TableParseSelect* curSel = pushStack (TableParseSelect::PCOUNT);
+    handleTables  (node.itsWith, False);
     handleTables  (node.itsTables);
     visitNode     (node.itsColumns);
     handleWhere   (node.itsWhere);
@@ -647,6 +650,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitCalcNode (const TaQLCalcNodeRep& node)
   {
     TableParseSelect* curSel = pushStack (TableParseSelect::PCALC);
+    handleTables (node.itsWith, False);
     handleTables (node.itsTables);
     // If where, orderby, limit and/or offset is given, handle as FROM query.
     if (node.itsWhere.isValid() || node.itsSort.isValid() ||
@@ -671,6 +675,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitCreTabNode (const TaQLCreTabNodeRep& node)
   {
     TableParseSelect* curSel = pushStack (TableParseSelect::PCRETAB);
+    handleTables (node.itsWith, False); 
     visitNode (node.itsGiving);
     handleColSpecs (node.itsColumns);
     Record dminfo = handleMultiRecFld (node.itsDMInfo);
@@ -712,7 +717,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
     } else {
       handleWhere (node.itsValues);
       TableExprNode expr = topStack()->getNode();
-      if (! expr.getNodeRep()->isConstant()) {
+      if (! expr.getRep()->isConstant()) {
         error = "must be constant";
       } else {
         switch (expr.dataType()) {
@@ -804,6 +809,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitAltTabNode (const TaQLAltTabNodeRep& node)
   {
     TableParseSelect* curSel = pushStack (TableParseSelect::PALTTAB);
+    handleTables (node.itsWith, False); 
     TaQLMultiNode tmnode(False);
     tmnode.add (node.itsTable);
     handleTables (tmnode);
@@ -891,7 +897,22 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
     return TaQLNodeResult();
   }
 
-  void TaQLNodeHandler::handleTables (const TaQLMultiNode& node)
+  void TaQLNodeHandler::handleTableName (TaQLNodeHRValue* hrval,
+                                         const TaQLNode& node)
+  {
+    AlwaysAssert (node.nodeType() == TaQLNode_Const, AipsError);
+    TaQLConstNodeRep* tabnm = (TaQLConstNodeRep*)(node.getRep());
+    if (tabnm->itsType == TaQLConstNodeRep::CTInt) {
+      hrval->setInt (tabnm->itsIValue);
+      // Do not use getString, because for a temptable the type is Int,
+      // but the string can contain a subtable name.
+      hrval->setString (tabnm->itsSValue);
+    } else {
+      hrval->setString (tabnm->getString());
+    }
+  }
+
+  void TaQLNodeHandler::handleTables (const TaQLMultiNode& node, Bool addToFromList)
   {
     if (! node.isValid()) {
       return;
@@ -901,7 +922,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
       TaQLNodeResult result = visitNode (nodes[i]);
       const TaQLNodeHRValue& res = getHR(result);
       topStack()->addTable (res.getInt(), res.getString(), res.getTable(),
-                            res.getAlias(), itsTempTables, itsStack);
+                            res.getAlias(), addToFromList, itsTempTables, itsStack);
     }
   }
 
@@ -962,20 +983,45 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
   TaQLNodeResult TaQLNodeHandler::visitShowNode
   (const TaQLShowNodeRep& node)
   {
+    String info;
+    Bool doInfo = True;
     Vector<String> parts;
     if (node.itsNames.isValid()) {
-      const std::vector<TaQLNode>& names = node.itsNames.getMultiRep()->itsNodes;
-      parts.resize (names.size());
-      for (uInt i=0; i<names.size(); ++i) {
-        TaQLNodeResult result = visitNode (names[i]);
-        const TaQLNodeHRValue& res = getHR(result);
-        parts[i] = res.getExpr().getString(0);
+      const std::vector<TaQLNode>& nodes = node.itsNames.getMultiRep()->itsNodes;
+      parts.resize (nodes.size());
+      TaQLNodeResult result = visitNode (nodes[0]);
+      const TaQLNodeHRValue& res = getHR(result);
+      parts[0] = res.getExpr().getString(0);
+      parts[0].downcase();
+      if (parts[0] == "table"  &&  nodes.size() > 1) {
+        TableParseSelect* curSel = pushStack (TableParseSelect::PSHOW);
+        TaQLNodeHRValue res;
+        handleTableName (&res, nodes[1]);
+        curSel->addTable (res.getInt(), res.getString(), res.getTable(),
+                          res.getAlias(), True, itsTempTables, itsStack);
+        parts[1] = res.getString();
+        for (uInt i=2; i<nodes.size(); ++i) {
+          TaQLNodeResult result = visitNode (nodes[i]);
+          const TaQLNodeHRValue& res = getHR(result);
+          parts[i] = res.getExpr().getString(0);
+        }
+        info = curSel->getTableInfo (parts, node.style());
+        doInfo = False;
+        popStack();
+      } else {
+        for (uInt i=1; i<nodes.size(); ++i) {
+          TaQLNodeResult result = visitNode (nodes[i]);
+          const TaQLNodeHRValue& res = getHR(result);
+          parts[i] = res.getExpr().getString(0);
+        }
       }
     }
-    String info = TaQLShow::getInfo (parts, node.style());
+    if (doInfo) {
+      info = "\n" + TaQLShow::getInfo (parts, node.style());
+    }
     TaQLNodeHRValue* hr = new TaQLNodeHRValue();
-    hr->setExpr (TableExprNode(info));
     hr->setString ("show");
+    hr->setExpr (TableExprNode(info));
     return hr;
   }
 

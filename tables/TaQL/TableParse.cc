@@ -35,6 +35,7 @@
 #include <casacore/tables/TaQL/ExprDerNodeArray.h>
 #include <casacore/tables/TaQL/ExprNodeSet.h>
 #include <casacore/tables/TaQL/ExprAggrNode.h>
+#include <casacore/tables/TaQL/ExprConeNode.h>
 #include <casacore/tables/TaQL/ExprUnitNode.h>
 #include <casacore/tables/TaQL/ExprGroupAggrFunc.h>
 #include <casacore/tables/TaQL/ExprRange.h>
@@ -156,7 +157,7 @@ void TableParseUpdate::handleIndices (const TableExprNodeSet& indices,
                                       const TaQLStyle& style)
 {
   // Create a mask if a single bool element is given.
-  if (indices.isSingle()  &&  indices.nelements() == 1  &&
+  if (indices.isSingle()  &&  indices.size() == 1  &&
       indices.dataType() == TableExprNodeRep::NTBool) {
     if (! mask_p.isNull()) {
       throw TableInvExpr ("A double indexed update array cannot contain "
@@ -244,13 +245,18 @@ TableParseSelect::~TableParseSelect()
 
 //# Construct a TableParse object and add it to the container.
 void TableParseSelect::addTable (Int tabnr, const String& name,
-				 const Table& ftab,
-				 const String& shorthand,
-				 const vector<const Table*> tempTables,
-				 const vector<TableParseSelect*>& stack)
+                                 const Table& ftab,
+                                 const String& shorthand,
+                                 Bool addToFromList,
+                                 const vector<const Table*> tempTables,
+                                 const vector<TableParseSelect*>& stack)
 {
   Table table = makeTable (tabnr, name, ftab, shorthand, tempTables, stack);
-  fromTables_p.push_back (TableParse(table, shorthand));
+  if (addToFromList) {
+    fromTables_p.push_back (TableParse(table, shorthand));
+  } else {
+    withTables_p.push_back (TableParse(table, shorthand));
+  }
 }
 
 Table TableParseSelect::makeTable (Int tabnr, const String& name,
@@ -271,12 +277,27 @@ Table TableParseSelect::makeTable (Int tabnr, const String& name,
       throw (TableInvExpr ("Invalid temporary table number given"));
     }
     table = *(tempTables[tabnr]);
+    // See if $i is followed by a subtable specification by splitting the name.
+    // Note that $i is part of the name and is (unfortunately) regarded as a
+    // column name if no column name is given.
+    String shand, columnName;
+    Vector<String> fieldNames;
+    if (splitName (shand, columnName, fieldNames, name, False, False, True)) {
+      if (shand.empty()) {
+        columnName = String();
+      }
+      Table result = findTableKey (table, columnName, fieldNames);
+      if (result.isNull()) {
+        throw TableInvExpr (name + " is an unknown (sub)table");
+      }
+      table = result;
+    }
   } else if (! ftab.isNull()) {
     //# The table is a temporary table (from a select clause).
     table = ftab;
   } else {
     //# The table name is a string.
-    //# When the name contains ::, it is a keyword in a table at an outer
+    //# If the name contains ::, it is a table keyword in a table at an outer
     //# SELECT statement.
     String shand, columnName;
     Vector<String> fieldNames;
@@ -284,12 +305,12 @@ Table TableParseSelect::makeTable (Int tabnr, const String& name,
       table = tableKey (name, shand, columnName, fieldNames, stack);
     } else {
       // If no or equal shorthand is given, try to see if the
-      // given name is already used as a shorthand.
+      // given name is already used as a shorthand (also in the WITH tables).
       // If so, take the table of that shorthand.
       Bool foundSH = False;
       if (shorthand.empty()  ||  name == shorthand) {
 	for (Int i=stack.size()-1; i>=0; i--) {
-	  Table tab = stack[i]->findTable (name);
+	  Table tab = stack[i]->findTable (name, True);
 	  if (! tab.isNull()) {
 	    table = tab;
 	    foundSH = True;
@@ -318,9 +339,9 @@ Table TableParseSelect::tableKey (const String& name,
 				  const Vector<String>& fieldNames,
 				  const vector<TableParseSelect*>& stack)
 {
-  //# Try to find the given shorthand on all levels.
+  //# Try to find the given shorthand on all levels (also the WITH tables).
   for (Int i=stack.size()-1; i>=0; i--) {
-    Table tab = stack[i]->findTable (shorthand);
+    Table tab = stack[i]->findTable (shorthand, True);
     if (! tab.isNull()) {
       Table result = findTableKey (tab, columnName, fieldNames);
       if (! result.isNull()) {
@@ -346,7 +367,7 @@ Table TableParseSelect::findTableKey (const Table& table,
       &(table.keywordSet()) :
       &(TableColumn (table, columnName).keywordSet());
     // All fieldnames, except last one, should be records.
-    uInt last = fieldNames.nelements() - 1;
+    uInt last = fieldNames.size() - 1;
     for (uInt i=0; i<last; i++) { 
       //# If the keyword does not exist or is not a record, return.
       Int fieldnr = keyset->fieldNumber (fieldNames(i));
@@ -420,7 +441,7 @@ Bool TableParseSelect::splitName (String& shorthand, String& columnName,
       columnName = "";
     } else {
       Vector<String> scNames = stringToVector(columnName.before(j), '.');
-      switch (scNames.nelements()) {
+      switch (scNames.size()) {
       case 2:
 	shorthand = scNames(0);
 	columnName = scNames(1);
@@ -447,7 +468,7 @@ Bool TableParseSelect::splitName (String& shorthand, String& columnName,
     // Users can use column.subfield by preceeding it with a dot
     // (.a.b always means column.subfield).
     fldNam = stringToVector (columnName, '.');
-    if (fldNam.nelements() == 1) {
+    if (fldNam.size() == 1) {
       stfld = 0;                      // one part simply means column
     } else if (fldNam(0).empty()) {
       stfld = 1;                      // .column was used
@@ -463,8 +484,8 @@ Bool TableParseSelect::splitName (String& shorthand, String& columnName,
       return False;
     }
   }
-  fieldNames.resize (fldNam.nelements() - stfld);
-  for (uInt i=stfld; i<fldNam.nelements(); i++) {
+  fieldNames.resize (fldNam.size() - stfld);
+  for (uInt i=stfld; i<fldNam.size(); i++) {
     if (fldNam(i).empty()) {
       if (checkError) {
 	throw (TableInvExpr ("Name " + name +
@@ -477,7 +498,7 @@ Bool TableParseSelect::splitName (String& shorthand, String& columnName,
   return isKey;
 }
 
-Table TableParseSelect::findTable (const String& shorthand) const
+Table TableParseSelect::findTable (const String& shorthand, Bool doWith) const
 {
   //# If no shorthand given, take first table (if there).
   if (shorthand.empty()) {
@@ -488,6 +509,13 @@ Table TableParseSelect::findTable (const String& shorthand) const
     for (uInt i=0; i<fromTables_p.size(); i++) {
       if (fromTables_p[i].test (shorthand)) {
 	return fromTables_p[i].table();
+      }
+    }
+    if (doWith) {
+      for (uInt i=0; i<withTables_p.size(); i++) {
+        if (withTables_p[i].test (shorthand)) {
+          return withTables_p[i].table();
+        }
       }
     }
   }
@@ -505,10 +533,10 @@ TableExprNode TableParseSelect::handleKeyCol (const String& name, Bool tryProj)
   Bool hasKey = splitName (shand, columnName, fieldNames, name, True, False,
                            False);
   //# Use first table if there is no shorthand given.
-  //# Otherwise find the table.
-  Table tab = findTable (shand);
+  //# Otherwise find the table at the current level (no WITH tables).
+  Table tab = findTable (shand, False);
   if (tab.isNull()) {
-    throw (TableInvExpr("Shorthand " + shand + " has not been defined"));
+    throw (TableInvExpr("Shorthand " + shand + " has not been defined in FROM clause"));
     return 0;
   }
   //# If :: is not given, we have a column or keyword.
@@ -579,7 +607,7 @@ TableExprNode TableParseSelect::handleSlice (const TableExprNode& array,
 {
   // Create a masked array if a single bool element is given.
   if (indices.dataType() == TableExprNodeRep::NTBool) {
-    if (! (indices.isSingle()  &&  indices.nelements() == 1  &&
+    if (! (indices.isSingle()  &&  indices.size() == 1  &&
            indices.hasArrays())) {
       throw TableInvExpr ("Second argument of a masked array must be an array; maybe extra brackets are needed like [1,2][[T,F]]");
     }
@@ -691,14 +719,26 @@ TableExprFuncNode::FunctionType TableParseSelect::findFunc
     ftype = TableExprFuncNode::arrsumFUNC;
   } else if (funcName == "sums") {
     ftype = TableExprFuncNode::arrsumsFUNC;
+  } else if (funcName == "runningsum") {
+    ftype = TableExprFuncNode::runsumFUNC;
+  } else if (funcName == "boxedsum") {
+    ftype = TableExprFuncNode::boxsumFUNC;
   } else if (funcName == "product") {
     ftype = TableExprFuncNode::arrproductFUNC;
   } else if (funcName == "products") {
     ftype = TableExprFuncNode::arrproductsFUNC;
+  } else if (funcName == "runningproduct") {
+    ftype = TableExprFuncNode::runproductFUNC;
+  } else if (funcName == "boxedproduct") {
+    ftype = TableExprFuncNode::boxproductFUNC;
   } else if (funcName == "sumsqr"  ||  funcName == "sumsquare") {
     ftype = TableExprFuncNode::arrsumsqrFUNC;
   } else if (funcName == "sumsqrs"  ||  funcName == "sumsquares") {
     ftype = TableExprFuncNode::arrsumsqrsFUNC;
+  } else if (funcName == "runningsumsqr"  ||  funcName == "runningsumsquare") {
+    ftype = TableExprFuncNode::runsumsqrFUNC;
+  } else if (funcName == "boxedsumsqr"  ||  funcName == "boxedsumsquare") {
+    ftype = TableExprFuncNode::boxsumsqrFUNC;
   } else if (funcName == "mins") {
     ftype = TableExprFuncNode::arrminsFUNC;
   } else if (funcName == "runningmin") {
@@ -763,30 +803,42 @@ TableExprFuncNode::FunctionType TableParseSelect::findFunc
     ftype = TableExprFuncNode::arrfractileFUNC;
   } else if (funcName == "fractiles") {
     ftype = TableExprFuncNode::arrfractilesFUNC;
+  } else if (funcName == "runningfractile") {
+    ftype = TableExprFuncNode::runfractileFUNC;
+  } else if (funcName == "boxedfractile") {
+    ftype = TableExprFuncNode::boxfractileFUNC;
   } else if (funcName == "any") {
-    ftype = TableExprFuncNode::anyFUNC;
+    ftype = TableExprFuncNode::arranyFUNC;
   } else if (funcName == "anys") {
-    ftype = TableExprFuncNode::anysFUNC;
+    ftype = TableExprFuncNode::arranysFUNC;
   } else if (funcName == "runningany") {
     ftype = TableExprFuncNode::runanyFUNC;
   } else if (funcName == "boxedany") {
     ftype = TableExprFuncNode::boxanyFUNC;
   } else if (funcName == "all") {
-    ftype = TableExprFuncNode::allFUNC;
+    ftype = TableExprFuncNode::arrallFUNC;
   } else if (funcName == "alls") {
-    ftype = TableExprFuncNode::allsFUNC;
+    ftype = TableExprFuncNode::arrallsFUNC;
   } else if (funcName == "runningall") {
     ftype = TableExprFuncNode::runallFUNC;
   } else if (funcName == "boxedall") {
     ftype = TableExprFuncNode::boxallFUNC;
   } else if (funcName == "ntrue") {
-    ftype = TableExprFuncNode::ntrueFUNC;
+    ftype = TableExprFuncNode::arrntrueFUNC;
   } else if (funcName == "ntrues") {
-    ftype = TableExprFuncNode::ntruesFUNC;
+    ftype = TableExprFuncNode::arrntruesFUNC;
+  } else if (funcName == "runningntrue") {
+    ftype = TableExprFuncNode::runntrueFUNC;
+  } else if (funcName == "boxedntrue") {
+    ftype = TableExprFuncNode::boxntrueFUNC;
   } else if (funcName == "nfalse") {
-    ftype = TableExprFuncNode::nfalseFUNC;
+    ftype = TableExprFuncNode::arrnfalseFUNC;
   } else if (funcName == "nfalses") {
-    ftype = TableExprFuncNode::nfalsesFUNC;
+    ftype = TableExprFuncNode::arrnfalsesFUNC;
+  } else if (funcName == "runningnfalse") {
+    ftype = TableExprFuncNode::runnfalseFUNC;
+  } else if (funcName == "boxednfalse") {
+    ftype = TableExprFuncNode::boxnfalseFUNC;
   } else if (funcName == "array") {
     ftype = TableExprFuncNode::arrayFUNC;
   } else if (funcName == "transpose") {
@@ -1000,7 +1052,7 @@ TableExprFuncNode::FunctionType TableParseSelect::findFunc
   }
   // Functions to be ignored are incorrect.
   Bool found;
-  linearSearch (found, ignoreFuncs, Int(ftype), ignoreFuncs.nelements());
+  linearSearch (found, ignoreFuncs, Int(ftype), ignoreFuncs.size());
   if (found  ||  (!ignoreFuncs.empty()  &&
                   ftype >= TableExprFuncNode::FirstAggrFunc)) {
     throw (TableInvExpr ("Function '" + funcName +
@@ -1017,18 +1069,14 @@ TableExprNode TableParseSelect::handleFunc (const String& name,
   //# No functions have to be ignored.
   Vector<Int> ignoreFuncs;
   // Use a default table if no one available.
-  // This can only happen in the PCALC case.
   if (fromTables_p.size() == 0) {
-    if (commandType_p != PCALC) {
-      throw TableInvExpr("No table given");
-    }
     return makeFuncNode (this, name, arguments, ignoreFuncs, Table(), style);
   }
   TableExprNode node = makeFuncNode (this, name, arguments, ignoreFuncs,
                                      fromTables_p[0].table(), style);
   // A rowid function node needs to be added to applySelNodes_p.
-  const TableExprNodeRep* rep = node.getNodeRep();
-  if (dynamic_cast<const TableExprNodeRowid*>(rep)) {
+  const TENShPtr& rep = node.getRep();
+  if (dynamic_cast<const TableExprNodeRowid*>(rep.get())) {
     addApplySelNode (node);
   }
   return node;
@@ -1045,7 +1093,7 @@ TableExprNode TableParseSelect::makeUDFNode (TableParseSelect* sel,
     Vector<String> parts = stringToVector (name, '.');
     if (parts.size() > 2) {
       // At least 3 parts; see if the first part is a table shorthand.
-      Table tab = sel->findTable (parts[0]);
+      Table tab = sel->findTable (parts[0], False);
       if (! tab.isNull()) {
         udf = TableExprNode::newUDFNode (name.substr(parts[0].size() + 1),
                                          arguments, tab, style);
@@ -1079,7 +1127,7 @@ TableExprNode TableParseSelect::makeFuncNode
   Vector<String> parts = stringToVector (name, '.');
   if (sel  &&  parts.size() == 2) {
     // See if xx is a shorthand. If so, use that table.
-    Table tab = sel->findTable (parts[0]);
+    Table tab = sel->findTable (parts[0], False);
     if (! tab.isNull()) {
       table = tab;
       name = parts[1];
@@ -1087,7 +1135,7 @@ TableExprNode TableParseSelect::makeFuncNode
   }
   //# Determine the function type.
   TableExprFuncNode::FunctionType ftype = findFunc (name,
-						    arguments.nelements(),
+						    arguments.size(),
 						    ignoreFuncs);
   if (ftype == TableExprFuncNode::NRFUNC) {
     // The function can be a user defined one (or unknown).
@@ -1099,6 +1147,8 @@ TableExprNode TableParseSelect::makeFuncNode
     uInt axarg = 1;
     switch (ftype) {
     case TableExprFuncNode::arrfractilesFUNC:
+    case TableExprFuncNode::runfractileFUNC:
+    case TableExprFuncNode::boxfractileFUNC:
       axarg = 2;    // fall through!!
     case TableExprFuncNode::arrsumsFUNC:
     case TableExprFuncNode::arrproductsFUNC:
@@ -1111,10 +1161,13 @@ TableExprNode TableParseSelect::makeFuncNode
     case TableExprFuncNode::arravdevsFUNC:
     case TableExprFuncNode::arrrmssFUNC:
     case TableExprFuncNode::arrmediansFUNC:
-    case TableExprFuncNode::anysFUNC:
-    case TableExprFuncNode::allsFUNC:
-    case TableExprFuncNode::ntruesFUNC:
-    case TableExprFuncNode::nfalsesFUNC:
+    case TableExprFuncNode::arranysFUNC:
+    case TableExprFuncNode::arrallsFUNC:
+    case TableExprFuncNode::arrntruesFUNC:
+    case TableExprFuncNode::arrnfalsesFUNC:
+    case TableExprFuncNode::runsumFUNC:
+    case TableExprFuncNode::runproductFUNC:
+    case TableExprFuncNode::runsumsqrFUNC:
     case TableExprFuncNode::runminFUNC:
     case TableExprFuncNode::runmaxFUNC:
     case TableExprFuncNode::runmeanFUNC:
@@ -1125,6 +1178,11 @@ TableExprNode TableParseSelect::makeFuncNode
     case TableExprFuncNode::runmedianFUNC:
     case TableExprFuncNode::runanyFUNC:
     case TableExprFuncNode::runallFUNC:
+    case TableExprFuncNode::runntrueFUNC:
+    case TableExprFuncNode::runnfalseFUNC:
+    case TableExprFuncNode::boxsumFUNC:
+    case TableExprFuncNode::boxproductFUNC:
+    case TableExprFuncNode::boxsumsqrFUNC:
     case TableExprFuncNode::boxminFUNC:
     case TableExprFuncNode::boxmaxFUNC:
     case TableExprFuncNode::boxmeanFUNC:
@@ -1135,10 +1193,12 @@ TableExprNode TableParseSelect::makeFuncNode
     case TableExprFuncNode::boxmedianFUNC:
     case TableExprFuncNode::boxanyFUNC:
     case TableExprFuncNode::boxallFUNC:
+    case TableExprFuncNode::boxntrueFUNC:
+    case TableExprFuncNode::boxnfalseFUNC:
     case TableExprFuncNode::arrayFUNC:
     case TableExprFuncNode::transposeFUNC:
     case TableExprFuncNode::diagonalFUNC:
-      if (arguments.nelements() >= axarg) {
+      if (arguments.size() >= axarg) {
         TableExprNodeSet parms;
         // Add first argument(s) to the parms.
         for (uInt i=0; i<axarg; i++) {
@@ -1147,7 +1207,7 @@ TableExprNode TableParseSelect::makeFuncNode
         // Now handle the axes arguments.
         // They can be given as a set or as individual scalar values.
         Bool axesIsArray = False;
-        if (arguments.nelements() == axarg) {
+        if (arguments.size() == axarg) {
           // No axes given. Add default one for transpose.
           axesIsArray = True;
           if (ftype == TableExprFuncNode::transposeFUNC  ||
@@ -1156,7 +1216,7 @@ TableExprNode TableParseSelect::makeFuncNode
             TableExprNodeSetElem arg((TableExprNode(Vector<Int>())));
             parms.add (arg);
           }
-        } else if (arguments.nelements() == axarg+1
+        } else if (arguments.size() == axarg+1
                    &&  arguments[axarg].isSingle()) {
           // A single set given; see if it is an array.
           const TableExprNodeSetElem& arg = arguments[axarg];
@@ -1168,9 +1228,9 @@ TableExprNode TableParseSelect::makeFuncNode
         if (!axesIsArray) {
           // Combine all axes in a single set and add to parms.
           TableExprNodeSet axes;
-          for (uInt i=axarg; i<arguments.nelements(); i++) {
+          for (uInt i=axarg; i<arguments.size(); i++) {
             const TableExprNodeSetElem& arg = arguments[i];
-            const TableExprNodeRep* rep = arg.start();
+            const TENShPtr& rep = arg.start();
             if (rep == 0  ||  !arg.isSingle()
                 ||  rep->valueType() != TableExprNodeRep::VTScalar
                 ||  (rep->dataType() != TableExprNodeRep::NTInt
@@ -1224,7 +1284,7 @@ void TableParseSelect::handleColumn (Int stringType,
     handleWildColumn (stringType, name);
   } else {
     // A single column is given.
-    Int nrcol = columnNames_p.nelements();
+    Int nrcol = columnNames_p.size();
     columnNames_p.resize     (nrcol+1);
     columnNameMasks_p.resize (nrcol+1);
     columnExpr_p.resize      (nrcol+1);
@@ -1284,46 +1344,56 @@ void TableParseSelect::handleColumn (Int stringType,
 //# Add or remove to/from the block of column names as needed.
 void TableParseSelect::handleWildColumn (Int stringType, const String& name)
 {
-  Int nrcol  = columnNames_p.nelements();
+  Int nrcol  = columnNames_p.size();
   String str = name.substr(2, name.size()-3);    // remove delimiters
   Bool caseInsensitive = ((stringType & 1) != 0);
   Bool negate          = ((stringType & 2) != 0);
   Regex regex;
+  int shInx = -1;
   // See if the wildcarded name has a table shorthand in it.
-  // That is not really handled yet.
-  // It should be done in a future TaQL version (supporting joins).
   String shorthand;
   if (name[0] == 'p') {
     if (!negate) {
-      int j = str.index('.');
-      if (j >= 0) {
-	shorthand = str.before(j);
-	str       = str.after(j);
+      shInx = str.index('.');
+      if (shInx >= 0) {
+	shorthand = str.before(shInx);
+	str       = str.after(shInx);
       }
     }
     regex = Regex::fromPattern (str);
   } else {
     if (!negate) {
-      int j = str.index("\\.");
-      if (j >= 0) {
-	shorthand = str.before(j);
-	str       = str.after(j+1);
+      shInx = str.index("\\.");
+      if (shInx >= 0) {
+	shorthand = str.before(shInx);
+	str       = str.after(shInx+1);
       }
     }
     if (name[0] == 'f') {
       regex = Regex(str);
     } else {
-      regex = Regex(".*(" + str + ").*");
+      // For regex type m prepend and append .* unless begin or end regex is given.
+      if (str.size() > 0  &&  str[0] != '^') {
+        str = ".*" + str;
+      }
+      if (str.size() > 0  &&  str[str.size()-1] != '$') {
+        str = str + ".*";
+      }
+      regex = Regex(str);
     }
   }
   if (!negate) {
+    // Find all matching columns.
+    Table tab = findTable(shorthand, False);
+    if (tab.isNull()) {
+      throw TableInvExpr("Shorthand " + shorthand + " in wildcarded column " +
+                         name + " not defined in FROM clause");
+    }
+    Vector<String> columns = tab.tableDesc().columnNames();
     // Add back the delimiting . if a shorthand is given.
-    if (! shorthand.empty()) {
+    if (shInx >= 0) {
       shorthand += '.';
     }
-    // Find all matching columns.
-    Table tab = findTable(String());
-    Vector<String> columns = tab.tableDesc().columnNames();
     Int nr = 0;
     for (uInt i=0; i<columns.size(); ++i) {
       String col = columns[i];
@@ -1354,7 +1424,7 @@ void TableParseSelect::handleWildColumn (Int stringType, const String& name)
     // If the negated wildcard is the first one, assume * was given before it.
     if (nrcol == 0) {
       handleWildColumn (0, "p/*/");
-      nrcol = columnNames_p.nelements();
+      nrcol = columnNames_p.size();
     }
     // This is done until the last non-wildcarded column name.
     while (nrcol > 0) {
@@ -1435,7 +1505,7 @@ void TableParseSelect::handleColumnFinish (Bool distinct)
     columnDtypes_p    = dtypes;
     columnKeywords_p  = keywords;
   }
-  if (distinct_p  &&  columnNames_p.nelements() == 0) {
+  if (distinct_p  &&  columnNames_p.size() == 0) {
     throw TableInvExpr ("SELECT DISTINCT can only be given with at least "
 			"one column name");
   }
@@ -1474,7 +1544,7 @@ void TableParseSelect::makeProjectExprTable()
   // Make a column description for all expressions.
   // Check if all tables involved have the same nr of rows as the first one.
   TableDesc td;
-  for (uInt i=0; i<columnExpr_p.nelements(); i++) {
+  for (uInt i=0; i<columnExpr_p.size(); i++) {
     // If no new name is given, make one (unique).
     String newName = columnNames_p[i];
     if (newName.empty()) {
@@ -1484,7 +1554,7 @@ void TableParseSelect::makeProjectExprTable()
       Bool unique = False;
       while (!unique) {
 	unique = True;
-	for (uInt i=0; i<columnNames_p.nelements(); i++) {
+	for (uInt i=0; i<columnNames_p.size(); i++) {
 	  if (newName == columnNames_p[i]) {
 	    unique = False;
 	    seqnr++;
@@ -1501,12 +1571,13 @@ void TableParseSelect::makeProjectExprTable()
 		   columnExpr_p[i].isScalar() ? -1:0,    //ndim
 		   IPosition(), "", "", "",
                    columnKeywords_p[i],
-                   columnExpr_p[i].unit().getName());
+                   Vector<String>(1, columnExpr_p[i].unit().getName()),
+                   columnExpr_p[i].attributes());
     if (! columnNameMasks_p[i].empty()) {
       addColumnDesc (td, TpBool, columnNameMasks_p[i], 0,
                      columnExpr_p[i].isScalar() ? -1:0,    //ndim
                      IPosition(), "", "", "",
-                     TableRecord(), String());
+                     TableRecord(), Vector<String>(), Record());
     }
   }
   // Create the table.
@@ -1548,7 +1619,7 @@ void TableParseSelect::handleColSpec (const String& colName,
   String dmType;
   String dmGroup;
   String comment;
-  String unit;
+  Vector<String> unit;
   for (uInt i=0; i<spec.nfields(); i++) {
     String name = spec.name(i);
     name.upcase();
@@ -1557,7 +1628,7 @@ void TableParseSelect::handleColSpec (const String& colName,
     } else if (name == "SHAPE") {
       Vector<Int> ivec(spec.toArrayInt(i));
       if (isCOrder) {
-	Int nd = ivec.nelements();
+	Int nd = ivec.size();
 	shape.resize (nd);
 	for (Int i=0; i<nd; ++i) {
 	  shape[i] = ivec[nd-i-1];
@@ -1579,7 +1650,11 @@ void TableParseSelect::handleColSpec (const String& colName,
     } else if (name == "COMMENT") {
       comment = spec.asString(i);
     } else if (name == "UNIT") {
-      unit = spec.asString(i);
+      if (spec.dataType(i) == TpString) {
+        unit = Vector<String>(1, spec.asString(i));
+      } else {
+        unit = spec.asArrayString(i);
+      }
     } else {
       throw TableError ("TableParseSelect::handleColSpec - "
 			"column specification field name " + name +
@@ -1589,8 +1664,8 @@ void TableParseSelect::handleColSpec (const String& colName,
   // Now add the scalar or array column description.
   DataType dtype = makeDataType (TpOther, dtstr, colName);
   addColumnDesc (tableDesc_p, dtype, colName, options, ndim, shape,
-		 dmType, dmGroup, comment, TableRecord(), unit);
-  Int nrcol = columnNames_p.nelements();
+		 dmType, dmGroup, comment, TableRecord(), unit, Record());
+  Int nrcol = columnNames_p.size();
   columnNames_p.resize (nrcol+1);
   columnNames_p[nrcol] = colName;
 }
@@ -1788,9 +1863,9 @@ TableRecord& TableParseSelect::findKeyword (const String& name,
   String shand, columnName;
   Vector<String> fieldNames;
   splitName (shand, columnName, fieldNames, name, True, True, False);
-  Table tab = findTable (shand);
+  Table tab = findTable (shand, False);
   if (tab.isNull()) {
-    throw (TableInvExpr("Shorthand " + shand + " has not been defined"));
+    throw (TableInvExpr("Shorthand " + shand + " not defined in FROM clause"));
   }
   TableRecord* rec;
   String fullName;
@@ -1861,7 +1936,7 @@ Block<String> TableParseSelect::getStoredColumns (const Table& tab) const
   for (uInt i=0; i<tdesc.ncolumn(); i++) {
     const String& colnm = tdesc[i].name();
     if (tab.isColumnStored(colnm)) {
-      uInt inx = names.nelements();
+      uInt inx = names.size();
       names.resize (inx + 1);
       names[inx] = colnm;
     }
@@ -1924,7 +1999,7 @@ TableExprNode TableParseSelect::getColSet()
   }
   const ColumnDesc& colDesc = tableDesc.columnDesc(0);
   TableColumn tabcol (table_p, colDesc.name());
-  TableExprNodeRep* tsnptr=0;
+  TENShPtr tsnptr;
   if (colDesc.isScalar()) {
     switch (colDesc.dataType()) {
     case TpBool:
@@ -2042,7 +2117,6 @@ TableExprNode TableParseSelect::makeSubSet() const
   resultSet_p->checkEqualDataTypes();
   // Link to set to make sure that TableExprNode hereafter does not delete
   // the object.
-  resultSet_p->link();
   TableExprNodeSet set(rownrs_p, *resultSet_p);
   return set.setOrArray();
 }
@@ -2088,10 +2162,10 @@ void TableParseSelect::makeTableNoFrom (const vector<TableParseSelect*>& stack)
   } else if (endrow_p > 0) {
     nrow = endrow_p;
   }
-  // Add a temp table with no columns and some rows.
+  // Add a temp table with no columns and some rows to the FROM list.
   Table tab(Table::Memory);
   tab.addRow(nrow);
-  addTable (-1, String(), tab, String(), std::vector<const Table*>(), stack);
+  addTable (-1, String(), tab, String(), True, std::vector<const Table*>(), stack);
 }
 
 void TableParseSelect::handleAddRow (const TableExprNode& expr)
@@ -2128,15 +2202,15 @@ void TableParseSelect::handleInsert()
 {
   // If no columns were given, all stored columns in the first table
   // are the target columns.
-  if (columnNames_p.nelements() == 0) {
+  if (columnNames_p.size() == 0) {
     columnNames_p = getStoredColumns (fromTables_p[0].table());
     columnNameMasks_p.resize (columnNames_p.size());
   }
   // Check if #columns and values match.
   // Copy the names to the update objects.
-  if (update_p.size() != columnNames_p.nelements()) {
+  if (update_p.size() != columnNames_p.size()) {
     throw TableInvExpr ("Error in INSERT command; nr of columns (=" +
-			String::toString(columnNames_p.nelements()) +
+			String::toString(columnNames_p.size()) +
 			") mismatches "
 			"number of VALUES expressions (=" +
 			String::toString(Int(update_p.size())) + ")");
@@ -2689,27 +2763,27 @@ Table TableParseSelect::doInsert (Bool showTimings, Table& table)
     return Table();
   }
   // Get the target columns if not given.
-  if (columnNames_p.nelements() == 0) {
+  if (columnNames_p.size() == 0) {
     columnNames_p = getStoredColumns (table);
   }
   // Get the source columns.
   Block<String> sourceNames;
   sourceNames = insSel_p->getColumnNames();
-  if (sourceNames.nelements() == 0) {
+  if (sourceNames.size() == 0) {
     sourceNames = getStoredColumns (sel);
   }
   // Check if the number of columns match.
-  if (sourceNames.nelements() != columnNames_p.nelements()) {
+  if (sourceNames.size() != columnNames_p.size()) {
     throw TableInvExpr ("Error in INSERT command; nr of columns (=" +
-			String::toString(columnNames_p.nelements()) +
+			String::toString(columnNames_p.size()) +
 			") mismatches "
 			"number of columns in selection (=" +
-			String::toString(sourceNames.nelements()) + ")");
+			String::toString(sourceNames.size()) + ")");
   }
   // Check if the data types match.
   const TableDesc& tdesc1 = table.tableDesc();
   const TableDesc& tdesc2 = sel.tableDesc();
-  for (uInt i=0; i<columnNames_p.nelements(); i++) {
+  for (uInt i=0; i<columnNames_p.size(); i++) {
     if (tdesc1[columnNames_p[i]].trueDataType() !=
 	tdesc2[sourceNames[i]].trueDataType()) {
       throw TableInvExpr ("Error in INSERT command; data type of columns " +
@@ -2793,7 +2867,7 @@ Table TableParseSelect::doCount (Bool showTimings, const Table& table)
 
 //# Execute the groupby.
 CountedPtr<TableExprGroupResult> TableParseSelect::doGroupby
-(Bool showTimings, vector<TableExprNodeRep*> aggrNodes, Int groupAggrUsed)
+(Bool showTimings, const vector<TableExprNodeRep*> aggrNodes, Int groupAggrUsed)
 {
   Timer timer;
   // If only 'select count(*)' was given, get the size of the WHERE,
@@ -2923,7 +2997,9 @@ CountedPtr<TableExprGroupResult> TableParseSelect::doGroupByAggr
   TableExprAggrNode expridNode(TableExprFuncNode::gexpridFUNC,
                                TableExprNodeRep::NTInt,
                                TableExprNodeRep::VTArray,
-                               TableExprNodeSet());
+                               TableExprNodeSet(),
+                               vector<TENShPtr>(),
+                               Block<Int>());
   if (! lazyNodes.empty()) {
     immediateNodes.push_back (&expridNode);
   }
@@ -3241,6 +3317,9 @@ Table TableParseSelect::doProject
 {
   Timer timer;
   Table tabp;
+  // doProjectExpr might have been done for some columns, so clear first to avoid
+  // they are calculated twice.
+  update_p.clear();
   if (nrSelExprUsed_p > 0) {
     // Expressions used, so make a real table.
     tabp = doProjectExpr (False, groups);
@@ -3248,7 +3327,7 @@ Table TableParseSelect::doProject
     // Only column names used, so make a reference table.
     tabp = table(rownrs_p);
     tabp = tabp.project (columnOldNames_p);
-    for (uInt i=0; i<columnNames_p.nelements(); i++) {
+    for (uInt i=0; i<columnNames_p.size(); i++) {
       // Rename column if new name is given to a column.
       if (columnNames_p[i] != columnOldNames_p[i]) {
 	tabp.renameColumn (columnNames_p[i], columnOldNames_p[i]);
@@ -3273,7 +3352,7 @@ Table TableParseSelect::doProjectExpr
       projectExprTable_p.addRow (rownrs_p.size());
     }
     // Turn the expressions of the selected columns into update objects.
-    for (uInt i=0; i<columnExpr_p.nelements(); i++) {
+    for (uInt i=0; i<columnExpr_p.size(); i++) {
       if (! columnExpr_p[i].isNull()) {
         if (projectExprSelColumn_p[i] == useSel) {
           addUpdate (new TableParseUpdate (columnNames_p[i],
@@ -3385,7 +3464,8 @@ void TableParseSelect::addColumnDesc (TableDesc& td,
 				      const String& dmGroup,
 				      const String& comment,
                                       const TableRecord& keywordSet,
-				      const String& unitName)
+				      const Vector<String>& unitName,
+                                      const Record& attributes)
 {
   if (ndim < 0) {
     switch (dtype) {
@@ -3439,7 +3519,7 @@ void TableParseSelect::addColumnDesc (TableDesc& td,
     }
   } else {
     // Giving a shape means fixed shape arrays.
-    if (shape.nelements() > 0) {
+    if (shape.size() > 0) {
       options |= ColumnDesc::FixedShape;
     }
     switch (dtype) {
@@ -3506,6 +3586,8 @@ void TableParseSelect::addColumnDesc (TableDesc& td,
   // Write the keywords.
   ColumnDesc& cd = td.rwColumnDesc(colName);
   TableRecord keys (keywordSet);
+  keys.merge (TableRecord(attributes),
+              RecordInterface::OverwriteDuplicates);
   // If no keys defined for this column, define Epoch measure for dates.
   if (dtype == TpQuantity  &&  keys.empty()) {
     TableRecord r;
@@ -3516,12 +3598,17 @@ void TableParseSelect::addColumnDesc (TableDesc& td,
   cd.rwKeywordSet() = keys;
   // Write unit in column keywords (in TableMeasures compatible way).
   // Check if it is valid by constructing the Unit object.
-  String unit(unitName);
+  Vector<String> unit(unitName);
   if (dtype == TpQuantity  &&  unit.empty()) {
-    unit = "d";
+    unit = Vector<String>(1, "d");
   }
-  if (! unit.empty()) {
-    cd.rwKeywordSet().define ("QuantumUnits", Vector<String>(1, unit));
+  if (! unit.empty()  &&  ! unit[0].empty()) {
+    if (! shape.empty()) {
+      if (! (unit.size() == 1  ||  unit.size() == uInt(shape[0]))) {
+        throw AipsError("Nr of units must be 1 or match the first axis");
+      }
+    }
+    cd.rwKeywordSet().define ("QuantumUnits", unit);
   }
 }
 
@@ -3679,8 +3766,8 @@ void TableParseSelect::handleGiving (const TableExprNodeSet& set)
     throw TableInvExpr("Expressions can be given in SELECT or GIVING, "
                        "not both");
   }
-  TableExprNodeRep::checkAggrFuncs (&set);
   resultSet_p = new TableExprNodeSet (set);
+  resultSet_p->checkAggrFuncs();
 }
 
 void TableParseSelect::checkTableProjSizes() const
@@ -3688,9 +3775,9 @@ void TableParseSelect::checkTableProjSizes() const
   // Check if all tables used in non-constant select expressions
   // have the same size as the first table. 
   Int64 nrow = fromTables_p[0].table().nrow();
-  for (uInt i=0; i<columnExpr_p.nelements(); i++) {
-    if (! columnExpr_p[i].getNodeRep()->isConstant()) {
-      if (columnExpr_p[i].getNodeRep()->nrow() != nrow) {
+  for (uInt i=0; i<columnExpr_p.size(); i++) {
+    if (! columnExpr_p[i].getRep()->isConstant()) {
+      if (columnExpr_p[i].getRep()->nrow() != nrow) {
         throw TableInvExpr("Nr of rows of tables used in select "
                            "expressions must be equal to first table");
       }
@@ -3741,7 +3828,7 @@ void TableParseSelect::execute (Bool showTimings, Bool setInGiving,
   //# Give an error if no command part has been given.
   if (mustSelect  &&  commandType_p == PSELECT
   &&  node_p.isNull()  &&  sort_p.size() == 0
-  &&  columnNames_p.nelements() == 0  &&  resultSet_p == 0
+  &&  columnNames_p.size() == 0  &&  resultSet_p == 0
   &&  limit_p == 0  &&  endrow_p == 0  &&  stride_p == 1  &&  offset_p == 0) {
     throw (TableInvExpr
 	   ("TableParse error: no projection, selection, sorting, "
@@ -3806,7 +3893,7 @@ void TableParseSelect::execute (Bool showTimings, Bool setInGiving,
 //#//	cout << "Showing TableExprRange values ..." << endl;
 //#//	Block<TableExprRange> rang;
 //#//	node_p->ranges(rang);
-//#//	for (Int i=0; i<rang.nelements(); i++) {
+//#//	for (Int i=0; i<rang.size(); i++) {
 //#//	    cout << rang[i].getColumn().columnDesc().name() << rang[i].start()
 //#//		 << rang[i].end() << endl;
 //#//	}
@@ -3907,7 +3994,7 @@ void TableParseSelect::execute (Bool showTimings, Bool setInGiving,
     resultTable = doCount (showTimings, table);
   } else {
     //# Then do the projection.
-    if (columnNames_p.nelements() > 0) {
+    if (columnNames_p.size() > 0) {
       resultTable = doProject (showTimings, table, groupResult);
       if (doTracing) {
         cerr << "Final projection done of "
@@ -3940,7 +4027,7 @@ void TableParseSelect::execute (Bool showTimings, Bool setInGiving,
 void TableParseSelect::checkAggrFuncs (const TableExprNode& node)
 {
   if (! node.isNull()) {
-    TableExprNodeRep::checkAggrFuncs (node.getNodeRep());
+    node.getRep()->checkAggrFuncs();
   }
 }
 //# Get aggregate functions used and check if used at correct places.
@@ -3950,16 +4037,16 @@ Int TableParseSelect::testGroupAggr (vector<TableExprNodeRep*>& aggr) const
   // Make sure main (where) node does not have aggregate functions.
   // This has been checked before, but use defensive programming.
   if (! node_p.isNull()) {
-    const_cast<TableExprNodeRep*>(node_p.getNodeRep())->getAggrNodes (aggr);
+    node_p.getRep()->getAggrNodes (aggr);
     AlwaysAssert (aggr.empty(), AipsError);
   }
   // Get possible aggregate functions used in SELECT and HAVING.
   for (uInt i=0; i<columnExpr_p.size(); ++i) {
-    const_cast<TableExprNodeRep*>(columnExpr_p[i].getNodeRep())->getAggrNodes (aggr);
+    const_cast<TableExprNodeRep*>(columnExpr_p[i].getRep().get())->getAggrNodes (aggr);
   }
   uInt nselAggr = aggr.size();
   if (! havingNode_p.isNull()) {
-    const_cast<TableExprNodeRep*>(havingNode_p.getNodeRep())->getAggrNodes (aggr);
+    const_cast<TableExprNodeRep*>(havingNode_p.getRep().get())->getAggrNodes (aggr);
   }
   // Make sure aggregate functions are not used in a UPDATE command, etc.
   // Again, this cannot happen but use defensive programming.
@@ -3988,6 +4075,51 @@ Int TableParseSelect::testGroupAggr (vector<TableExprNodeRep*>& aggr) const
   }
   return res;
 }
+
+String TableParseSelect::getTableInfo (const Vector<String>& parts,
+                                       const TaQLStyle& style)
+{
+  Bool showdm = False;
+  Bool showcol = True;
+  Bool showsub = False;
+  Bool sortcol = False;
+  Bool tabkey = False;
+  Bool colkey = False;
+  for (uInt i=2; i<parts.size(); ++i) {
+    String opt(parts[i]);
+    opt.downcase();
+    Bool fop = True;
+    if (opt.size() > 2   &&  opt.substr(0,2) == "no") {
+      fop = False;
+      opt = opt.substr(2);
+    }
+    if (opt == "dm") {
+      showdm = fop;
+    } else if (opt == "col") {
+      showcol = fop;
+    } else if (opt == "sort") {
+      sortcol = fop;
+    } else if (opt == "key") {
+      tabkey = fop;
+      colkey = fop;
+    } else if (opt == "tabkey") {
+      tabkey = fop;
+    } else if (opt == "colkey") {
+      colkey = fop;
+    } else if (opt == "recur") {
+      showsub = fop;
+    } else {
+      throw AipsError (parts[i] + " is an unknown show table option; use: "
+                       "dm col sort key colkey recur");
+    }
+  }
+  std::ostringstream os;
+  fromTables_p[0].table().showStructure (os, showdm, showcol, showsub,
+                                         sortcol, style.isCOrder());
+  fromTables_p[0].table().showKeywords (os, showsub, tabkey, colkey);
+  return os.str();
+}
+
 
 void TableParseSelect::show (ostream& os) const
 {

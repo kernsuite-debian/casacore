@@ -159,6 +159,11 @@ public:
 // It can fail if, e.g., the directory to write to is not writable.
    virtual Bool setMiscInfo (const RecordInterface& newInfo);
 
+  // Set the ImageInfo in the super class ImageInterface and in each
+  // underlying image. If needed, its restoring beam is split along the
+  // frequency or polarisation axis and set in each underlying image.
+  virtual Bool setImageInfo(const ImageInfo& info);
+
 // Get the image type (returns name of derived class).
    virtual String imageType() const;
 
@@ -191,6 +196,10 @@ public:
 // Returns 0 if none yet set. 
    uInt imageDim() const
      { return latticeConcat_p.latticeDim(); }
+
+// Return a reference to the i-th image.
+  ImageInterface<T>& image(uInt i) const
+    { return dynamic_cast<ImageInterface<T>&>(*(latticeConcat_p.lattice(i))); }
 
 // Handle the (un)locking and syncing, etc.
 // <group>
@@ -231,9 +240,10 @@ public:
    virtual IPosition shape() const;
 
   
-// Return the best cursor shape.  This isn't very meaningful for an ImageConcat
-// Image since it isn't on disk !  But if you do copy it out, this is
-// what you should use.  The maxPixels aregument is ignored.   
+// Return the best cursor shape.  It will try to return the best cusrsor of the 
+//smallest constituent image along the non-direction axes (in order to minimize 
+//bouncing from one image to another while iterating which may involve lots of 
+//open and tempclose).  
    virtual IPosition doNiceCursorShape (uInt maxPixels) const;
 
 // Do the actual get of the data.

@@ -8,12 +8,12 @@ The data tables are not available during the build of casacore (yet).
  images/Images/test/CMakeLists.txt           | 40 ++++++++++++++---------------
  images/Regions/test/CMakeLists.txt          |  8 +++---
  lattices/LatticeMath/test/CMakeLists.txt    |  2 +-
- meas/MeasUDF/test/CMakeLists.txt            |  2 +-
+ meas/MeasUDF/test/CMakeLists.txt            | 14 +++++-----
  measures/Measures/test/CMakeLists.txt       | 37 ++++++++++++--------------
  measures/TableMeasures/test/CMakeLists.txt  |  2 +-
- ms/MSOper/test/CMakeLists.txt               |  6 ++---
+ ms/MSOper/test/CMakeLists.txt               |  8 +++---
  ms/MeasurementSets/test/CMakeLists.txt      |  2 +-
- 9 files changed, 53 insertions(+), 58 deletions(-)
+ 9 files changed, 60 insertions(+), 65 deletions(-)
 
 diff --git a/coordinates/Coordinates/test/CMakeLists.txt b/coordinates/Coordinates/test/CMakeLists.txt
 index bd1c996..248b395 100644
@@ -143,12 +143,25 @@ index 0d869d5..47e5c76 100644
  
  foreach (test ${tests})
 diff --git a/meas/MeasUDF/test/CMakeLists.txt b/meas/MeasUDF/test/CMakeLists.txt
-index a2ecd9a..b06ee99 100644
+index e4e8ff4..5784f91 100644
 --- a/meas/MeasUDF/test/CMakeLists.txt
 +++ b/meas/MeasUDF/test/CMakeLists.txt
-@@ -1,5 +1,5 @@
+@@ -1,12 +1,12 @@
  set (tests
+- tPositionEngine
+- tEpochEngine
+- tDirectionEngine
+- tEarthMagneticEngine
++# tPositionEngine
++# tEpochEngine
++# tDirectionEngine
++# tEarthMagneticEngine
+  tFrequencyEngine
+- tRadialVelocityEngine
+- tDopplerEngine
 - tmeas
++# tRadialVelocityEngine
++# tDopplerEngine
 +# tmeas # requires casacore-data
  )
  
@@ -222,10 +235,10 @@ index e7c4af1..84e7d6d 100644
  )
  
 diff --git a/ms/MSOper/test/CMakeLists.txt b/ms/MSOper/test/CMakeLists.txt
-index e53aec3..81912cd 100644
+index c0366ef..760fd24 100644
 --- a/ms/MSOper/test/CMakeLists.txt
 +++ b/ms/MSOper/test/CMakeLists.txt
-@@ -1,9 +1,9 @@
+@@ -1,10 +1,10 @@
  set (tests
 -tMSDerivedValues
 -tMSKeys
@@ -234,7 +247,9 @@ index e53aec3..81912cd 100644
  tMSMetaData
  tMSReader
 -tMSSummary
+-tNewMSSimulator
 +# tMSSummary
++# tNewMSSimulator
  )
  
  foreach (test ${tests})

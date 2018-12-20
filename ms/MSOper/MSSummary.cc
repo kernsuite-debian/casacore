@@ -92,7 +92,7 @@ MSSummary::MSSummary (const MeasurementSet* ms, const String msname, Float maxCa
   _cacheSizeMB(maxCacheMB)
 {}
 
-MSSummary::MSSummary (SHARED_PTR<MSMetaData> msmd)
+MSSummary::MSSummary (std::shared_ptr<MSMetaData> msmd)
     : pMS(msmd->getMS()), _msmd(msmd), dashlin1(replicate("-",80)),
       dashlin2(replicate("=",80)),
       _listUnflaggedRowCount(False),
@@ -318,11 +318,11 @@ void MSSummary::listMain (LogIO& os, Record& outRec, Bool verbose,
 
     set<ArrayKey>::const_iterator iter = allArrayKeys.begin();
     set<ArrayKey>::const_iterator end = allArrayKeys.end();
-    SHARED_PTR<const std::map<ScanKey, std::pair<Double,Double> > > scanToTRMap = _msmd->getScanToTimeRangeMap();
-    SHARED_PTR<const std::map<SubScanKey, MSMetaData::SubScanProperties> > ssprops
+    std::shared_ptr<const std::map<ScanKey, std::pair<Double,Double> > > scanToTRMap = _msmd->getScanToTimeRangeMap();
+    std::shared_ptr<const std::map<SubScanKey, MSMetaData::SubScanProperties> > ssprops
         = _msmd->getSubScanProperties(True);
-    SHARED_PTR<const std::map<SubScanKey, std::set<String> > > ssToIntents = _msmd->getSubScanToIntentsMap();
-    SHARED_PTR<const map<SubScanKey, uInt> > nrowMap = _msmd->getNRowMap(MSMetaData::BOTH);
+    std::shared_ptr<const std::map<SubScanKey, std::set<String> > > ssToIntents = _msmd->getSubScanToIntentsMap();
+    std::shared_ptr<const map<SubScanKey, uInt> > nrowMap = _msmd->getNRowMap(MSMetaData::BOTH);
     for (; iter != end; ++iter) {
         Int obsid = iter->obsID;
         Int arrid = iter->arrayID;
@@ -1729,30 +1729,34 @@ void MSSummary::listTables (LogIO& os, Bool verbose) const
     // Do things on this side
     // whether verbose or not
     os << "Tables";
-    if (!verbose) os << "(rows)";            os << ":";
+    if (!verbose) os << "(rows)";
+    os << ":";
     if (!verbose) os << "   (-1 = table absent)";
     os << endl;
     for (uInt i=0; i<18; i++) {
         if (verbose) {
             os.output().setf(ios::left, ios::adjustfield);
             os.output().width(3);
-        }                        os << "   ";
+        }
+        os << "   ";
         if (verbose) {
             os.output().width(20);
-        }                        os << tableStrings(i);
+        }
+        os << tableStrings(i);
         if (verbose && tableRows(i)>0) {
             os.output().setf(ios::right, ios::adjustfield);
             os.output().width(8);
         }
         if (!verbose) os << "(";
-        if (!verbose || tableRows(i)>0)        os << tableRows(i);
+        if (!verbose || tableRows(i)>0) os << tableRows(i);
         if (!verbose) os << ")";
         if (verbose) {
             os.output().setf(ios::left, ios::adjustfield);
-            os.output().width(10);    os << rowStrings(i);
+            os.output().width(10);
+            os << rowStrings(i);
             os << endl;
         }
-        else {if ((i%5)==0) os << endl;}
+        else if ((i%5)==0) os << endl;
     }
     os << LogIO::POST;
 }

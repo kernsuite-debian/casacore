@@ -59,7 +59,8 @@
 #include <casacore/lattices/Lattices/LatticeConcat.h>
 #include <casacore/lattices/Lattices/MaskedLattice.h>
 #include <casacore/lattices/LEL/LELCoordinates.h>
-
+#include <limits>
+#include <cstddef>
 
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
@@ -248,6 +249,27 @@ Bool ImageConcat<T>::setMiscInfo (const RecordInterface& newInfo)
 }
 
 template<class T>
+Bool ImageConcat<T>::setImageInfo (const ImageInfo& info)
+{
+  // Check the beamset and set the Imageinfo for the concat image.
+  this->setImageInfoMember (info);
+  // Set the ImageInfo in each individual image.
+  // If the ImageConcat and the BeamInfo are along the frequency or stokes axis,
+  // take the appropriate subset.
+  uInt ndone = 0;
+  for (uInt i=0; i<latticeConcat_p.nlattices(); ++i) {
+    ImageInterface<T>& img =
+      dynamic_cast<ImageInterface<T>&>(*(latticeConcat_p.lattice(i)));
+    ImageInfo ii = img.imageInfo();
+    ndone += ii.setInfoSplitBeamSet (ndone, info, img.shape(),
+                                                    img.coordinates(),
+                                                    latticeConcat_p.axis());
+    img.setImageInfo(ii);
+  }
+  return True;
+}
+
+template<class T>
 Bool ImageConcat<T>::isPersistent() const
 {
   return ! fileName_p.empty();
@@ -282,14 +304,14 @@ void ImageConcat<T>::setImage (ImageInterface<T>& image, Bool relax)
   latticeConcat_p.setLattice(image);
 
   // Do the extra image stuff.  Most of it is coordinate rubbish.
-  // The ImageInfo comes from the first image only.
+  // The ImageInfo (except beams) comes from the first image only.
   // The miscInfo is merged from all images.
   isImage_p.resize(nIm+1,True);
   isImage_p(nIm) = True;
   if (nIm==0) {
     ImageInterface<T>::setCoordinateInfo(image.coordinates());
     this->setUnitMember (image.units());
-    this->setImageInfo (image.imageInfo());
+    this->setImageInfoMember (image.imageInfo());
     this->setMiscInfoMember (image.miscInfo());
     this->setCoordinates();
   } else {
@@ -466,7 +488,35 @@ Bool ImageConcat<T>::doGetMaskSlice (Array<Bool>& buffer,
 template <class T>
 IPosition ImageConcat<T>::doNiceCursorShape (uInt maxPixels) const
 {  
-   return latticeConcat_p.niceCursorShape(maxPixels);
+  
+  //Return the smallest cursor shape along the non X-Y direction from the constituent images
+  if(nimages() > 0){
+    ///if image has 1 or  2 axes return cursor shape of first image
+    if(shape().nelements() <= 2){
+      return image(0).niceCursorShape(maxPixels);
+    }
+    Vector<Int> dirpixaxes, dirworldaxes;
+    Int coordaxis;
+    CoordinateUtil::findDirectionAxes(dirpixaxes, dirworldaxes,
+                                       coordaxis,
+				      coordinates());
+    Int64 minprod=std::numeric_limits<Int64>::max();
+    Int minimage=-1;
+    for (uInt k=0; k < nimages(); ++k){
+      IPosition curshape=image(k).niceCursorShape(maxPixels);
+      Int64 prod= curshape.product()/ Int64(curshape(dirpixaxes(0))*curshape(dirpixaxes(1)));
+      if(prod < minprod){
+	minprod=prod;
+	minimage=k;
+      }
+   
+
+    }
+    return image(minimage).niceCursorShape(maxPixels);
+  }
+
+  return IPosition(0);
+
 }
  
    

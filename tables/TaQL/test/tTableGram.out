@@ -500,6 +500,10 @@ select ab from $1;tTableGram_tmp.tab
  7
  8
  9
+select ab from $1::subtab;tTableGram_tmp.tab
+
+Caught an exception: Error in TaQL command: 'select ab from $1::subtab'
+  Error in select expression: $1::subtab is an unknown (sub)table
 select ab from tTableGram_tmp.tab where [ab,ab] incone [2rad,2rad,1rad]
     has been executed
     select result of 4 rows
@@ -584,6 +588,13 @@ Caught an exception: Error in TaQL command: 'select from tTableGram_tmp.tab t0, 
   Error in select expression: Nr of rows (5) in table column t1.ab differs from column t0.ab (10)
 
 testing calc ...
+calc mean([1:6][[1:6] > 3][[1:6]>1])
+    has been executed
+[1]
+calc 1 km m cm
+    has been executed
+Unit: cm
+[100000]
 calc sum([select from tTableGram_tmp.tab giving [ab+1]])
     has been executed
 [55]
@@ -903,15 +914,19 @@ using style python update tTableGram_tmp.tab set arr1 = array(1,4,3,2) where row
  shape=[2, 3, 4]
 using style python calc [3:6][1]
     has been executed
+Index: [1]
 [4]
 using style glish  calc [3:6][3]
     has been executed
+Index: [2]
 [5]
 using style base0  calc [3:6][3]
     has been executed
+Index: [3]
 [6]
 using style base1  calc [3:6][3]
     has been executed
+Index: [2]
 [5]
 using style python calc 6 in [3:6]
     has been executed
@@ -1247,3 +1262,7 @@ select gcount() from [tTableGram_tmp.tst as t1,tTableGram_tmp.tst as t2,[[tTable
     select result of 1 rows
 1 selected columns:  Col_1
  12
+with [tTableGram_tmp.tst,tTableGram_tmp.tst] t1 calc ([select gcount() from t1] + [select gcount() from tTableGram_tmp.tst] + [with [t1,t1] as t2 select gcount() from t2])[0]
+    has been executed
+Index: [-1]
+[21]

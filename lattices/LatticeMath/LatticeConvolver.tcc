@@ -145,8 +145,14 @@ operator=(const LatticeConvolver<T> & other) {
 template<class T> LatticeConvolver<T>::
 ~LatticeConvolver()
 {
-  if(itsPsf) delete itsPsf; itsPsf=0;
-  if(itsXfr) delete itsXfr; itsXfr=0;
+  if(itsPsf) {
+    delete itsPsf;
+    itsPsf = 0;
+  }
+  if(itsXfr) {
+    delete itsXfr;
+    itsXfr = 0;
+  }
 }
 
 template<class T> void LatticeConvolver<T>::
@@ -217,8 +223,8 @@ convolve(Lattice<T> & result, const Lattice<T> & model) const {
   LatticeStepper ls(modelShape, sliceShape);
   for (ls.reset(); !ls.atEnd(); ls++) {
     const Slicer sl(ls.position(), sliceShape);
-    const SubLattice<Float> modelSlice(model, sl);
-    SubLattice<Float> resultSlice(result, sl, True);
+    const SubLattice<T> modelSlice(model, sl);
+    SubLattice<T> resultSlice(result, sl, True);
     if (doPadding) {
       pad(*resultPtr, modelSlice);
     } else {
@@ -388,26 +394,35 @@ makeXfr(const Lattice<T> & psf) {
     IPosition XFRShape = itsFFTShape;
     XFRShape(0) = (XFRShape(0)+2)/2;
     //    XFRShape(1) = (XFRShape(1)/2+1)*2;
-    if(itsXfr) delete itsXfr; itsXfr=0;
+    if(itsXfr) {
+      delete itsXfr;
+      itsXfr = 0;
+    }
     itsXfr = new TempLattice<typename NumericTraits<T>::ConjugateType>(XFRShape, 
 								   maxLatSize);
     if (itsFFTShape == itsPsfShape) { // no need to pad the psf
-      LatticeFFT::rcfft(*itsXfr, psf, True, doFast_p); 
+        LatticeFFT::rcfft(*itsXfr, psf, True, doFast_p);
     } else { // need to pad the psf 
       TempLattice<T> paddedPsf(itsFFTShape, maxLatSize);
       pad(paddedPsf, psf);
-      LatticeFFT::rcfft(*itsXfr, paddedPsf, True, doFast_p); 
+      LatticeFFT::rcfft(*itsXfr, paddedPsf, True, doFast_p);
     }
   }
   // Only cache the psf if it cannot be reconstructed from the transfer
   // function.
   if (itsFFTShape < itsPsfShape) {
-    if(itsPsf) delete itsPsf; itsPsf=0;
+    if(itsPsf) {
+      delete itsPsf;
+      itsPsf = 0;
+    }
     itsPsf = new TempLattice<T>(itsPsfShape, 1); // Prefer to put this on disk
     itsPsf->copyData(psf);
     itsCachedPsf = True;
   } else {
-    if(itsPsf) delete itsPsf; itsPsf=0;
+    if(itsPsf) {
+      delete itsPsf;
+      itsPsf = 0;
+    }
     itsPsf = new TempLattice<T>();
     itsCachedPsf = False;
   }

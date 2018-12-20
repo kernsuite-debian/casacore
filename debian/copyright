@@ -1,4 +1,4 @@
-Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: casacore (formerly AIPS++)
 Upstream-Contact: aips2-request@nrao.edu
 Source: https://github.com/casacore/casacore/releases

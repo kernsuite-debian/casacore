@@ -33,6 +33,7 @@
 #include <casacore/casa/Arrays/ArrayMath.h>
 #include <casacore/measures/Measures/MCDirection.h>
 #include <casacore/measures/Measures/MeasFrame.h>
+#include <casacore/measures/Measures/MeasComet.h>
 #include <casacore/casa/Quanta/MVPosition.h>
 #include <casacore/measures/Measures/Nutation.h>
 #include <casacore/measures/Measures/MeasTable.h>
@@ -90,13 +91,13 @@ uInt MCDirection::ToRef_p[N_Routes][3] = {
   {MDirection::ICRS,		MDirection::J2000,	0},
   {MDirection::J2000,		MDirection::ICRS,	0} };
 uInt MCDirection::FromTo_p[MDirection::N_Types][MDirection::N_Types];
-MutexedInit MCDirection::theirMutexedInit (MCDirection::doFillState);
+CallOnce0 MCDirection::theirInitOnce;
 
 //# Constructors
 MCDirection::MCDirection() :
   MVPOS1(0), MVPOS2(0), MVPOS3(0),
   VEC61(0), VEC62(0), VEC63(0), measMath() {
-    fillState();
+    theirInitOnce(doFillState);
 }
 
 //# Destructor
@@ -132,7 +133,20 @@ void MCDirection::getConvert(MConvertBase &mc,
 	  mc.addFrameType(MeasFrame::POSITION);
 	  mc.addMethod(MCDirection::R_COMET);
 	  initConvert(MCDirection::R_COMET, mc);
-	  iin = MDirection::APP;
+	  /////have to do this copy as inref and outref are const 
+	  ////if they were not then  could pass them directly to cometframe 
+	  const MeasRef<MDirection>& inrefMR=dynamic_cast<const MeasRef<MDirection>&>(inref);
+	  const MeasRef<MDirection>& outrefMR=dynamic_cast<const MeasRef<MDirection>&>(outref);
+	  MeasRef<MDirection> incopy(inrefMR);
+	  MeasRef<MDirection> outcopy(outrefMR);
+	  MeasFrame cometframe=MDirection::Ref::frameComet(incopy, outcopy);
+	  ////////////
+	  if( cometframe.comet() &&  (cometframe.comet()->hasPosrefsys())){
+	    iin=cometframe.comet()->getPosrefsysType();
+	  }
+	  else{
+	    iin = MDirection::APP;
+	  }
 	}
       }
       if (oplan) iout = MDirection::J2000;
@@ -289,7 +303,6 @@ void MCDirection::doConvert(MVDirection &in,
   measMath.initFrame(inref, outref);
   
   for (Int i=0; i<mc.nMethod(); i++) {
-    
     switch (mc.getMethod(i)) {
  
     case HADEC_ITRF:
@@ -574,6 +587,7 @@ void MCDirection::doConvert(MVDirection &in,
       if (!MDirection::Ref::frameComet(inref, outref).
 	  getComet(*MVPOS1)) {
 	throw(AipsError("No or outside range comet table specified"));
+	
       }
       MVPOS1->adjust(lengthP);
       in = *MVPOS1;
@@ -588,13 +602,13 @@ void MCDirection::doConvert(MVDirection &in,
 }
 
 String MCDirection::showState() {
-  fillState();
+  theirInitOnce(doFillState);
   return MCBase::showState(MCDirection::FromTo_p[0],
 			   MDirection::N_Types, MCDirection::N_Routes,
 			   MCDirection::ToRef_p);
 }
 
-void MCDirection::doFillState (void*) {
+void MCDirection::doFillState() {
   MDirection::checkMyTypes();
   MCBase::makeState(FromTo_p[0],  MDirection::N_Types, N_Routes, ToRef_p);
 }

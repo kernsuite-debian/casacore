@@ -151,6 +151,7 @@ OS/MemoryTrace.cc
 OS/ModcompConversion.cc
 OS/ModcompDataConversion.cc
 OS/Mutex.cc
+OS/OMP.cc
 OS/Path.cc
 OS/PrecTimer.cc
 OS/RawDataConversion.cc
@@ -198,6 +199,7 @@ System/AipsrcValue2.cc
 System/AipsrcVBool.cc
 System/AipsrcVString.cc
 System/AppInfo.cc
+System/AppState.cc
 System/Casarc.cc
 System/Choice.cc
 System/ObjectID.cc
@@ -365,8 +367,6 @@ Containers/Map.h
 Containers/Map.tcc
 Containers/MapIO.h
 Containers/MapIO.tcc
-Containers/ObjectPool.h
-Containers/ObjectPool.tcc
 Containers/ObjectStack.h
 Containers/ObjectStack.tcc
 Containers/OrderedMap.h
@@ -377,8 +377,6 @@ Containers/OrdMapIO.h
 Containers/OrdMapIO.tcc
 Containers/OrdPairIO.h
 Containers/OrdPairIO.tcc
-Containers/PoolStack.h
-Containers/PoolStack.tcc
 Containers/Queue.h
 Containers/Queue.tcc
 Containers/RecordDesc.h
@@ -522,6 +520,7 @@ OS/MemoryTrace.h
 OS/ModcompConversion.h
 OS/ModcompDataConversion.h
 OS/Mutex.h
+OS/OMP.h
 OS/Path.h
 OS/PrecTimer.h
 OS/RawDataConversion.h
@@ -577,6 +576,7 @@ System/AipsrcValue.tcc
 System/AipsrcVector.h
 System/AipsrcVector.tcc
 System/AppInfo.h
+System/AppState.h
 System/Casarc.h
 System/Choice.h
 System/ObjectID.h

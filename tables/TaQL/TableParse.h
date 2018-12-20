@@ -52,6 +52,7 @@ class TableExprNodeIndex;
 class TableColumn;
 class AipsIO;
 template<class T> class Vector;
+template<class T> class ArrayColumn;
 
 
 // <summary>
@@ -388,7 +389,8 @@ public:
     PCOUNT,
     PCALC,
     PCRETAB,
-    PALTTAB
+    PALTTAB,
+    PSHOW
   };
 
   enum GroupAggrType {
@@ -538,6 +540,7 @@ public:
   void addTable (Int tabnr, const String& name,
 		 const Table& table,
 		 const String& shorthand,
+                 Bool addToFromList,
 		 const vector<const Table*> tempTables,
 		 const vector<TableParseSelect*>& stack);
 
@@ -606,6 +609,9 @@ public:
   // An exception is thrown if the node uses an aggregate function.
   static void checkAggrFuncs (const TableExprNode& node);
 
+  // Show the structure of fromTables_p[0] using the options given in parts[2:].
+  String getTableInfo (const Vector<String>& parts, const TaQLStyle& style);
+
   // Split a name into its parts (shorthand, column and field names).
   // True is returned if the name contained a keyword part.
   // In that case fieldNames contains the keyword name and the possible
@@ -625,7 +631,7 @@ private:
   // <br> bit 0:  on = groupby is given
   // <br> bit 1:  on = aggregate functions are given
   // <br> bit 2:  on = only select count(*) aggregate function is given
-  Int testGroupAggr (vector<TableExprNodeRep*>& aggr) const;
+  Int testGroupAggr (std::vector<TableExprNodeRep*>& aggr) const;
 
   // Get the aggregate functions used in SELECT and HAVING.
   vector<TableExprNodeRep*> getAggrNodes() const;
@@ -698,7 +704,7 @@ private:
 
   // Do the groupby/aggregate step and return its result.
   CountedPtr<TableExprGroupResult> doGroupby
-  (bool showTimings, vector<TableExprNodeRep*> aggrNodes,
+  (bool showTimings, const std::vector<TableExprNodeRep*> aggrNodes,
    Int groupAggrUsed);
 
   // Do the HAVING step.
@@ -710,7 +716,7 @@ private:
 
   // Do a full groupby/aggregate step.
   CountedPtr<TableExprGroupResult> doGroupByAggr
-  (const vector<TableExprNodeRep*>& aggrNodes);
+  (const std::vector<TableExprNodeRep*>& aggrNodes);
 
   // Do the sort step.
   void doSort (Bool showTimings);
@@ -781,9 +787,10 @@ private:
   Int64 evalIntScaExpr (const TableExprNode& expr) const;
 
   // Find a table for the given shorthand.
+  // Optionally the WITH tables are searched as well.
   // If no shorthand is given, the first table is returned (if there).
   // If not found, a null Table object is returned.
-  Table findTable (const String& shorthand) const;
+  Table findTable (const String& shorthand, Bool doWith) const;
 
   // Handle the selection of a wildcarded column name.
   void handleWildColumn (Int stringType, const String& name);
@@ -796,7 +803,8 @@ private:
 		      const String& dmType, const String& dmGroup,
 		      const String& comment,
                       const TableRecord& keywordSet,
-		      const String& unitName);
+		      const Vector<String>& unitName,
+                      const Record& attributes);
 
   // Find the names of all stored columns in a table.
   Block<String> getStoredColumns (const Table& tab) const;
@@ -823,7 +831,7 @@ private:
   // a single groupby key is given.
   // This offers much faster map access then doGroupByAggrMultiple.
   template<typename T>
-  vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrSingleKey
+  std::vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrSingleKey
   (const vector<TableExprNodeRep*>& aggrNodes)
   {
     // We have to group the data according to the (possibly empty) groupby.
@@ -860,16 +868,17 @@ private:
 
   // Create the set of aggregate functions and groupby keys in case
   // multiple keys are given.
-  vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrMultipleKeys
+  std::vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrMultipleKeys
   (const vector<TableExprNodeRep*>& aggrNodes);
 
   //# Command type.
   CommandType commandType_p;
   //# Table description for a series of column descriptions.
   TableDesc tableDesc_p;
-  //# Vector of TableParse objects.
+  //# Vector of TableParse objects (from WITH and FROM clause).
   //# This is needed for the functions above, otherwise they have no
   //# way to communicate.
+  vector<TableParse> withTables_p;
   vector<TableParse> fromTables_p;
   //# Block of selected column names (new name in case of select).
   Block<String> columnNames_p;

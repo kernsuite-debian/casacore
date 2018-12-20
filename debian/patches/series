@@ -4,8 +4,8 @@ Disable-tests-that-require-data-tables.patch
 Disable-known-test-failures.patch
 Loose-some-tests-tFFTServer-tests.patch
 Make-the-check-for-NFS-a-bit-more-portable-BSD.patch
-Use-the-correct-symbol-to-detect-Linux-OS.patch
 Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
-Fix-too-small-int-type-for-memory-on-32-bit-machines.patch
 Add-support-for-python3.6.patch
+new-boost-python-soname.patch
+Fixed-compile-error-in-LatticeMath.patch
