@@ -1,7 +1,8 @@
-casacore (3.0.0-4kern1) bionic; urgency=medium
+cacasacore (3.0.0-4kern1) bionic; urgency=medium
 
   [ Gijs Molenaar ]
   * make kern-dev upload
+  * disable boost python libname patch
 
  -- KERN packaging <packaging@kernsuite.info>  Thu, 20 Dec 2018 13:00:52 +0200
 
