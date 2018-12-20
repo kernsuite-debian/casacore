@@ -1,4 +1,4 @@
-cacasacore (3.0.0-4kern1) bionic; urgency=medium
+casacore (3.0.0-4kern1) bionic; urgency=medium
 
   [ Gijs Molenaar ]
   * make kern-dev upload
