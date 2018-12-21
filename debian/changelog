@@ -1,3 +1,10 @@
+casacore (3.0.0-4kern2) bionic; urgency=medium
+
+  [ Gijs Molenaar ]
+  * add missing libcasa-python3-3 to casacore-dev
+
+ -- KERN packaging <packaging@kernsuite.info>  Fri, 21 Dec 2018 10:12:07 +0200
+
 casacore (3.0.0-4kern1) bionic; urgency=medium
 
   [ Gijs Molenaar ]
