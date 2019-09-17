@@ -128,12 +128,7 @@ DirectionCoordinate::DirectionCoordinate(MDirection::Types directionType,
 // Copy wcs structure
 
    wcs_p.flag = -1;
-   int err = wcscopy (1, &wcs, &wcs_p);
-   if (err != 0) {
-      String errmsg = "wcs wcscopy_error: ";
-      errmsg += wcscopy_errmsg[err];
-      throw(AipsError(errmsg));
-   } 
+   copy_wcs(wcs, wcs_p);
    set_wcs(wcs_p);
 
 // Make pixel coordinates 0-relative
@@ -299,7 +294,6 @@ void DirectionCoordinate::setReferenceConversion (MDirection::Types type)
 Bool DirectionCoordinate::toWorld(Vector<Double> &world,
  				  const Vector<Double> &pixel, Bool useConversionFrame) const
 {
-
 // To World with wcs
 
     if (toWorldWCS (world, pixel, wcs_p)) {
@@ -309,7 +303,6 @@ Bool DirectionCoordinate::toWorld(Vector<Double> &world,
        toCurrent (world);
 
 // Convert to specified conversion reference type
-  
        if (useConversionFrame) {
            convertTo(world);
        }
@@ -663,7 +656,7 @@ Bool DirectionCoordinate::setReferenceValue(const Vector<Double> &refval)
 //
     // special treatment for SFL projection (see Calabretta & Greisen 2002)
     if(projection_p.type() == Projection::SFL){
-      if (wcs_p.cdelt[1] != 0. && (!wcs_p.altlin&4 || wcs_p.crota[1]==0.) ){
+      if (wcs_p.cdelt[1] != 0. && (!(wcs_p.altlin&4) || wcs_p.crota[1]==0.) ){
 	// Force reference point to lat = 0 if CROTA is not set or is zero
         // to avoid "wcsset_error: Ill-conditioned coordinate transformation parameters"
 	wcs_p.crpix[1] -= tmp[1]/wcs_p.cdelt[1];
@@ -809,114 +802,91 @@ void DirectionCoordinate::checkFormat(Coordinate::formatType& format,
 }
 
 DirectionCoordinate DirectionCoordinate::convert(
-	Quantity& angle, MDirection::Types directionType
+    Quantity& angle, MDirection::Types directionType
 ) const {
-	DirectionCoordinate myClone;
-	if (conversionType_p == type_p) {
-		myClone = *this;
-	}
-	else {
-		myClone = DirectionCoordinate(*this);
-		myClone.setReferenceConversion(type_p);
-	}
-	Vector<String> units = myClone.worldAxisUnits();
-	Vector<Double> x = myClone.referenceValue();
-	Vector<Quantity> myRefVal(2);
-	myRefVal[0] = Quantity(x[0], units[0]);
-	myRefVal[1] = Quantity(x[1], units[1]);
-	MDirection myRefDir(
-		myRefVal[0], myRefVal[1],
-		type_p
-	);
-        x = increment();
-        Vector<Quantity> inc(2);
-        inc[0] = Quantity(x[0], units[0]);
-        inc[1] = Quantity(x[1], units[1]);
-
-        Vector<Double> myRefPix = myClone.referencePixel();
-
-	// get the angle for the linear transformation matrix. Need two world coordinate points.
-
-	Vector<Double> pixVal2 = myRefPix.copy();
-	pixVal2[0] = myRefPix[0] + 1;
-	// Figure out this coordinate's rotation angle wrt the cardinal directions.
-	// Normally, its 180 degrees (longitude decreases to the right)
-	myClone.toWorld(x, pixVal2);
-	Vector<Quantity> origWorldVal2(2);
-	origWorldVal2[0] = Quantity(x[0], units[0]);
-	origWorldVal2[1] = Quantity(x[1], units[1]);
-	Quantity diffx = origWorldVal2[0] - myRefVal[0];
-	Double diffXVal = _longitudeDifference(
-		diffx, myRefVal[1], inc[0]
-	);
-	Quantity diffy = origWorldVal2[1] - myRefVal[1];
-	Double diffYVal = diffy.getValue("arcsec");
-	Double hypVal = sqrt(diffXVal*diffXVal + diffYVal*diffYVal);
-	Double origAngle = (fabs(diffYVal/inc[1].getValue("arcsec")) < 1e-8)
-		? 0 : asin(diffYVal/hypVal);
-	MDirection origWorldDir2(
-		origWorldVal2[0], origWorldVal2[1],
-		type_p
-	);
-
-	// newRefDir is in the the requested directionType frame
-	Quantum<Vector<Double> > newRefDir = MDirection::Convert(
-		myRefDir, directionType
-	)().getAngle();
-	Vector<Quantity> newRefDirVec(2);
-	newRefDirVec[0] = Quantity(newRefDir.getValue(units[0])[0], units[0]);
-	newRefDirVec[1] = Quantity(newRefDir.getValue(units[1])[1], units[1]);
-	Quantum<Vector<Double> > newWorld2Dir = MDirection::Convert(
-		origWorldDir2, directionType
-	)().getAngle();
-	Vector<Quantity> newWorld2Vec(2);
-
-	newWorld2Vec[0] = Quantity(newWorld2Dir.getValue(units[0])[0], units[0]);
-	newWorld2Vec[1] = Quantity(newWorld2Dir.getValue(units[1])[1], units[1]);
-	// correct for cos(latitude)
-	diffx = (newWorld2Vec[0] - newRefDirVec[0]);
-	diffXVal = _longitudeDifference(
-		diffx, newRefDirVec[1], inc[0]
-	);
-	//diffXVal = diffx.getValue("arcsec")*cos(newRefDir.getValue("rad")[1]);
-	diffy = newWorld2Vec[1] - newRefDirVec[1];
-	diffYVal = diffy.getValue("arcsec");
-	hypVal = sqrt(diffXVal*diffXVal+diffYVal*diffYVal);
-	Double newAngle = (fabs(diffYVal/inc[1].getValue("arcsec")) < 1e-8)
-		? 0 : asin(diffYVal/hypVal);
-	angle = Quantity(newAngle - origAngle, "rad");
-
-    Matrix<Double> xform(2, 2, 0);
-
-	xform.diagonal() = 1.0;
-    DirectionCoordinate converted(
-    	directionType, projection_p, newRefDirVec[0],
-    	newRefDirVec[1], inc[0],
-    	inc[1], xform, myRefPix[0],
-    	myRefPix[1]
+    ThrowIf(
+        ! hasSquarePixels(),
+        "Coordinate rotation can only be performed on a coordinate that has "
+        "square pixels"
     );
-	return converted;
-}
-
-Double DirectionCoordinate::_longitudeDifference(
-    const Quantity& longAngleDifference, const Quantity& latitude,
-    const Quantity& longitudePixelIncrement
-) {
-	Double latInRad = latitude.getValue("rad");
-	Double diffXVal = longAngleDifference.getValue("arcsec")*cos(latInRad);
-	Double incXVal = longitudePixelIncrement.getValue("arcsec");
-	if ((abs(diffXVal) - abs(incXVal))/abs(incXVal) > 1 + 1e-6) {
-		// There may be a 2*pi ambiguity somewhere
-
-		diffXVal = (longAngleDifference - Quantity(360, "deg")).getValue("arcsec")*cos(latInRad);
-		if ((abs(diffXVal) - abs(incXVal))/abs(incXVal) > 1 + 1e-6) {
-			diffXVal = (longAngleDifference + Quantity(360, "deg")).getValue("arcsec")*cos(latInRad);
-			if ((abs(diffXVal) - abs(incXVal))/abs(incXVal) > 1 + 1e-6) {
-				throw AipsError("DirectionCoordinate::_longitudeDifference: Cannot determine diffx");
-			}
-		}
-	}
-	return diffXVal;
+    // create the rotated coordinate
+    Matrix<Double> xform(2, 2, 0);
+    xform.diagonal() = 1.0;
+    Vector<Double> refPix = referencePixel();
+    Vector<Double> inc = increment();
+    Vector<Quantity> incQ(2);
+    incQ[0] = Quantity(inc[0], units_p[0]);
+    incQ[1] = Quantity(inc[1], units_p[1]);
+    DirectionCoordinate myClone(*this);
+    myClone.setReferenceConversion(directionType);
+    Vector<Double> refValNewFrame;
+    ThrowIf(
+        ! myClone.toWorld(refValNewFrame, refPix, True),
+        "Unable to convert reference pixel to world value of new frame"
+    );
+    Vector<Quantity> refValNewFrameQ(2);
+    refValNewFrameQ[0] = Quantity(refValNewFrame[0], units_p[0]);
+    refValNewFrameQ[1] = Quantity(refValNewFrame[1], units_p[1]);
+    DirectionCoordinate converted(
+        directionType, projection_p, refValNewFrameQ[0], refValNewFrameQ[1],
+        incQ[0], incQ[1], xform, refPix[0], refPix[1]
+    );
+    // Determine the rotation angle. This is useful for knowing how much to
+    // rotate beams, etc.
+    // zero the reference pixel to avoid precision loss by potentially needing
+    // to subtract two large numbers that differ beyond less than 1
+    ThrowIf(
+        ! myClone.setReferencePixel(Vector<Double>(2, 0)),
+        "Failed to zero reference pixel in temporary coordinate"
+    );
+    // make the increment and units more friendly for this computation
+    static const String unit = "deg";
+    ThrowIf(
+        ! myClone.setWorldAxisUnits(Vector<String>(2, unit)),
+        "Failed to set world axis units in temporary coordinate"
+    );
+    Vector<Double> cloneInc(2, 1);
+    for (uInt i=0; i<2; ++i) {
+        if (sign(inc[i] < 0)) {
+            cloneInc[i] = -1;
+        }
+    }
+    myClone.setIncrement(cloneInc);
+    // To get the angle that the conversion ref frame makes with the pixel axes,
+    // get the pixel coordinates of an offset of 1 arcsec along the positive
+    // latitude axis of the new frame. Use the latitude-like coordinate rather
+    // than the longitude like coordinate so we don't have to deal with
+    // cos(latitude) factors.
+    Vector<Quantity> offsetValNewFrameQ = refValNewFrameQ.copy();
+    // avoid offsetting over the poles by offsetting north if the refval is
+    // south of the equator, offset south if refval is north of or on equator
+    Bool offsetNorth = refValNewFrame[1] < 0;
+    offsetValNewFrameQ[1] += Quantity(offsetNorth ? 1 : -1, unit);
+    Vector<Double> offsetValNewFrame(2);
+    offsetValNewFrame[0] = offsetValNewFrameQ[0].getValue(unit);
+    offsetValNewFrame[1] = offsetValNewFrameQ[1].getValue(unit);
+    Vector<Double> offsetPixel;
+    ThrowIf(
+        ! myClone.toPixel(offsetPixel, offsetValNewFrame),
+        "Unable to convert offset world value to offset pixel value"
+    );
+    if (! offsetNorth) {
+        offsetPixel = -offsetPixel;
+    }
+    Double signX = sign(offsetPixel[0]);
+    Double yFrame = offsetPixel[1];
+    // Remember that acos never returns a negative value
+    Double angleInRad = acos(yFrame/sqrt(sum(offsetPixel*offsetPixel)));
+    // get the quadrant right
+    if (signX > 0) {
+        // we have to rotate the world coordinate counter-clockwise to align
+        // new ref frame world axes with the pixel axes. Our convention in this
+        // implementation is that a postive angle represents a clockwise
+        // rotation (which was probably an unfortunate choice)
+        angleInRad = -angleInRad;
+    }
+    angle = Quantity(angleInRad, "rad");
+    return converted;
 }
 
 void DirectionCoordinate::getPrecision (Int& precision,
@@ -2114,12 +2084,7 @@ void DirectionCoordinate::makeWCS(::wcsprm& wcs,  const Matrix<Double>& xform,
 //
 {
     wcs.flag = -1;
-    int iret = wcsini(1, 2, &wcs);
-    if (iret != 0) {
-        String errmsg = "wcs wcsini_error: ";
-        errmsg += wcsini_errmsg[iret];
-        throw(AipsError(errmsg));
-    }
+    init_wcs(wcs, 2);
 
 // Fill in PC matrix
 
@@ -2238,12 +2203,7 @@ void DirectionCoordinate::copy(const DirectionCoordinate &other)
     if (wcs_p.flag != -1) {
 	wcsfree (&wcs_p);
     }
-    int err = wcscopy (1, &(other.wcs_p), &wcs_p);
-    if (err != 0) {
-	String errmsg = "wcs wcscopy_error: ";
-	errmsg += wcscopy_errmsg[err];
-	throw(AipsError(errmsg));
-    } 
+    copy_wcs(other.wcs_p, wcs_p);
     set_wcs(wcs_p);
     
 // Machines

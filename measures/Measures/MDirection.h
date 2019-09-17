@@ -250,8 +250,6 @@ public:
   // Measure table Columns (e.g., MDirection::ScalarColumn)
   typedef ScalarMeasColumn<MDirection> ScalarColumn;
   typedef ArrayMeasColumn<MDirection> ArrayColumn;
-  // Reference enum Types (included originally for gcc 2.95)  
-  typedef WHATEVER_SUN_TYPEDEF(MDirection) Types Types;
 
 //# Constructors
 // <note role=tip> In the following constructors and other functions, all 
@@ -283,7 +281,8 @@ public:
 //# Destructor
     virtual ~MDirection();
 
-// Make an MDirection object given the name of a moving source (SUN, etc.)
+// Make an MDirection object given the case-insensitive name of a
+// moving source (ZENITH, SUN, etc.),
 // or of a known standard source (CygA, etc.).
     static MDirection makeMDirection(const String& sourceName);
 

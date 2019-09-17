@@ -234,9 +234,10 @@ Matrix<T> FitGaussian<T>::fit(const Matrix<T>& pos, const Vector<T>& f,
 
 
   NonLinearFitLM<T> fitter(0);
-  Vector<T> solution;
+  Vector<T> solution,errors;
   Matrix<T> startparameters(itsNGaussians, ngpars);
-  Matrix<T> solutionparameters(itsNGaussians, ngpars);
+  itsSolutionParameters.resize(itsNGaussians, ngpars);
+  itsSolutionErrors.resize(itsNGaussians,ngpars);
 
  Block<Gaussian1D<AutoDiff<T> > > gausscomp1d((itsDimension==1)*itsNGaussians);
  Block<Gaussian2D<AutoDiff<T> > > gausscomp2d((itsDimension==2)*itsNGaussians);
@@ -376,35 +377,38 @@ Matrix<T> FitGaussian<T>::fit(const Matrix<T>& pos, const Vector<T>& f,
     fitter.setCriteria(convcriteria);
 
     solution.resize(0);
+    errors.resize(0);
     fitfailure = 0;
     attempt++;
 
-    cout << "Attempt " << attempt << ": ";
+    LogIO os(LogOrigin("FitGaussian", "fit", WHERE));
+    os << LogIO::DEBUG1 << "Attempt " << attempt << ": ";
   
     // Perform the fit, and check for problems with the results.
     
     try {
        solution = fitter.fit(pos, f, sigma);
-    } catch (AipsError fittererror) {
+       errors = fitter.errors();
+    } catch (AipsError& fittererror) {
       string errormessage;
       errormessage = fittererror.getMesg();
-      cout << "Unsuccessful - Error during fitting." << endl;
-      cout << errormessage << endl;
+      os << LogIO::DEBUG1 << "Unsuccessful - Error during fitting." << LogIO::POST;
+      os  << LogIO::DEBUG1 << errormessage << LogIO::POST;
       fitfailure = 2;
     } 
     if (!fitter.converged() && !fitfailure) {
       fitfailure = 1;
-      cout << "Unsuccessful - Failed to converge." << endl;
+      os <<LogIO::DEBUG1 << "Unsuccessful - Failed to converge." << LogIO::POST;
     }
     if (fitter.converged()) {
       itsChisquare = fitter.chiSquare();
       if (itsChisquare < 0) {
-        cout << "Unsuccessful - ChiSquare of "<< itsChisquare << "is negative."
-             << endl;
+        os<<   LogIO::DEBUG1 << "Unsuccessful - ChiSquare of "<< itsChisquare << "is negative."
+             << LogIO::POST;
         fitfailure = 3;
       }
       else if (isNaN(itsChisquare)){
-        cout << "Unsuccessful - Convergence to NaN result" << endl;
+        os <<  LogIO::DEBUG1 << "Unsuccessful - Convergence to NaN result" << LogIO::POST;
         fitfailure = 3;
       }
       else {
@@ -417,8 +421,7 @@ Matrix<T> FitGaussian<T>::fit(const Matrix<T>& pos, const Vector<T>& f,
 	                              solution(g*ngpars+5) < 0  ||
                                       solution(g*ngpars+6) < 0))) { 
             fitfailure = 4;
-            cout << "Unsuccessful - Negative axis widths not permissible.";
-            cout << endl;
+            os <<  LogIO::DEBUG1 << "Unsuccessful - Negative axis widths not permissible." << LogIO::POST;
 	    break;
 	  }
 	}
@@ -426,21 +429,22 @@ Matrix<T> FitGaussian<T>::fit(const Matrix<T>& pos, const Vector<T>& f,
         if (!fitfailure) {
           itsRMS = sqrt(itsChisquare / f.nelements());
           if (itsRMS > maximumRMS) {
-            cout << "Unsuccessful - RMS of " << itsRMS;
-            cout << " is outside acceptible limits." << endl;
+            os <<  LogIO::DEBUG1 << "Unsuccessful - RMS of " << itsRMS;
+            os <<  LogIO::DEBUG1 << " is outside acceptible limits." << LogIO::POST;
             fitfailure = 5;
           }
           else
 	  {
-            cout << "Converged after " << fitter.currentIteration() 
-                 << " iterations" << endl;
+           os <<  LogIO::DEBUG1  << "Converged after " << fitter.currentIteration() 
+                 << " iterations" << LogIO::POST;
 	  }
 
 	  if (itsRMS < bestRMS) { 
             //best fit so far - write parameters to solution matrix
             for (uInt g = 0; g < itsNGaussians; g++) {  
               for (uInt p = 0; p < ngpars; p++) {
-                solutionparameters(g,p) = solution(g*ngpars+p);
+                itsSolutionParameters(g,p) = solution(g*ngpars+p);
+                itsSolutionErrors(g,p) = errors(g*ngpars+p);
               }
             }
             bestRMS = itsRMS;
@@ -460,30 +464,30 @@ Matrix<T> FitGaussian<T>::fit(const Matrix<T>& pos, const Vector<T>& f,
   if (itsSuccess) {
     if (fitfailure) {
       if (attempt > itsMaxRetries) {
-        cout << "Retry limit reached, ";
+        os <<  LogIO::DEBUG1 << "Retry limit reached, ";
       }
       else if (timer.real() >= itsMaxTime) { 
-        cout << "Time limit reached, ";
+        os <<  LogIO::DEBUG1 << "Time limit reached, ";
       }
-      cout << "no fit satisfies RMS criterion; using best available fit";
-      cout << endl;
+      os <<  LogIO::DEBUG1 << "no fit satisfies RMS criterion; using best available fit"<< LogIO::POST;
     }
-    correctParameters(solutionparameters);
-    return solutionparameters;
+    correctParameters(itsSolutionParameters);
+    return itsSolutionParameters;
   }
 
 // Otherwise, return all zeros 
  
-  cout << "FAILURE - could not find acceptible convergent solution." << endl;
+  os<< LogIO::WARN << "FAILURE - could not find acceptible convergent solution." << endl;
   itsSuccess = 0;
 
   for (uInt g = 0; g < itsNGaussians; g++)  {   
     for (uInt p = 0; p < ngpars; p++) {
-      solutionparameters(g,p) = T(0.0);
+      itsSolutionParameters(g,p) = T(0.0);
+      itsSolutionErrors(g,p) = T(0.0);
     }
   }
 //
-  return solutionparameters;
+  return itsSolutionParameters;
    
 }
 

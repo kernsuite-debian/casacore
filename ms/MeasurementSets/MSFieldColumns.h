@@ -41,7 +41,7 @@
 #include <casacore/tables/Tables/ArrayColumn.h>
 #include <casacore/tables/Tables/ScalarColumn.h>
 #include <casacore/casa/BasicSL/String.h>
-#include <casacore/casa/Containers/SimOrdMap.h>
+#include <map>
 
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
@@ -122,6 +122,19 @@ public:
   // the default time of zero will return the 0th order element of the polynomial.
   // or, if there is an ephemeris, the position at the time origin of the ephemeris.
   // 
+  // If there is an ephemeris attached to a field table row, the nominal values of the
+  // direction columns are interpreted as an offset to the ephemeris. So if there is
+  // an ephemeris attached (EPHEMERIS_ID column contains value > -1), then the direction
+  // returned by  delayDirMeas, phaseDirMeas, and referenceDirMeas is the ephemeris
+  // direction plus the offset taken from the corresponding direction column.
+  // This permits the convinient implementation of mosaics where several field table
+  // rows share one ephemeris and use different offsets in each row to create the
+  // mosaic pattern.
+  // 
+  // The unaltered ephemeris direction can be queried with the method ephemerisDirMeas(). 
+  // If there is no ephemeris attached, ephemerisDirMeas() will return the same as 
+  // referenceDirMeas().
+  //
   // In addtion to the directions, if there is an ephemeris available,
   // also the radial velocity and the distance rho can be accessed.
   //
@@ -134,6 +147,7 @@ public:
   MDirection delayDirMeas(Int row, Double time = 0) const;
   MDirection phaseDirMeas(Int row, Double time = 0) const;
   MDirection referenceDirMeas(Int row, Double time = 0) const;
+  MDirection ephemerisDirMeas(Int row, Double time = 0) const;
   MRadialVelocity radVelMeas(Int row, Double time = 0) const;
   Quantity rho(Int row, Double time = 0) const;
   Bool needInterTime(Int row) const;
@@ -177,7 +191,7 @@ protected:
   Int measCometIndex(int row) const;
   String measCometsPath_p;
   Vector<MeasComet*> measCometsV_p;
-  SimpleOrderedMap <Int, Int> ephIdToMeasComet_p;
+  std::map<Int, Int> ephIdToMeasComet_p;
 
   // Extract the direction Measure from the corresponding ephemeris
   // using the nominal position as an offset.

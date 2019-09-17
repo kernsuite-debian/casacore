@@ -205,8 +205,6 @@ class MFrequency : public MeasBase<MVFrequency, MeasRef<MFrequency> > {
   // Measure table Columns (e.g., MFrequency::ScalarColumn)
   typedef ScalarMeasColumn<MFrequency> ScalarColumn;
   typedef ArrayMeasColumn<MFrequency> ArrayColumn;
-  // Reference enum Types (included originally for gcc 2.95)  
-  typedef WHATEVER_SUN_TYPEDEF(MFrequency) Types Types;
 
   //# Constructors
   // <note role=tip> In the following constructors and other functions, all 
@@ -315,7 +313,7 @@ class MFrequency : public MeasBase<MVFrequency, MeasRef<MFrequency> > {
   // </group>
   
   // Make a rest frequency using a Doppler velocity
-  MFrequency toRest(const MDoppler &dop);
+  MFrequency toRest(const MDoppler &dop) const;
   // For local use only
   static MFrequency toRest(const Measure &in, const Measure &dop);
   

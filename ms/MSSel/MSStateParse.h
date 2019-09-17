@@ -33,7 +33,7 @@
 #include <casacore/ms/MSSel/MSParse.h>
 #include <casacore/ms/MSSel/MSSelectionError.h>
 #include <casacore/ms/MSSel/MSSelectionErrorHandler.h>
-#include <casa/Utilities/CountedPtr.h>
+#include <casacore/casa/Utilities/CountedPtr.h>
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
 //# Forward 
@@ -98,13 +98,12 @@ public:
     // Get table expression node object.
   static const TableExprNode* node();
   static MSStateParse* thisMSSIParser;
-  //static CountedPtr<MSSelectionErrorHandler> thisMSSErrorHandler;
-  static MSSelectionErrorHandler* thisMSSErrorHandler;
+  static CountedPtr<MSSelectionErrorHandler> thisMSSErrorHandler;
+  //static MSSelectionErrorHandler* thisMSSErrorHandler;
   static Vector<Int> selectedIDs() {return idList;};
   static void reset(){idList.resize(0);};
   static void cleanupNode() {if (node_p) delete node_p;node_p=0x0;}
-  static void cleanupErrorHandler() 
-  {if (thisMSSErrorHandler) delete thisMSSErrorHandler;thisMSSErrorHandler=0x0;}
+  static void cleanupErrorHandler() {thisMSSErrorHandler.reset();}
   static void cleanup() {cleanupNode(); cleanupErrorHandler();}
 private:
   static TableExprNode* node_p;

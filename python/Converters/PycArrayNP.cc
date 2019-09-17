@@ -31,7 +31,6 @@
 #include <casacore/casa/Arrays/ArrayMath.h>
 #include <casacore/casa/Utilities/Assert.h>
 #include <casacore/casa/Exceptions/Error.h>
-#include <numpy/arrayobject.h>
 #include <boost/python/dict.hpp>
 
 
@@ -47,7 +46,7 @@ namespace casacore { namespace python { namespace numpy {
   }
 
   Array<String> ArrayCopyStr_toArray (const IPosition& shape,
-				      void* data, uInt slen)
+				      void* data, size_t slen)
   {
     // This code converts from a numpy String array.
     // The longest string determines the length of each value.
@@ -55,12 +54,42 @@ namespace casacore { namespace python { namespace numpy {
     Array<String> arr(shape);
     String* to = arr.data();
     const char* src = static_cast<const char*>(data);
-    uInt nr = arr.size();
-    for (uInt i=0; i<nr; ++i) {
+    size_t nr = arr.size();
+    for (size_t i=0; i<nr; ++i) {
       if (src[slen-1] == 0) {
 	to[i] = String(src);
       } else {
 	to[i] = String(src, slen);
+      }
+      src += slen;
+    }
+    return arr;
+  }
+
+  Array<String> ArrayCopyUnicode_toArray (const IPosition& shape,
+					  void* data, size_t slen)
+  {
+    // This code converts from a numpy Unicode array (which
+    // is encoded as UTF32).
+    // The longest string determines the length of each value.
+    // They are padded with zeroes if shorter.
+    // slen is the byte stride.
+    //
+    // This is likely to be slow because each string is converted to UTF-8
+    // via the Python C API.
+    Array<String> arr(shape);
+    String* to = arr.data();
+    const char* src = static_cast<const char*>(data);
+    size_t nr = arr.size();
+    for (size_t i=0; i<nr; ++i) {
+      // TODO: what to do in failure cases?
+      boost::python::object unicode(boost::python::handle<>(
+	PyUnicode_DecodeUTF32(src, slen, NULL, NULL)));
+      if (unicode) {
+	boost::python::object utf8(boost::python::handle<>(
+	  PyUnicode_AsUTF8String(unicode.ptr())));
+	if (utf8)
+	  to[i] = String(PyBytes_AS_STRING(utf8.ptr()));
       }
       src += slen;
     }

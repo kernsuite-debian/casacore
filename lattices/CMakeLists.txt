@@ -16,7 +16,6 @@ Lattices/TiledShape.cc
 LatticeMath/Fit2D.cc
 LatticeMath/LatticeAddNoise.cc
 LatticeMath/LatticeCleanProgress.cc
-LatticeMath/LatticeFFT.cc
 LatticeMath/LatticeFit.cc
 LatticeMath/LatticeHistProgress.cc
 LatticeMath/LatticeHistSpecialize.cc
@@ -134,7 +133,9 @@ LatticeMath/CLIPNearest2D.tcc
 LatticeMath/CLInterpolator2D.h
 LatticeMath/CLInterpolator2D.tcc
 LatticeMath/Fit2D.h
+LatticeMath/Fit2D2.tcc
 LatticeMath/LatticeAddNoise.h
+LatticeMath/LatticeAddNoise2.tcc
 LatticeMath/LatticeApply.h
 LatticeMath/LatticeApply.tcc
 LatticeMath/LatticeCleanProgress.h
@@ -143,11 +144,13 @@ LatticeMath/LatticeCleaner.tcc
 LatticeMath/LatticeConvolver.h
 LatticeMath/LatticeConvolver.tcc
 LatticeMath/LatticeFFT.h
+LatticeMath/LatticeFFT.tcc
 LatticeMath/LatticeFit.h
 LatticeMath/LatticeFractile.h
 LatticeMath/LatticeFractile.tcc
 LatticeMath/LatticeHistProgress.h
 LatticeMath/LatticeHistSpecialize.h
+LatticeMath/LatticeHistSpecialize2.tcc
 LatticeMath/LatticeHistograms.h
 LatticeMath/LatticeHistograms.tcc
 LatticeMath/LatticeMathUtil.h
@@ -166,6 +169,7 @@ LatticeMath/LatticeTwoPtCorr.h
 LatticeMath/LatticeTwoPtCorr.tcc
 LatticeMath/LattStatsProgress.h
 LatticeMath/LattStatsSpecialize.h
+LatticeMath/LattStatsSpecialize2.tcc
 LatticeMath/LineCollapser.h
 LatticeMath/LineCollapser.tcc
 LatticeMath/MaskedLatticeStatsDataProvider.h
@@ -187,7 +191,6 @@ LEL/LELArrayBase.h
 LEL/LELAttribute.h
 LEL/LELBinary.h
 LEL/LELBinary.tcc
-LEL/LELBinary2.h
 LEL/LELBinaryEnums.h
 LEL/LELCondition.h
 LEL/LELCondition.tcc
@@ -196,7 +199,6 @@ LEL/LELConvert.tcc
 LEL/LELCoordinates.h
 LEL/LELFunction.h
 LEL/LELFunction.tcc
-LEL/LELFunction2.h
 LEL/LELFunctionEnums.h
 LEL/LELInterface.h
 LEL/LELInterface.tcc
@@ -211,7 +213,6 @@ LEL/LELSpectralIndex.h
 LEL/LELSpectralIndex.tcc
 LEL/LELUnary.h
 LEL/LELUnary.tcc
-LEL/LELUnary2.h
 LEL/LELUnaryEnums.h
 DESTINATION include/casacore/lattices/LEL
 )

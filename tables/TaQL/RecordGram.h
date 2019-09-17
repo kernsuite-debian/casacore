@@ -34,6 +34,8 @@
 #include <casacore/tables/TaQL/TableGram.h>
 #include <casacore/tables/TaQL/TaQLStyle.h>
 #include <casacore/tables/Tables/Table.h>
+#include <casacore/casa/Containers/Record.h>
+#include <casacore/casa/Arrays/Array.h>
 #include <casacore/casa/OS/Mutex.h>
 #include <map>
 
@@ -43,7 +45,6 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 class TableExprNode;
 class TableExprNodeSet;
 class TableExprNodeSetElem;
-class RecordInterface;
 class Table;
 
 // <summary>
@@ -105,7 +106,7 @@ inline String recordGramRemoveQuotes (const String& in)
 
 
 // <summary>
-// Helper class for values in RecordGram 
+// Helper class for values in RecordGram
 // </summary>
 
 // <use visibility=local>
@@ -185,24 +186,55 @@ public:
     //# The record will be put into the static variable to be used by
     //# the other functions.
     static TableExprNode parse (const RecordInterface& record,
-				const String& expression);
+                                const String& expression);
 
     // Convert an expression string to an expression tree.
     // The expression will operate on the given table.
     //# The record will be put into the static variable to be used by
     //# the other functions.
     static TableExprNode parse (const Table& table,
-				const String& expression);
+                                const String& expression);
+
+    // Evaluate an expression to the given type.
+    // The expression can contain variables; their names and values must be
+    // defined in the record.
+    // For double values it is possible to specify the desired unit.
+    // If the expression is a scalar value, the expr2Array functions will
+    // return an array with length 1.
+    // <group>
+    static Bool     expr2Bool    (const String& expr, const Record& vars=Record());
+    static Int64    expr2Int     (const String& expr, const Record& vars=Record());
+    static double   expr2Double  (const String& expr, const Record& vars=Record(),
+                                  const String& unit=String());
+    static DComplex expr2Complex (const String& expr, const Record& vars=Record());
+    static String   expr2String  (const String& expr, const Record& vars=Record());
+    static MVTime   expr2Date    (const String& expr, const Record& vars=Record());
+    static Array<Bool>     expr2ArrayBool    (const String& expr,
+                                              const Record& vars=Record());
+    static Array<Int64>    expr2ArrayInt     (const String& expr,
+                                              const Record& vars=Record());
+    static Array<double>   expr2ArrayDouble  (const String& expr,
+                                              const Record& vars=Record(),
+                                              const String& unit=String());
+    static Array<DComplex> expr2ArrayComplex (const String& expr,
+                                              const Record& vars=Record());
+    static Array<String>   expr2ArrayString  (const String& expr,
+                                              const Record& vars=Record());
+    static Array<MVTime>   expr2ArrayDate    (const String& expr,
+                                              const Record& vars=Record());
+    // </group>
 
     // Create a TableExprNode from a literal.
     static TableExprNode handleLiteral (RecordGramVal*);
 
     // Find the field name and create a TableExprNode from it.
+    // To be called only by the yy parser (under theirMutex).
     static TableExprNode handleField (const String& name);
 
     // Handle a function.
+    // To be called only by the yy parser (under theirMutex).
     static TableExprNode handleFunc (const String& name,
-				     const TableExprNodeSet& arguments);
+                                     const TableExprNodeSet& arguments);
 
     // Handle a regex.
     static TableExprNode handleRegex (const TableExprNode& left,
@@ -218,19 +250,23 @@ public:
 
     // Add a token to the list of tokens to be deleted
     // for the possible tokens in the RecordGram.yy union.
+    // The addToken() functions are to be called only by the yy parser (under theirMutex).
     static void addToken (TableExprNode* ptr);
     static void addToken (RecordGramVal* ptr);
     static void addToken (TableExprNodeSet* ptr);
     static void addToken (TableExprNodeSetElem* ptr);
+
     // Delete a token and remove from the list.
+    // The deleteToken() functions are to be called only by the yy parser (under theirMutex).
     static void deleteToken (TableExprNode* ptr);
     static void deleteToken (RecordGramVal* ptr);
     static void deleteToken (TableExprNodeSet* ptr);
     static void deleteToken (TableExprNodeSetElem* ptr);
+
+private:
     // Delete all tokens not deleted yet.
     static void deleteTokenStorage();
 
-private:
     // Do the conversion of an expression string to an expression tree.
     static TableExprNode doParse (const String& expression);
 

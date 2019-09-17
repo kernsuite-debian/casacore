@@ -140,7 +140,7 @@ void CoordinateUtil::addFreqAxis(CoordinateSystem & coords)
                   1415E6,                         // ref. freq. = 1415MHz
                   1E3,                            // 1 kHz bandwidth/channel
                   0.0,                            // channel 0 is the ref.
-                              QC::HI.getValue(Unit("Hz")));   // HI
+                              QC::HI( ).getValue(Unit("Hz")));   // HI
   coords.addCoordinate(freqAxis);
 }
 
@@ -666,7 +666,7 @@ Bool CoordinateUtil::makeDirectionMachine(LogIO& os, MDirection::Convert& machin
    Bool ok = True;
    try {
       MDirection toMD = machine(fromMD);
-   } catch (AipsError x) {
+   } catch (AipsError& x) {
       ok = False;
    }
    if (ok) {
@@ -699,7 +699,7 @@ Bool CoordinateUtil::makeDirectionMachine(LogIO& os, MDirection::Convert& machin
       ok = True;
       try {
          MDirection toMD = machine(fromMD);
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
          ok = False;
       }
       if (ok) return True;
@@ -735,7 +735,7 @@ Bool CoordinateUtil::makeDirectionMachine(LogIO& os, MDirection::Convert& machin
       ok = True;
       try {
          MDirection toMD = machine(fromMD);
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
          ok = False;
       }
       if (ok) return True;
@@ -754,7 +754,7 @@ Bool CoordinateUtil::makeDirectionMachine(LogIO& os, MDirection::Convert& machin
       ok = True;
       try {
          MDirection toMD = machine(fromMD);
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
          ok = False;
       }
       if (!ok) {
@@ -904,7 +904,7 @@ Bool CoordinateUtil::makeFrequencyMachine(LogIO& os, MFrequency::Convert& machin
    MFrequency freqFrom(freq, typeFrom);
    try {
       freqTo = machine(freqFrom);
-   } catch (AipsError x) {
+   } catch (AipsError& x) {
       ok = False;
    }
    if (!ok) {

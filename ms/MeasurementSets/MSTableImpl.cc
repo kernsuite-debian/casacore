@@ -1,5 +1,5 @@
 //# MSTableImpl.cc:  the class that hold measurements from telescopes
-//# Copyright (C) 1995,1996,1997,1999,2000,2001,2002
+//# Copyright (C) 1995,1996,1997,1999,2000,2001,2002,2016
 //# Associated Universities, Inc. Washington DC, USA.
 //#
 //# This library is free software; you can redistribute it and/or modify it
@@ -40,10 +40,8 @@
 #include <casacore/tables/DataMan/CompressComplex.h>
 #include <casacore/casa/Arrays/ArrayLogical.h>
 #include <casacore/casa/Arrays/Vector.h>
-#include <casacore/casa/Containers/SimOrdMap.h>
 #include <casacore/casa/Utilities/Assert.h>
 #include <casacore/casa/Exceptions/Error.h>
-#include <casacore/ms/MeasurementSets/MeasurementSet.h>
 
 #include <casacore/measures/TableMeasures/TableMeasRefDesc.h>
 #include <casacore/measures/TableMeasures/TableMeasValueDesc.h>
@@ -63,6 +61,7 @@
 
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
+  
 void MSTableImpl::addMeasColumn(TableDesc& td, const String& column, 
 				const String& measure, const String& refCol) {
   String meas = measure;
@@ -107,25 +106,6 @@ void MSTableImpl::addMeasColumn(TableDesc& td, const String& column,
     TableMeasDesc<MEarthMagnetic> measCol(measVal, measRef);
     measCol.write(td);
   }
-}
-
-
-Mutex MSTableImpl::initialized_mutex(Mutex::Recursive);
-Bool MSTableImpl::initialized_p(False);
-
-Int MSTableImpl::mapType(const SimpleOrderedMap<Int,String>& columnMap,
-			 const String &name)
-{
-    // find first occurrance of name in the map (must be only occurrance)
- 
-    Int type = 0; //# 0=UNDEFINED_COLUMN for all enums
-    for (uInt i=0; i<columnMap.ndefined(); i++) {
-        if (columnMap.getVal(i) == name) {
-            type = columnMap.getKey(i);
-            break;
-        }
-    }
-    return type;
 }
 
 void MSTableImpl::addColumnToDesc(TableDesc &td, const String& colName,
@@ -429,19 +409,19 @@ SetupNewTable& MSTableImpl::setupCompression (SetupNewTable& newtab)
     // If the column is used in a hypercolumn definition, change it
     // to contain the compressed column.
     if (! cname.empty()) {
-      SimpleOrderedMap<String,String> old2new("");
-      old2new.define (cdesc.name(), cname);
+      std::map<String,String> old2new;
+      old2new.insert (std::make_pair(cdesc.name(), cname));
       newtab.adjustHypercolumns (old2new, True);
     }
   }
   return newtab;
 }
 
-void MSTableImpl::colMapDef(SimpleOrderedMap<Int,String>& columnMap,
-			    SimpleOrderedMap<Int,Int>& colDTypeMap,
-			    SimpleOrderedMap<Int,String>& colCommentMap,
-			    SimpleOrderedMap<Int,String>& colUnitMap,
-			    SimpleOrderedMap<Int,String>& colMeasureTypeMap,
+void MSTableImpl::colMapDef(std::map<Int,String>& columnMap,
+			    std::map<Int,Int>& colDTypeMap,
+			    std::map<Int,String>& colCommentMap,
+			    std::map<Int,String>& colUnitMap,
+			    std::map<Int,String>& colMeasureTypeMap,
 			    Int col,
 			    const String& colName,
 			    Int colType,
@@ -449,26 +429,24 @@ void MSTableImpl::colMapDef(SimpleOrderedMap<Int,String>& columnMap,
 			    const String& colUnit,
 			    const String& colMeasureType)
 {
-    columnMap.define(col, colName);
-    colDTypeMap.define(col, colType);
-    colCommentMap.define(col, colComment);
-    // no need to define these unless they are different from the
-    // default, which is an empty string
-    if (colUnit != "") colUnitMap.define(col, colUnit);
-    if (colMeasureType != "") colMeasureTypeMap.define(col, colMeasureType);
+    columnMap[col] = colName;
+    colDTypeMap[col] = colType;
+    colCommentMap[col] = colComment;
+    colUnitMap[col] = colUnit;
+    colMeasureTypeMap[col] = colMeasureType;
 }
 
-void MSTableImpl::keyMapDef(SimpleOrderedMap<Int,String>& keywordMap,
-			    SimpleOrderedMap<Int,Int>& keyDTypeMap,
-			    SimpleOrderedMap<Int,String>& keyCommentMap,
+void MSTableImpl::keyMapDef(std::map<Int,String>& keywordMap,
+			    std::map<Int,Int>& keyDTypeMap,
+			    std::map<Int,String>& keyCommentMap,
 			    Int key,
 			    const String& keyName,
 			    Int keyType,
 			    const String& keyComment)
 {
-    keywordMap.define(key, keyName);
-    keyDTypeMap.define(key, keyType);
-    keyCommentMap.define(key, keyComment);
+    keywordMap[key] = keyName;
+    keyDTypeMap[key] = keyType;
+    keyCommentMap[key] = keyComment;
 }
 
 Bool MSTableImpl::validate(const TableDesc& tabDesc, 
@@ -567,34 +545,44 @@ Table MSTableImpl::referenceCopy(const Table& tab, const String& newTableName,
   return msTab;
 }
 
-void MSTableImpl::init()
-{
-    ScopedMutexLock lock(initialized_mutex);
-    if (initialized_p) return;
-    initialized_p = True;
-    MeasurementSet::init();
-    MSAntenna::init();
-    MSDataDescription::init();
-    MSDoppler::init();
-    MSFeed::init();
-    MSField::init();
-    MSFlagCmd::init();
-    MSFreqOffset::init();
-    MSHistory::init();
-    MSObservation::init();
-    MSPointing::init();
-    MSPolarization::init();
-    MSProcessor::init();
-    MSSource::init();
-    MSSpectralWindow::init();
-    MSState::init();
-    MSSysCal::init();
-    MSWeather::init();
-}
 
-
-
-
+MSTableMaps MSTableImpl::initMaps(MSMainEnums*)
+  { return MeasurementSet::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSAntennaEnums*)
+  { return MSAntenna::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSDataDescriptionEnums*)
+  { return MSDataDescription::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSDopplerEnums*)
+  { return MSDoppler::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSFeedEnums*)
+  { return MSFeed::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSFieldEnums*)
+  { return MSField::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSFlagCmdEnums*)
+  { return MSFlagCmd::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSFreqOffsetEnums*)
+  { return MSFreqOffset::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSHistoryEnums*)
+  { return MSHistory::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSObservationEnums*)
+  { return MSObservation::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSPointingEnums*)
+  { return MSPointing::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSPolarizationEnums*)
+  { return MSPolarization::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSProcessorEnums*)
+  { return MSProcessor::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSSourceEnums*)
+  { return MSSource::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSSpectralWindowEnums*)
+  { return MSSpectralWindow::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSStateEnums*)
+  { return MSState::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSSysCalEnums*)
+  { return MSSysCal::initMaps(); }
+MSTableMaps MSTableImpl::initMaps(MSWeatherEnums*)
+  { return MSWeather::initMaps(); }
 
 } //# NAMESPACE CASACORE - END
+
 

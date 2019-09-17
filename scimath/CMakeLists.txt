@@ -13,7 +13,6 @@ Functionals/FuncExprData.cc
 Functionals/FunctionFactoryErrors.cc
 Functionals/FunctionalProxy.cc
 Functionals/SerialHelper.cc
-Mathematics/ClassicalStatisticsData.cc
 Mathematics/Combinatorics.cc
 Mathematics/FFTPack.cc
 Mathematics/FFTServer.cc
@@ -29,10 +28,12 @@ Mathematics/NumericTraits.cc
 Mathematics/RigidVector2.cc
 Mathematics/SCSL.cc
 Mathematics/SquareMatrix2.cc
-Mathematics/StatisticsData.cc
 Mathematics/VectorKernel.cc
 Mathematics/VanVleck.cc
-Mathematics/ZScoreCalculator.cc
+StatsFramework/BiweightStatisticsData.cc
+StatsFramework/ClassicalStatisticsData.cc
+StatsFramework/StatisticsData.cc
+StatsFramework/ZScoreCalculator.cc
 )
 
 if (FFTW3_FOUND)
@@ -227,17 +228,8 @@ Mathematics/AutoDiffIO.h
 Mathematics/AutoDiffIO.tcc
 Mathematics/AutoDiffMath.h
 Mathematics/AutoDiffMath.tcc
-Mathematics/AutoDiffRep.h
-Mathematics/AutoDiffRep.tcc
 Mathematics/AutoDiffX.h
-Mathematics/ChauvenetCriterionStatistics.h
-Mathematics/ChauvenetCriterionStatistics.tcc
-Mathematics/ClassicalStatistics.h
-Mathematics/ClassicalStatistics.tcc
-Mathematics/ClassicalStatisticsData.h
 Mathematics/Combinatorics.h
-Mathematics/ConstrainedRangeStatistics.h
-Mathematics/ConstrainedRangeStatistics.tcc
 Mathematics/ConvolveGridder.h
 Mathematics/ConvolveGridder.tcc
 Mathematics/Convolver.h
@@ -247,15 +239,10 @@ Mathematics/DFTServer.tcc
 Mathematics/FFTPack.h
 Mathematics/FFTServer.h
 Mathematics/FFTW.h
-Mathematics/FitToHalfStatistics.h
-Mathematics/FitToHalfStatistics.tcc
-Mathematics/FitToHalfStatisticsData.h
 Mathematics/GaussianBeam.h
 Mathematics/Geometry.h
 Mathematics/Gridder.h
 Mathematics/Gridder.tcc
-Mathematics/HingesFencesStatistics.h
-Mathematics/HingesFencesStatistics.tcc
 Mathematics/HistAcc.h
 Mathematics/HistAcc.tcc
 Mathematics/Interpolate2D.h
@@ -292,23 +279,54 @@ Mathematics/SquareMatrix.h
 Mathematics/SquareMatrix.tcc
 Mathematics/StatAcc.h
 Mathematics/StatAcc.tcc
-Mathematics/StatsDataProvider.h
-Mathematics/StatsDataProvider.tcc
-Mathematics/StatisticsAlgorithm.h
-Mathematics/StatisticsAlgorithm.tcc
-Mathematics/StatisticsAlgorithmFactory.h
-Mathematics/StatisticsAlgorithmFactory.tcc
-Mathematics/StatisticsData.h
-Mathematics/StatisticsIncrementer.h
-Mathematics/StatisticsIncrementer.tcc
-Mathematics/StatisticsTypes.h
-Mathematics/StatisticsTypes.tcc
-Mathematics/StatisticsUtilities.h
-Mathematics/StatisticsUtilities.tcc
 Mathematics/VanVleck.h
 Mathematics/VectorKernel.h
-Mathematics/ZScoreCalculator.h
 DESTINATION include/casacore/scimath/Mathematics
+)
+
+install (FILES
+StatsFramework/BiweightStatistics.h
+StatsFramework/BiweightStatistics.tcc
+StatsFramework/BiweightStatisticsData.h
+StatsFramework/ChauvenetCriterionStatistics.h
+StatsFramework/ChauvenetCriterionStatistics.tcc
+StatsFramework/ClassicalStatistics.h
+StatsFramework/ClassicalStatistics.tcc
+StatsFramework/ClassicalStatisticsData.h
+StatsFramework/ClassicalQuantileComputer.h
+StatsFramework/ClassicalQuantileComputer.tcc
+StatsFramework/ConstrainedRangeStatistics.h
+StatsFramework/ConstrainedRangeStatistics.tcc
+StatsFramework/ConstrainedRangeQuantileComputer.h
+StatsFramework/ConstrainedRangeQuantileComputer.tcc
+StatsFramework/FitToHalfStatistics.h
+StatsFramework/FitToHalfStatistics.tcc
+StatsFramework/FitToHalfStatisticsData.h
+StatsFramework/HingesFencesStatistics.h
+StatsFramework/HingesFencesStatistics.tcc
+StatsFramework/HingesFencesQuantileComputer.h
+StatsFramework/HingesFencesQuantileComputer.tcc
+StatsFramework/StatsDataProvider.h
+StatsFramework/StatsDataProvider.tcc
+StatsFramework/StatisticsAlgorithm.h
+StatsFramework/StatisticsAlgorithm.tcc
+StatsFramework/StatisticsAlgorithmFactory.h
+StatsFramework/StatisticsAlgorithmFactory.tcc
+StatsFramework/StatisticsAlgorithmFactoryData.h
+StatsFramework/StatisticsAlgorithmQuantileComputer.h
+StatsFramework/StatisticsAlgorithmQuantileComputer.tcc
+StatsFramework/StatisticsData.h
+StatsFramework/StatisticsDataset.h
+StatsFramework/StatisticsDataset.tcc
+StatsFramework/StatisticsIncrementer.h
+StatsFramework/StatisticsTypes.h
+StatsFramework/StatisticsTypes.tcc
+StatsFramework/StatisticsUtilities.h
+StatsFramework/StatisticsUtilities.tcc
+StatsFramework/StatsHistogram.tcc
+StatsFramework/StatsHistogram.h
+StatsFramework/ZScoreCalculator.h
+DESTINATION include/casacore/scimath/StatsFramework
 )
 
 install (FILES
@@ -321,3 +339,5 @@ DESTINATION include/casacore/scimath
 add_subdirectory (Fitting/test ${EXCL_ALL})
 add_subdirectory (Functionals/test ${EXCL_ALL})
 add_subdirectory (Mathematics/test ${EXCL_ALL})
+add_subdirectory (StatsFramework/test ${EXCL_ALL})
+

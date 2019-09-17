@@ -260,7 +260,7 @@ namespace casacore {
     }
   }
 
-  void UDFMSCal::setupDir (TableExprNodeRep*& operand)
+  void UDFMSCal::setupDir (TENShPtr& operand)
   {
     // Make sure the operand is a constant double array
     // or a single string (e.g. MOON).
@@ -316,7 +316,7 @@ namespace casacore {
   }
 
   void UDFMSCal::setupWvls (const Table& table,
-                            PtrBlock<TableExprNodeRep*>& operands,
+                            vector<TENShPtr>& operands,
                             uInt nargMax)
   {
     // There must be at least 1 argument (data).
@@ -352,7 +352,7 @@ namespace casacore {
   }
 
   void UDFMSCal::setupStokes (const Table& table,
-                              PtrBlock<TableExprNodeRep*>& operands)
+                              vector<TENShPtr>& operands)
   {
     // There must be at least 1 argument (data).
     if (operands.size() == 0  ||  operands.size() > 3) {
@@ -429,7 +429,7 @@ namespace casacore {
   }
 
   void UDFMSCal::setupSelection (const Table& table,
-                                 PtrBlock<TableExprNodeRep*>& operands)
+                                 vector<TENShPtr>& operands)
   {
     // There must be 1 argument (scalar string).
     if (operands.size() != 1) {
@@ -455,9 +455,8 @@ namespace casacore {
         Vector<Int> selectedAnts1;
         Vector<Int> selectedAnts2;
         Matrix<Int> selectedBaselines;
-        MSSelectionErrorHandler* curHandler = MSAntennaParse::thisMSAErrorHandler;
-        UDFMSCalErrorHandler errorHandler;
-        MSAntennaParse::thisMSAErrorHandler = &errorHandler;
+        CountedPtr<MSSelectionErrorHandler> curHandler = MSAntennaParse::thisMSAErrorHandler;
+        MSAntennaParse::thisMSAErrorHandler = new UDFMSCalErrorHandler();
         try {
           itsDataNode = msAntennaGramParseCommand (anttab, a1, a2, selStr, 
                                                    selectedAnts1, selectedAnts2,
@@ -538,9 +537,8 @@ namespace casacore {
         Vector<Int> selectedFeed1;
         Vector<Int> selectedFeed2;
         Matrix<Int> selectedFeedPairs;
-        MSSelectionErrorHandler* curHandler = MSFeedParse::thisMSFErrorHandler;
-        UDFMSCalErrorHandler errorHandler;
-        MSFeedParse::thisMSFErrorHandler = &errorHandler;
+        CountedPtr<MSSelectionErrorHandler> curHandler = MSFeedParse::thisMSFErrorHandler;
+        MSFeedParse::thisMSFErrorHandler = new UDFMSCalErrorHandler();
         try {
           itsDataNode = msFeedGramParseCommand (feedtab, f1, f2, selStr, 
                                                 selectedFeed1, selectedFeed2,
@@ -572,9 +570,8 @@ namespace casacore {
       {
         MeasurementSet ms(table);
         Vector<Int> stateid;
-        MSSelectionErrorHandler* curHandler = MSStateParse::thisMSSErrorHandler;
-        UDFMSCalErrorHandler errorHandler;
-        MSStateParse::thisMSSErrorHandler = &errorHandler;
+        CountedPtr<MSSelectionErrorHandler> curHandler = MSStateParse::thisMSSErrorHandler;
+        MSStateParse::thisMSSErrorHandler = new UDFMSCalErrorHandler();
         try {
           if (msStateGramParseCommand(&ms, selStr, stateid) == 0) {
             itsDataNode = *(msStateGramParseNode());
@@ -605,7 +602,7 @@ namespace casacore {
   }
 
   void UDFMSCal::setupGetValue (const Table& table,
-                                PtrBlock<TableExprNodeRep*>& operands)
+                                vector<TENShPtr>& operands)
   {
     int idinx = 0;
     // See if subtable and column name have to be given explicitly as the
