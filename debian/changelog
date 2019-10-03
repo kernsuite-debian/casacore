@@ -1,3 +1,10 @@
+casacore (3.1.2-1kern1) bionic; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * New upstream version 3.1.2
+
+ -- KERN packaging <packaging@kernsuite.info>  Tue, 17 Sep 2019 16:21:26 +0200
+
 casacore (3.0.0-4kern2) bionic; urgency=medium
 
   [ Gijs Molenaar ]
