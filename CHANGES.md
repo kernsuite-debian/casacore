@@ -1,3 +1,56 @@
+# 3.1.2
+
+ - Bump version in version.h (since in 3.1.1 it was still at '3.1.0')
+
+# 3.1.1
+
+## General
+ - Only use DataManager.get/putSlice if possible (#901)
+ - User docker for Linux build on Travis for CI  (#856)
+ - improve unicode support (#853)
+ - Changed MadfmFunc so that it inherits from ArrayFunctorBase (#905)
+ - Fix memory leak in TableProxy::getColumnDescription  (#900)
+ - Allow colon and fix recursive bison parsing  (#894)
+ - ObjectID's hash function behavior fix (#897)
+ - Add a public getter for the mask array to LCRegionFixed  (#895)
+ - Replace STL-like containers by their STL counterparts  (#890)
+
+## Python support
+ - Boost 1.67 Python components require a Python version suffix (#844)
+ - Handle numpy Unicode arrays  (#912)
+ - Fix memory leak when converting Python unicode to casa string (#910)
+ - Possible leak bug (#908)
+ - Always use TpInt64 for PyLong (#916)
+ - Improve CMake FindPython (#922)
+ 
+## Build system
+ - Travis macOS fails on Python3 OSX build system (#778)
+ - Switch travis to docker /xenial (#847)
+
+# 3.1
+
+## General
+- Removed many warnings issued by newer compiler versions (#798, #809, #819, #820, #866, #883)
+- Further improved thread-safety (#817, #869, #877, #886)
+- Added variance and standard deviation of complex numbers (#851)
+
+## Tables
+- Improved parallel storage manager based on ADIOS2
+- Support of Int64 table columns (#859)
+- Added O_DIRECT support when using MultiFile (#885)
+- TaQL improvements (#813, #851, #867)
+- Small CTDS fixes (#840, #868)
+
+## Measurement Set
+- Small improvements (#858, #864, #872)
+- Better handling of FITS-IDI data bit sampling (#836)
+
+## Images
+- Support for non-chunked HDF5 data sets (#879, #880)
+- Fixed count overflow on very large images (#849)
+
+
+
 # 3.0
 
 ## General

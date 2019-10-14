@@ -22,8 +22,10 @@
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id: PycArrayComCC.h,v 1.3 2006/11/20 23:58:17 gvandiep Exp $
+
+
+#include <boost/python.hpp>
+#include <numpy/arrayobject.h>
 
 #if PY_MAJOR_VERSION >= 3
 #define IS_PY3K
@@ -142,27 +144,27 @@
 
 
   template <typename T>
-  void ArrayCopy<T>::toPy (void* to, const T* from, uInt nr)
+  void ArrayCopy<T>::toPy (void* to, const T* from, size_t nr)
   {
     if (sizeof(T) == sizeof(typename TypeConvTraits<T>::python_type)) {
       ::memcpy (to, from, nr*sizeof(T));
     } else {
       typename TypeConvTraits<T>::python_type* dst =
 	static_cast<typename TypeConvTraits<T>::python_type*>(to);
-      for (uInt i=0; i<nr; i++) {
+      for (size_t i=0; i<nr; i++) {
 	dst[i] = from[i];
       }
     }
   }
   template <typename T>
-  void  ArrayCopy<T>::fromPy (T* to, const void* from, uInt nr)
+  void  ArrayCopy<T>::fromPy (T* to, const void* from, size_t nr)
   {
     if (sizeof(T) == sizeof(typename TypeConvTraits<T>::python_type)) {
       ::memcpy (to, from, nr*sizeof(T));
     } else {
       const typename TypeConvTraits<T>::python_type* src =
 	static_cast<const typename TypeConvTraits<T>::python_type*>(from);
-      for (uInt i=0; i<nr; i++) {
+      for (size_t i=0; i<nr; i++) {
 	to[i] = src[i];
       }
     }
@@ -187,14 +189,14 @@
   }
 
 
-  void ArrayCopy<Complex>::toPy (void* to, const Complex* from, uInt nr)
+  void ArrayCopy<Complex>::toPy (void* to, const Complex* from, size_t nr)
   {
     if (sizeof(Complex) != sizeof(TypeConvTraits<Complex>::python_type)) {
       throw AipsError("PycArray: size of Complex data type mismatches");
     }
     ::memcpy (to, from, nr*sizeof(Complex));
   }
-  void ArrayCopy<Complex>::fromPy (Complex* to, const void* from, uInt nr)
+  void ArrayCopy<Complex>::fromPy (Complex* to, const void* from, size_t nr)
   {
     if (sizeof(Complex) != sizeof(TypeConvTraits<Complex>::python_type)) {
       throw AipsError("PycArray: size of Complex data type mismatches");
@@ -215,14 +217,14 @@
   }
 
 
-  void ArrayCopy<DComplex>::toPy (void* to, const DComplex* from, uInt nr)
+  void ArrayCopy<DComplex>::toPy (void* to, const DComplex* from, size_t nr)
   {
     if (sizeof(DComplex) != sizeof(TypeConvTraits<DComplex>::python_type)) {
       throw AipsError("PycArray: size of DComplex data type mismatches");
     }
     ::memcpy (to, from, nr*sizeof(DComplex));
   }
-  void ArrayCopy<DComplex>::fromPy (DComplex* to, const void* from, uInt nr)
+  void ArrayCopy<DComplex>::fromPy (DComplex* to, const void* from, size_t nr)
   {
     if (sizeof(DComplex) != sizeof(TypeConvTraits<DComplex>::python_type)) {
       throw AipsError("PycArray: size of DComplex data type mismatches");
@@ -243,10 +245,10 @@
   }
 
 
-  void ArrayCopy<String>::toPy (void* to, const String* from, uInt nr)
+  void ArrayCopy<String>::toPy (void* to, const String* from, size_t nr)
   {
     PyObject** dst = static_cast<PyObject**>(to);
-    for (uInt i=0; i<nr; i++) {
+    for (size_t i=0; i<nr; i++) {
 #ifdef IS_PY3K
       dst[i] = PyUnicode_FromString(from[i].chars());
 #else
@@ -254,14 +256,14 @@
 #endif
     }
   }
-  void ArrayCopy<String>::fromPy (String* to, const void* from, uInt nr)
+  void ArrayCopy<String>::fromPy (String* to, const void* from, size_t nr)
   {
     using namespace boost::python;
     PyObject** src = (PyObject**)from;
-    for (uInt i=0; i<nr; i++) {
+    for (size_t i=0; i<nr; i++) {
       handle<> py_elem_hdl(src[i]);
       object py_elem_obj(py_elem_hdl);
-      extract<std::string> elem_proxy(py_elem_obj);
+      extract<String> elem_proxy(py_elem_obj);
       to[i] = elem_proxy();
     }
   }
@@ -358,11 +360,17 @@
 	convertArray (res, *uarr);
 	return ValueHolder(res);
       } else if (PyArray_TYPE(po) == NPY_STRING) {
-	int slen = 0;
+	size_t slen = 0;
 	if (nd > 0) {
 	  slen = PyArray_STRIDES(po)[nd-1];
 	}
 	return ValueHolder (ArrayCopyStr_toArray(shp, PyArray_DATA(po), slen));
+      } else if (PyArray_TYPE(po) == NPY_UNICODE) {
+	size_t slen = 0;
+	if (nd > 0) {
+	  slen = PyArray_STRIDES(po)[nd-1];
+	}
+	return ValueHolder (ArrayCopyUnicode_toArray(shp, PyArray_DATA(po), slen));
       }
       break;
     }

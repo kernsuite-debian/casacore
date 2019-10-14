@@ -84,7 +84,7 @@ int checkScaInt (const String& func, const String& arg, Int expResult)
   try {
     TaQLResult result = tableCommand (comm);
     TableExprNode node = result.node();
-    if (node.dataType() != TpInt) {
+    if (node.dataType() != TpInt64) {
       cout << "Int error in evaluating: " + comm << endl;
       cout << " expected data type Int, found "
            << ValType::getTypeStr(node.dataType()) << endl;
@@ -259,7 +259,7 @@ int checkArrInt (const String& func, const String& arg, const String& expResult)
     TableExprNode node1 = result1.node();
     TaQLResult result2 = tableCommand (comm2);
     TableExprNode node2 = result2.node();
-    if (node1.dataType() != TpInt) {
+    if (node1.dataType() != TpInt64) {
       cout << "Int Array error in evaluating: " + comm1 << endl;
       cout << " expected data type Int, found "
            << ValType::getTypeStr(node1.dataType()) << endl;
@@ -598,6 +598,16 @@ int testScaDouble()
   nfail += checkScaDouble ("iif", "F, 2, 3.1", 3.1);
   nfail += checkScaDouble ("angdist", "[[34.3deg, 45deg]], [34.2deg, 47deg]", 0.0349276, "rad");
   nfail += checkScaDouble ("angdistx", "[325.7deg, -45deg], [-34.2deg, -47deg]", 0.0349276, "rad");
+  nfail += checkScaDouble ("normangle", "325.7deg", -0.598648, "rad");
+  nfail += checkScaDouble ("normangle", "3", 3.0, "rad");
+  nfail += checkScaDouble ("variance", "[1,2]", 0.25);
+  nfail += checkScaDouble ("stddev", "[1,2.]", sqrt(0.25));
+  nfail += checkScaDouble ("variance", "[1+1i,2+3i]", 1.25);
+  nfail += checkScaDouble ("stddev", "[1+1i,2+3i]", sqrt(1.25));
+  nfail += checkScaDouble ("samplevariance", "[1,2]", 0.5);
+  nfail += checkScaDouble ("samplestddev", "[1,2.]", sqrt(0.5));
+  nfail += checkScaDouble ("samplevariance", "[1+1i,2+3i]", 2.5);
+  nfail += checkScaDouble ("samplestddev", "[1+1i,2+3i]", sqrt(2.5));
   return nfail;
 }
 
@@ -619,6 +629,9 @@ int testScaDComplex()
   nfail += checkScaDComplex ("cube", "1.4+1i", DComplex(1.4,1)*DComplex(1.4,1)*DComplex(1.4,1));
   nfail += checkScaDComplex ("min", "-1.4+1i, -5+8i", DComplex(-1.4,1));
   nfail += checkScaDComplex ("max", "-1.4+1i, -5+8i", DComplex(-5,8));
+  nfail += checkScaDouble ("norm", "-5+8i", norm(DComplex(-5,8)));
+  nfail += checkScaDouble ("abs", "-5+8i", abs(DComplex(-5,8)));
+  nfail += checkScaDouble ("arg", "-5+8i", arg(DComplex(-5,8)), "rad");
   nfail += checkScaDComplex ("complex", "-1.4,1", DComplex(-1.4,1));
   nfail += checkScaDComplex ("complex", "'-1.4+10j'", DComplex(-1.4,10));
   nfail += checkScaDComplex ("complex", "'-1.4'", DComplex(-1.4,0));
@@ -690,6 +703,8 @@ int testScaString()
   nfail += checkScaString ("capitalize", "'abCD'", "Abcd");
   nfail += checkScaString ("capitalize", "'ab_CD'", "Ab_Cd");
   nfail += checkScaString ("capitalize", "''", "");
+  nfail += checkScaString ("reversestring", "'ab_CD'", "DC_ba");
+  nfail += checkScaString ("sreverse", "''", "");
   nfail += checkScaString ("trim", "'ab'", "ab");
   nfail += checkScaString ("trim", "'  a b  '", "a b");
   nfail += checkScaString ("trim", "''", "");
@@ -729,8 +744,8 @@ int testScaString()
   nfail += checkScaString ("str", "3h2m4.36, 'ANGLE|10'", "+045.31.05.4000");
   nfail += checkScaString ("str", "11sep18/3h2m4.36, 'dmy|USE_SPACE'", "11-Sep-2018 03:02:04");
   nfail += checkScaString ("str", "11sep18 3h2m4.36, 'yMD|no_time'", "2018/09/11");
-  nfail += checkScaString ("str", "11sep18 3h2m4.36, 'FITS'", "2018-09-11T03:02:04");
-  nfail += checkScaString ("str", "11sep18 3h2m4.36, 'FITS|9'", "2018-09-11T03:02:04.360");
+  nfail += checkScaString ("str", "11sep18T3h2m4.36Z, 'FITS'", "2018-09-11T03:02:04");
+  nfail += checkScaString ("str", "11sep18 3h2m4.36, 'ISO|9'", "2018-09-11T03:02:04.360Z");
   nfail += checkScaString ("hms", "3h2m4.16", "03h02m04.160");
   nfail += checkScaString ("dms", "3h2m4.16", "+045d31m02.400");
   nfail += checkScaString ("iif", "T, 'abc', '1234'", "abc");
@@ -828,6 +843,10 @@ int testArrInt()
   nfail += checkArrInt ("transpose", "[[1,2,3],[4,5,6],[7,8,9]]", "[[1,4,7],[2,5,8],[3,6,9]]");
   nfail += checkArrInt ("transpose", "[[[1,2],[4,5],[7,8]]], [2,0]",
                         "[[[1,4,7]],[[2,5,8]]]");      // axes get 2,0,1 -> shape 3,1,2
+  nfail += checkArrInt ("areverse", "[[1,2,3],[4,5,6],[7,8,9]]", "[[9,8,7],[6,5,4],[3,2,1]]");
+  nfail += checkArrInt ("areverse", "[[1,2,3],[4,5,6],[7,8,9]],0,1", "[[9,8,7],[6,5,4],[3,2,1]]");
+  nfail += checkArrInt ("areverse", "[[1,2,3],[4,5,6],[7,8,9]], [1]", "[[3,2,1],[6,5,4],[9,8,7]]");
+  nfail += checkArrInt ("areverse", "[[1,2,3],[4,5,6],[7,8,9]], 0", "[[7,8,9],[4,5,6],[1,2,3]]");
   nfail += checkArrInt ("resize", "[[1,2,3],[4,5,6]], [3,2]", "[[1,2],[4,5],[0,0]]");
   nfail += checkArrInt ("resize", "[[1,2,3],[4,5,6]], [2,6], 0", "[[1,1,2,2,3,3],[4,4,5,5,6,6]]");
   nfail += checkArrInt ("resize", "[[1,2,3],[4,5,6]], [2,6], 1", "[[1,2,3,1,2,3],[4,5,6,4,5,6]]");
@@ -865,8 +884,10 @@ int testArrDouble()
   nfail += checkArrDouble ("mins", "[[[1,2,3],[4,5,6.]]], 1", "[[1,2,3]]");
   nfail += checkArrDouble ("maxs", "[[[1,2,3],[4,5,6.]]], 0", "[[1,2,3],[4,5,6]]");
   nfail += checkArrDouble ("means", "[[1,2,3],[4,5,6.]], 0", "[2.5,3.5,4.5]");
-  nfail += checkArrDouble ("variances", "[[1,2,3],[4,5,7.]], 1", "[1,7./3]");
-  nfail += checkArrDouble ("stddevs", "[[1,2,3],[4,5,7.]], 1", "[1,sqrt(7./3)]");
+  nfail += checkArrDouble ("variances", "[[1,2,3],[4,5,7.]], 1", "[2./3,14./9]");
+  nfail += checkArrDouble ("stddevs", "[[1,2,3],[4,5,7.]], 1", "[sqrt(2./3),sqrt(14./9)]");
+  nfail += checkArrDouble ("samplevariances", "[[1,2,3],[4,5,7.]], 1", "[1,7./3]");
+  nfail += checkArrDouble ("samplestddevs", "[[1,2,3],[4,5,7.]], 1", "[1,sqrt(7./3)]");
   nfail += checkArrDouble ("avdevs", "[[1,2,3],[4,5,7.]], 0", "[1.5,1.5,2]");
   nfail += checkArrDouble ("rmss", "[[1,2,3],[4,5,7.]], 1", "[sqrt(14./3), sqrt(90./3)]");
   nfail += checkArrDouble ("medians", "[[1,2,3],[4,5,6.]], 1", "[2,5]");
@@ -876,6 +897,9 @@ int testArrDouble()
                            "[0.200206,0.0738066154]");
   nfail += checkArrDouble ("angdistx", "[34.3deg, 45deg, 34.2deg,45deg], [0.5,0.6,0.7,0.8]",
                            "[[0.2002061307,0.1997055276],[0.0726069829,0.0738066154]]");
+  nfail += checkArrDouble ("normangle", "[-12:12:2]",
+                           "[0.5663706,2.5663706,-1.7168147, 0.2831853,2.2831853,-2.0000000,"
+                           "0.0000000, 2.0000000,-2.2831853,-0.2831853,1.7168147,-2.5663706]");
   return nfail;
 }
 
@@ -982,6 +1006,7 @@ int testLessArg()
   nfail += checkExcp ("complex", "-1.4", "- too few ");
   nfail += checkExcp ("array", "1", "- too few ");
   nfail += checkExcp ("transpose", "", "- too few ");
+  nfail += checkExcp ("reversearray", "", "- too few ");
   nfail += checkExcp ("diagonal", "", "- too few ");
   nfail += checkExcp ("resize", "1", "- too few ");
   nfail += checkExcp ("sums", "1", "- too few ");
@@ -991,7 +1016,9 @@ int testLessArg()
   nfail += checkExcp ("maxs", "1", "- too few ");
   nfail += checkExcp ("means", "1", "- too few ");
   nfail += checkExcp ("variances", "1", "- too few ");
+  nfail += checkExcp ("samplevariances", "1", "- too few ");
   nfail += checkExcp ("stddevs", "1", "- too few ");
+  nfail += checkExcp ("samplestddevs", "1", "- too few ");
   nfail += checkExcp ("avdevs", "1", "- too few ");
   nfail += checkExcp ("rmss", "1", "- too few ");
   nfail += checkExcp ("medians", "1", "- too few ");
@@ -1007,7 +1034,9 @@ int testLessArg()
   nfail += checkExcp ("runningmax", "1", "- too few ");
   nfail += checkExcp ("runningmean", "1", "- too few ");
   nfail += checkExcp ("runningvariance", "1", "- too few ");
+  nfail += checkExcp ("runningsamplevariance", "1", "- too few ");
   nfail += checkExcp ("runningstddev", "1", "- too few ");
+  nfail += checkExcp ("runningsamplestddev", "1", "- too few ");
   nfail += checkExcp ("runningavdev", "1", "- too few ");
   nfail += checkExcp ("runningrms", "1", "- too few ");
   nfail += checkExcp ("runningmedian", "1", "- too few ");
@@ -1023,7 +1052,9 @@ int testLessArg()
   nfail += checkExcp ("boxedmax", "1", "- too few ");
   nfail += checkExcp ("boxedmean", "1", "- too few ");
   nfail += checkExcp ("boxedvariance", "1", "- too few ");
+  nfail += checkExcp ("boxedsamplevariance", "1", "- too few ");
   nfail += checkExcp ("boxedstddev", "1", "- too few ");
+  nfail += checkExcp ("boxedsamplestddev", "1", "- too few ");
   nfail += checkExcp ("boxedavdev", "1", "- too few ");
   nfail += checkExcp ("boxedrms", "1", "- too few ");
   nfail += checkExcp ("boxedmedian", "1", "- too few ");
@@ -1074,7 +1105,9 @@ int testLessArg()
   nfail += checkExcp ("gsumsqr", "", "- too few ");
   nfail += checkExcp ("gmean", "", "- too few ");
   nfail += checkExcp ("gvariance", "", "- too few ");
+  nfail += checkExcp ("gsamplevariance", "", "- too few ");
   nfail += checkExcp ("gstddev", "", "- too few ");
+  nfail += checkExcp ("gsamplestddev", "", "- too few ");
   nfail += checkExcp ("grms", "", "- too few ");
   nfail += checkExcp ("gany", "", "- too few ");
   nfail += checkExcp ("gall", "", "- too few ");
@@ -1087,7 +1120,9 @@ int testLessArg()
   nfail += checkExcp ("gsumsqrs", "", "- too few ");
   nfail += checkExcp ("gmeans", "", "- too few ");
   nfail += checkExcp ("gvariances", "", "- too few ");
+  nfail += checkExcp ("gsamplevariances", "", "- too few ");
   nfail += checkExcp ("gstddevs", "", "- too few ");
+  nfail += checkExcp ("gsamplestddevs", "", "- too few ");
   nfail += checkExcp ("grmss", "", "- too few ");
   nfail += checkExcp ("ganys", "", "- too few ");
   nfail += checkExcp ("galls", "", "- too few ");
@@ -1194,7 +1229,9 @@ int testMoreArg()
   nfail += checkExcp ("gsumsqr", "1,2", "- too many ");
   nfail += checkExcp ("gmean", "1,2", "- too many ");
   nfail += checkExcp ("gvariance", "1,2", "- too many ");
+  nfail += checkExcp ("gsamplevariance", "1,2", "- too many ");
   nfail += checkExcp ("gstddev", "1,2", "- too many ");
+  nfail += checkExcp ("gsamplestddev", "1,2", "- too many ");
   nfail += checkExcp ("grms", "1,2", "- too many ");
   nfail += checkExcp ("gany", "1,2", "- too many ");
   nfail += checkExcp ("gall", "1,2", "- too many ");
@@ -1207,7 +1244,9 @@ int testMoreArg()
   nfail += checkExcp ("gsumsqrs", "[1],2", "- too many ");
   nfail += checkExcp ("gmeans", "[1],2", "- too many ");
   nfail += checkExcp ("gvariances", "[1],2", "- too many ");
+  nfail += checkExcp ("gsamplevariances", "[1],2", "- too many ");
   nfail += checkExcp ("gstddevs", "[1],2", "- too many ");
+  nfail += checkExcp ("gsamplestddevs", "[1],2", "- too many ");
   nfail += checkExcp ("grmss", "[1],2", "- too many ");
   nfail += checkExcp ("ganys", "[1],2", "- too many ");
   nfail += checkExcp ("galls", "[1],2", "- too many ");
@@ -1321,6 +1360,10 @@ int testInvScaArg()
   nfail += checkExcp ("capitalize", "2.", "- invalid operand data type");
   nfail += checkExcp ("capitalize", "3i", "- invalid operand data type");
   nfail += checkExcp ("capitalize", "date()", "- invalid operand data type");
+  nfail += checkExcp ("reversestring", "1", "- invalid operand data type");
+  nfail += checkExcp ("reversestring", "2.", "- invalid operand data type");
+  nfail += checkExcp ("reversestring", "3i", "- invalid operand data type");
+  nfail += checkExcp ("reversestring", "date()", "- invalid operand data type");
   nfail += checkExcp ("trim", "1", "- invalid operand data type");
   nfail += checkExcp ("trim", "2.", "- invalid operand data type");
   nfail += checkExcp ("trim", "3i", "- invalid operand data type");
@@ -1478,13 +1521,17 @@ int testInvScaArg()
   nfail += checkExcp ("gmean", "date()", "- invalid operand data type");
   nfail += checkExcp ("gmean", "''", "- invalid operand data type");
   nfail += checkExcp ("gvariance", "T", "- invalid operand data type");
-  nfail += checkExcp ("gvariance", "1i", "- invalid operand data type");
   nfail += checkExcp ("gvariance", "date()", "- invalid operand data type");
   nfail += checkExcp ("gvariance", "''", "- invalid operand data type");
+  nfail += checkExcp ("gsamplevariance", "T", "- invalid operand data type");
+  nfail += checkExcp ("gsamplevariance", "date()", "- invalid operand data type");
+  nfail += checkExcp ("gsamplevariance", "''", "- invalid operand data type");
   nfail += checkExcp ("gstddev", "T", "- invalid operand data type");
-  nfail += checkExcp ("gstddev", "1i", "- invalid operand data type");
   nfail += checkExcp ("gstddev", "date()", "- invalid operand data type");
   nfail += checkExcp ("gstddev", "''", "- invalid operand data type");
+  nfail += checkExcp ("gsamplestddev", "T", "- invalid operand data type");
+  nfail += checkExcp ("gsamplestddev", "date()", "- invalid operand data type");
+  nfail += checkExcp ("gsamplestddev", "''", "- invalid operand data type");
   nfail += checkExcp ("grms", "T", "- invalid operand data type");
   nfail += checkExcp ("grms", "1i", "- invalid operand data type");
   nfail += checkExcp ("grms", "date()", "- invalid operand data type");
@@ -1530,13 +1577,17 @@ int testInvScaArg()
   nfail += checkExcp ("gmeans", "[date()]", "- invalid operand data type");
   nfail += checkExcp ("gmeans", "['']", "- invalid operand data type");
   nfail += checkExcp ("gvariances", "[T]", "- invalid operand data type");
-  nfail += checkExcp ("gvariances", "[1i]", "- invalid operand data type");
   nfail += checkExcp ("gvariances", "[date()]", "- invalid operand data type");
   nfail += checkExcp ("gvariances", "['']", "- invalid operand data type");
+  nfail += checkExcp ("gsamplevariances", "[T]", "- invalid operand data type");
+  nfail += checkExcp ("gsamplevariances", "[date()]", "- invalid operand data type");
+  nfail += checkExcp ("gsamplevariances", "['']", "- invalid operand data type");
   nfail += checkExcp ("gstddevs", "[T]", "- invalid operand data type");
-  nfail += checkExcp ("gstddevs", "[1i]", "- invalid operand data type");
   nfail += checkExcp ("gstddevs", "[date()]", "- invalid operand data type");
   nfail += checkExcp ("gstddevs", "['']", "- invalid operand data type");
+  nfail += checkExcp ("gsamplestddevs", "[T]", "- invalid operand data type");
+  nfail += checkExcp ("gsamplestddevs", "[date()]", "- invalid operand data type");
+  nfail += checkExcp ("gsamplestddevs", "['']", "- invalid operand data type");
   nfail += checkExcp ("grmss", "[T]", "- invalid operand data type");
   nfail += checkExcp ("grmss", "[1i]", "- invalid operand data type");
   nfail += checkExcp ("grmss", "[date()]", "- invalid operand data type");
@@ -1574,6 +1625,7 @@ int testNoArrArg()
   cout<<"  testing array functions with invalid arguments ..."<<endl;
   int nfail = 0;
   nfail += checkExcp ("transpose", "1,1", " has to be an array");
+  nfail += checkExcp ("areverse", "1,1", " has to be an array");
   nfail += checkExcp ("diagonal", "1,1", " has to be an array");
   nfail += checkExcp ("resize", "1,1", " has to be an array");
   nfail += checkExcp ("sums", "1,1", " has to be an array");
@@ -1583,7 +1635,9 @@ int testNoArrArg()
   nfail += checkExcp ("maxs", "1,1", " has to be an array");
   nfail += checkExcp ("means", "1,1", " has to be an array");
   nfail += checkExcp ("variances", "1,1", " has to be an array");
+  nfail += checkExcp ("samplevariances", "1,1", " has to be an array");
   nfail += checkExcp ("stddevs", "1,1", " has to be an array");
+  nfail += checkExcp ("samplestddevs", "1,1", " has to be an array");
   nfail += checkExcp ("avdevs", "1,1", " has to be an array");
   nfail += checkExcp ("rmss", "1,1", " has to be an array");
   nfail += checkExcp ("medians", "1,1", " has to be an array");
@@ -1599,7 +1653,9 @@ int testNoArrArg()
   nfail += checkExcp ("runningmax", "1,1", " has to be an array");
   nfail += checkExcp ("runningmean", "1,1", " has to be an array");
   nfail += checkExcp ("runningvariance", "1,1", " has to be an array");
+  nfail += checkExcp ("runningsamplevariance", "1,1", " has to be an array");
   nfail += checkExcp ("runningstddev", "1,1", " has to be an array");
+  nfail += checkExcp ("runningsamplestddev", "1,1", " has to be an array");
   nfail += checkExcp ("runningavdev", "1,1", " has to be an array");
   nfail += checkExcp ("runningrms", "1,1", " has to be an array");
   nfail += checkExcp ("runningmedian", "1,1", " has to be an array");
@@ -1615,7 +1671,9 @@ int testNoArrArg()
   nfail += checkExcp ("boxedmax", "1,1", " has to be an array");
   nfail += checkExcp ("boxedmean", "1,1", " has to be an array");
   nfail += checkExcp ("boxedvariance", "1,1", " has to be an array");
+  nfail += checkExcp ("boxedsamplevariance", "1,1", " has to be an array");
   nfail += checkExcp ("boxedstddev", "1,1", " has to be an array");
+  nfail += checkExcp ("boxedsamplestddev", "1,1", " has to be an array");
   nfail += checkExcp ("boxedavdev", "1,1", " has to be an array");
   nfail += checkExcp ("boxedrms", "1,1", " has to be an array");
   nfail += checkExcp ("boxedmedian", "1,1", " has to be an array");
@@ -1626,6 +1684,7 @@ int testNoArrArg()
   nfail += checkExcp ("boxednfalse", "1,1", " has to be an array");
   nfail += checkExcp ("array", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("transpose", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("areverse", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("diagonal", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("sums", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("products", "1,1,[1]", "are not one or more scalars or ");
@@ -1634,7 +1693,9 @@ int testNoArrArg()
   nfail += checkExcp ("maxs", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("means", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("variances", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("samplevariances", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("stddevs", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("samplestddevs", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("avdevs", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("rmss", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("medians", "1,1,[1]", "are not one or more scalars or ");
@@ -1650,7 +1711,9 @@ int testNoArrArg()
   nfail += checkExcp ("runningmax", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("runningmean", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("runningvariance", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("runningsamplevariance", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("runningstddev", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("runningsamplestddev", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("runningavdev", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("runningrms", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("runningmedian", "1,1,[1]", "are not one or more scalars or ");
@@ -1666,7 +1729,9 @@ int testNoArrArg()
   nfail += checkExcp ("boxedmax", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("boxedmean", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("boxedvariance", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("boxedsamplevariance", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("boxedstddev", "1,1,[1]", "are not one or more scalars or ");
+  nfail += checkExcp ("boxedsamplestddev", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("boxedavdev", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("boxedrms", "1,1,[1]", "are not one or more scalars or ");
   nfail += checkExcp ("boxedmedian", "1,1,[1]", "are not one or more scalars or ");
@@ -1692,7 +1757,9 @@ int testNoArrArg()
   nfail += checkExcp ("gsumsqrs", "2", " has to be an array");
   nfail += checkExcp ("gmeans", "2", " has to be an array");
   nfail += checkExcp ("gvariances", "2", " has to be an array");
+  nfail += checkExcp ("gsamplevariances", "2", " has to be an array");
   nfail += checkExcp ("gstddevs", "2", " has to be an array");
+  nfail += checkExcp ("gsamplestddevs", "2", " has to be an array");
   nfail += checkExcp ("grmss", "2", " has to be an array");
   nfail += checkExcp ("ganys", "2", " has to be an array");
   nfail += checkExcp ("galls", "2", " has to be an array");
