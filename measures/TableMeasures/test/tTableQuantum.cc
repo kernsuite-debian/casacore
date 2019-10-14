@@ -141,7 +141,7 @@ int main (int argc, const char* argv[])
       try {
 	// no such column
 	TableQuantumDesc taexcep(td, "SillyName");
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
 	cout << "A no such column message should follow\n";
 	cout << x.getMesg() << endl;
       } 
@@ -149,7 +149,7 @@ int main (int argc, const char* argv[])
       try {
 	// variable unit's column doesn't exist.
 	TableQuantumDesc taexcep(td, "ScaQuantComplex", "SillyName");
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
 	cout << "A no such unit's column message should follow\n";
 	cout << x.getMesg() << endl;
       } 
@@ -160,7 +160,7 @@ int main (int argc, const char* argv[])
 		  "variable units column with incorrect type");
 	td.addColumn(eucol);
 	TableQuantumDesc taexcep(td, "ScaQuantComplex", "testvarcolumn");
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
 	cout << "A message about an incorrect variable unit's type...\n";
 	cout << x.getMesg() << endl;
       } 
@@ -223,7 +223,7 @@ int main (int argc, const char* argv[])
 	  // test isnull exception
 	  try {
 	    sqCol.throwIfNull();
-	  } catch (AipsError x) {
+	  } catch (AipsError& x) {
 	    cout << "Catch an AipsError. Column is null...\n";
 	    cout << x.getMesg() << endl;
 	  } 
@@ -365,7 +365,7 @@ int main (int argc, const char* argv[])
       if (doExcep) {
 	try {
 	  tmpCol.throwIfNull();
-	} catch (AipsError x) {
+	} catch (AipsError& x) {
 	  cout << "Catch an AipsError. Array column is null...\n";
 	  cout << x.getMesg() << endl;
 	} 
@@ -373,10 +373,10 @@ int main (int argc, const char* argv[])
 	// test attaching a bogus quantum column
 	try {
 	  // create with a real column but not a quantum column
+          // It will succeed because the QuantumDesc does not require a unit.
 	  ArrayQuantColumn<Double> testCol(qtab, "BogusQuantCol");
-	} catch (AipsError x) {
-	  cout << "Exception should report not a quantum column...\n";
-	  cout << x.getMesg() << endl;
+	} catch (AipsError& x) {
+	  cout << "Exception should not occur" << endl;
 	} 
       }
       if (tmpCol.isNull()) {
@@ -408,7 +408,7 @@ int main (int argc, const char* argv[])
 	try {
 	  Array<Quantum<Double> > badShapeArr(IPosition(2,2));
 	  roaqCol.get(0, badShapeArr, False);
-	} catch (AipsError x) {
+	} catch (AipsError& x) {
 	  cout << "The following line should be a ";
 	  cout << "Table array conformance error exception.\n";
 	  cout << x.getMesg() << endl;
@@ -506,9 +506,9 @@ int main (int argc, const char* argv[])
     {
         // test ScalarQuantColumn::getColumn()
         ScalarQuantColumn<Double> col(qtab, "ScaQuantDouble"); 
-        SHARED_PTR<Quantum<Vector<Double> > > v = col.getColumn();
+        std::shared_ptr<Quantum<Vector<Double> > > v = col.getColumn();
         AlwaysAssert(v->getValue().size() == 5, AipsError);
-        SHARED_PTR<Quantum<Vector<Double> > > w = col.getColumn("rad");
+        std::shared_ptr<Quantum<Vector<Double> > > w = col.getColumn("rad");
         AlwaysAssert(w->getValue().size() == 5, AipsError);
         Double frac = C::pi/180;
         for (uInt i=0; i<5; ++i) {
@@ -517,9 +517,9 @@ int main (int argc, const char* argv[])
             );
         }
         ScalarQuantColumn<Complex> ccol(qtab, "ScaQuantComplex");
-        SHARED_PTR<Quantum<Vector<Complex> > > x = ccol.getColumn(); 
+        std::shared_ptr<Quantum<Vector<Complex> > > x = ccol.getColumn(); 
         AlwaysAssert(x->getValue().size() == 5, AipsError);
-        SHARED_PTR<Quantum<Vector<Complex> > > y = ccol.getColumn("rad"); 
+        std::shared_ptr<Quantum<Vector<Complex> > > y = ccol.getColumn("rad"); 
         for (uInt i=0; i<5; ++i) {
             AlwaysAssert(
                 near(y->getValue()[i], frac*x->getValue()[i]), AipsError
@@ -527,7 +527,7 @@ int main (int argc, const char* argv[])
         }
     }
 
-  } catch (AipsError x) {
+  } catch (AipsError& x) {
     cout << "Unexpected exception1: " << x.getMesg() << endl;
     return 1;
   } 
@@ -548,7 +548,7 @@ int main (int argc, const char* argv[])
     for (i=0; i<qtab.nrow(); i++) {
       cout << "Quantum " << i << ": " << rosqCol(i) << endl;
     }
-  } catch (AipsError x) {
+  } catch (AipsError& x) {
     cout << "Unexpected exception2: " << x.getMesg() << endl;
     return 1;
   } 
@@ -597,7 +597,7 @@ int main (int argc, const char* argv[])
     }
     timer.show ("get tab    arrays");
     cout << "<<<" << endl;
-  } catch (AipsError x) {
+  } catch (AipsError& x) {
     cout << "Unexpected exception3: " << x.getMesg() << endl;
     return 1;
   } 

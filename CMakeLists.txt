@@ -7,18 +7,25 @@ cmake_minimum_required (VERSION 2.6.0)
 include(CheckCXXCompilerFlag)
 include(CheckCCompilerFlag)
 include(CheckFunctionExists)
+include(CheckCXXSourceCompiles)
 
 # fixes warnings on cmake 3.x+ For now we want the old behavior to be backwards compatible
 if (POLICY CMP0048)
     cmake_policy (SET CMP0048 OLD)
 endif()
 
-set(PROJECT_VERSION_MAJOR 2)
-set(PROJECT_VERSION_MINOR 4)
-set(PROJECT_VERSION_PATCH 0)
-set(PROJECT_VERSION_REVISION 1)
+# Enable <packageName>_ROOT variables for recent versions of CMake
+if (POLICY CMP0074)
+    cmake_policy (SET CMP0074 NEW)
+endif()
+
+set(PROJECT_VERSION_MAJOR 3)
+set(PROJECT_VERSION_MINOR 1)
+set(PROJECT_VERSION_PATCH 2)
 set(PROJECT_VERSION 
   "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+
+SET(PROJECT_SOVERSION 3)
 
 SET(NO_SOVERSION FALSE CACHE BOOL "do not add version information to shared libraries")
 set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
@@ -28,30 +35,8 @@ set(CPACK_PACKAGE_NAME "casacore")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 
 set(CPACK_PACKAGE_CONTACT "Malte Marquarding") #required
-set(CPACK_PACKAGE_VENDOR "casacore.googlecode.com")
+set(CPACK_PACKAGE_VENDOR "https://github.com/casacore/casacore")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Astronomical data processing library")
-
-string(TOLOWER "${CPACK_PACKAGE_NAME}" CPACK_PACKAGE_NAME_LOWERCASE) 
-find_program(DPKG_PROGRAM dpkg DOC "dpkg program of Debian-based systems") 
-if(DPKG_PROGRAM) 
-  execute_process( 
-    COMMAND ${DPKG_PROGRAM} --print-architecture 
-    OUTPUT_VARIABLE CPACK_DEBIAN_PACKAGE_ARCHITECTURE 
-    OUTPUT_STRIP_TRAILING_WHITESPACE 
-  ) 
-  set( CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME_LOWERCASE}-dev_${PROJECT_VERSION}-${PROJECT_VERSION_REVISION}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")   
-
-else() 
-  set(CPACK_PACKAGE_FILE_NAME 
-"${CPACK_PACKAGE_NAME_LOWERCASE}_${PROJECT_VERSION}-${PROJECT_VERSION_REVISION}_${CMAKE_SYSTEM_NAME}") 
-endif() 
-
-# debian specific
-set(CPACK_DEBIAN_PACKAGE_NAME "casacore-dev")
-set(CPACK_DEBIAN_PACKAGE_SECTION "science")
-set(CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libcfitsio3, libgfortran3")
-include(CPack)
 
 enable_language (Fortran)
 
@@ -60,19 +45,30 @@ set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 # By default build only Python2 bindings
 option (BUILD_PYTHON "Build the python bindings" YES)
 option (BUILD_PYTHON3 "Build the python3 bindings" NO)
+option (BUILD_DEPRECATED "build and install deprecated classes (such as Map)" NO)
 
 # By default build shared libraries
 option (ENABLE_SHARED "Build shared libraries" YES)
-
 option (ENABLE_RPATH "Include rpath in executables and shared libraries" YES)
 
-# By default do not use HDF5, FFTW3, threads
-option (CXX11 "Compile as C++11 if possible" YES)
+# Check if O_DIRECT is available.
+# Note this does not work well with check_c_source_compiles.
+check_cxx_source_compiles("
+  #include <fcntl.h>
+  main() { int i = O_DIRECT; }
+  " HAVE_O_DIRECT)
+if (HAVE_O_DIRECT)
+    add_definitions(-DHAVE_O_DIRECT)
+endif()
+
+# By default do not use ADIOS2, HDF5, FFTW3
 option (ENABLE_TABLELOCKING "Make locking for concurrent table access possible" YES)
+option (USE_ADIOS2 "Build ADIOS2 " NO)
 option (USE_HDF5 "Build HDF5 " NO)
 option (USE_FFTW3 "Use FFTW instead of FFTPack" NO)
-option (USE_THREADS "Use Mutex thread synchronization" NO)
+option (USE_THREADS "Use Mutex thread synchronization" YES)
 option (USE_OPENMP "Use OpenMP threading" NO)
+option (USE_MPI "Use MPI for parallel IO" NO)
 option (USE_STACKTRACE "Show stacktrace in case of exception" NO)
 option (CASA_BUILD "Building in the CASA (http://casa.nrao.edu) environment" NO)
 
@@ -100,12 +96,7 @@ if( CASA_BUILD )
    set(USE_FFTW3 ON)
    set(USE_OPENMP ON)
    set(USE_THREADS ON)
-   set(UseCasacoreNamespace 1) # Force casacore routines to live in casacore rather than casa namespace
-   ###
-   ### after CASA switches from ASAP to libsakura, CASA will no longer
-   ### use casacore's python module and it will no longer use boost...
-   ###
-   set(BUILD_PYTHON ON)
+   set(BUILD_PYTHON OFF)
    set(Boost_NO_BOOST_CMAKE 1)
    if (EXISTS "/opt/casa/02/include/python2.7")
       ### RHEL7
@@ -153,7 +144,6 @@ if (ENABLE_SHARED)
         set(CMAKE_MACOSX_RPATH TRUE)
     endif (ENABLE_RPATH)
 	if( CASA_BUILD )
-		set(CXX11 ON)
 		option(NO_SOVERSION "Build shared libraries without version information" NO)
 		if( NOT NO_SOVERSION )
 			set( epochdelta 1385614800 )
@@ -172,15 +162,11 @@ else()
     option (BUILD_SHARED_LIBS "" NO)
 endif (ENABLE_SHARED)
 
-if (UseCasacoreNamespace)
-
-    add_definitions (-DUseCasacoreNamespace)
-    message (STATUS "Using namespace casacore.")
-
+if (UseCasaNamespace)
+    add_definitions (-DUseCasaNamespace)
+    message (STATUS "Using namespace casa. This will be deprecated at some point.")
 else ()
-
-    message (STATUS "Namespace casacore 'merged' into namespace casa.")
-
+    message (STATUS "Using namespace casacore.")
 endif ()
 
 # Define the compiler flags to be used.
@@ -218,18 +204,12 @@ if (NOT CMAKE_BUILD_TYPE)
 endif (NOT CMAKE_BUILD_TYPE)
 
 # Detect if the compiler supports C++11 if we want to use it.
-if (CXX11)
-    check_cxx_compiler_flag(-std=c++11 HAS_CXX11)
-    if (HAS_CXX11)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    else()
-      if (CASA_BUILD)
-        message(FATAL_ERROR "CASA_BUILD requires a c++11 compatible compiler")
-      else()
-        message(FATAL_ERROR "C++11 build was requested but the compiler does not support -std=c++11")
-      endif()
-    endif()
-endif()
+check_cxx_compiler_flag(-std=c++11 HAS_CXX11)
+if (HAS_CXX11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+else()
+    message(FATAL_ERROR "Casacore build requires a c++11 compatible compiler")
+endif (HAS_CXX11)
 
 # use faster fortran rules for complex operations, removes restoring complex
 # infinities if naive computation results in NAN + NAN * I
@@ -334,9 +314,25 @@ endif (BUILD_PYTHON3)
 
 # Determine which external packages to use.
 include (CTest)
+
+# Decrease test timeout. Valgrind times are excessive and need much more.
+#set (CTEST_TEST_TIMEOUT 150 CACHE STRING
+#    "Maximum ctest -S time allowed before CTest will kill the test." FORCE)
+# Already a cache var. It can be overridden using ctest --timeout N
+#set (DART_TESTING_TIMEOUT 150 CACHE STRING
+#    "Maximum ctest time allowed before CTest will kill the test." FORCE)
+
 find_package (DL)
 find_package (Readline)
 find_package (SOFA)
+if (USE_ADIOS2)
+    set(USE_MPI ON)
+    message (STATUS "MPI is enabled as required by ADIOS2")
+    find_package (ADIOS2 CONFIG REQUIRED)
+    if (NOT ADIOS2_HAVE_MPI)
+        message (FATAL_ERROR "ADIOS2 found without MPI support.")
+    endif (NOT ADIOS2_HAVE_MPI)
+endif (USE_ADIOS2)
 if (USE_HDF5)
     find_package (HDF5 REQUIRED)
 endif (USE_HDF5)
@@ -381,6 +377,10 @@ if (Boost_FOUND)
     include_directories (${Boost_INCLUDE_DIRS})
     add_definitions(-DHAVE_BOOST)
 endif (Boost_FOUND)
+if (ADIOS2_FOUND)
+    include_directories (${ADIOS2_INCLUDE_DIRS})
+    add_definitions(-DHAVE_ADIOS2)
+endif (ADIOS2_FOUND)
 if (HDF5_FOUND)
     include_directories (${HDF5_INCLUDE_DIRS})
     add_definitions(-DHAVE_HDF5)
@@ -412,6 +412,16 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
    set(CASACORE_ARCH_LIBS ${CASACORE_ARCH_LIBS} -L${INTEL_LIB_PATH} -limf -lsvml -lirng -lintlc -lifport -lifcore -liomp5)
 endif()
 
+if(USE_MPI)
+    find_package(MPI COMPONENTS C REQUIRED)
+    include_directories (${MPI_C_INCLUDE_PATH})
+    add_definitions(-DOMPI_SKIP_MPICXX -DMPICH_SKIP_MPICXX)
+    add_definitions(-DHAVE_MPI)
+
+    set(ENABLE_TABLELOCKING OFF)
+    message (STATUS "ENABLE_TABLELOCKING is turned off as required by MPI")
+endif(USE_MPI)
+
 if(USE_OPENMP)
     set (USE_THREADS YES)
     find_package (OpenMP)
@@ -426,7 +436,8 @@ if(USE_OPENMP)
     else (OPENMP_FOUND)
         message(WARNING "Cannot fullfill USE_OPENMP, compiler does not support it")
     endif (OPENMP_FOUND)
-endif(USE_OPENMP)
+endif()
+
 # Thread support?
 if(USE_THREADS)
     set(_errmsg "FIXME: Don't know how to enable thread support for ")
@@ -454,6 +465,16 @@ if(USE_THREADS)
             message(FATAL_ERROR "${_errmsg} (${CMAKE_C_COMPILER_ID}): ${CMAKE_CXX_COMPILER}")
         endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     endif(CMAKE_COMPILER_IS_GNUCXX)
+else()
+    # Compile with -fno-threadsafe-statics if supp to reduce some thread safety overhead.
+    check_cxx_compiler_flag(-fno-threadsafe-statics HAS_CXX_NO_THREADSAFE_STATICS)
+    if (HAS_CXX_NO_THREADSAFE_STATICS)
+        set(CMAKE_CXX_FLAGS "-fno-threadsafe-statics ${CMAKE_CXX_FLAGS}")
+    endif()
+    check_c_compiler_flag(-fno-threadsafe-statics HAS_C_NO_THREADSAFE_STATICS)
+    if (HAS_C_NO_THREADSAFE_STATICS)
+        set(CMAKE_C_FLAGS "-fno-threadsafe-statics ${CMAKE_C_FLAGS}")
+    endif()
 endif(USE_THREADS)
 
 # Set default DATA_DIR if undefined.
@@ -464,6 +485,10 @@ endif (NOT DATA_DIR)
 set (DATA_DIR "${DATA_DIR}" CACHE PATH "Measures tables root")
 
 
+# Set compiler flag if deprecated Casacore header files are allowed.
+if (BUILD_DEPRECATED)
+    add_definitions(-DAIPS_USE_DEPRECATED)
+endif ()
 # Set compiler flag if no table locking.
 if (NOT ENABLE_TABLELOCKING)
     add_definitions(-DAIPS_TABLE_NOLOCKING)
@@ -488,8 +513,8 @@ if (casa_soversion)
     set (LIB_SOVERSION "${casa_soversion}")
     set (CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib" )
 else( )
-    set (LIB_VERSION "${PROJECT_VERSION}")
-    set (LIB_SOVERSION "${PROJECT_VERSION_MAJOR}")
+    set (LIB_VERSION "${PROJECT_SOVERSION}")
+    set (LIB_SOVERSION "${PROJECT_SOVERSION}")
 endif( )
 
 # Add the modules to be built.
@@ -522,11 +547,13 @@ message (STATUS "BUILD_SHARED_LIBS ..... = ${BUILD_SHARED_LIBS}")
 message (STATUS "ENABLE_RPATH .......... = ${ENABLE_RPATH}")
 message (STATUS "CMAKE_INSTALL_NAME_DIR  = ${CMAKE_INSTALL_NAME_DIR}")
 message (STATUS "ENABLE_TABLELOCKING ... = ${ENABLE_TABLELOCKING}")
+message (STATUS "USE_THREADS ........... = ${USE_THREADS}")
 message (STATUS "USE_OPENMP ............ = ${USE_OPENMP}")
+message (STATUS "USE_MPI ............... = ${USE_MPI}")
 message (STATUS "USE_STACKTRACE ........ = ${USE_STACKTRACE}")
+message (STATUS "HAVE_O_DIRECT ......... = ${HAVE_O_DIRECT}")
 message (STATUS "CMAKE_CXX_COMPILER .... = ${CMAKE_CXX_COMPILER}")
 message (STATUS "CMAKE_CXX_FLAGS ....... = ${CMAKE_CXX_FLAGS}")
-message (STATUS "C++11 support ......... = ${CXX11}")
 message (STATUS "DATA directory ........ = ${DATA_DIR}")
 message (STATUS "DL library? ........... = ${DL_LIBRARIES}")
 message (STATUS "Pthreads library? ..... = ${PTHREADS_LIBRARIES}")
@@ -536,9 +563,11 @@ message (STATUS "LAPACK library? ....... = ${LAPACK_LIBRARIES}")
 message (STATUS "WCS library? .......... = ${WCSLIB_LIBRARIES}")
 message (STATUS "SOFA library? ......... = ${SOFA_LIBRARIES}")
 message (STATUS "CFitsio library? ...... = ${CFITSIO_LIBRARIES}")
+message (STATUS "ADIOS2 library? ....... = ${ADIOS2_LIBRARIES}")
 message (STATUS "HDF5 library? ......... = ${HDF5_hdf5_LIBRARY}")
 message (STATUS "FFTW3 library? ........ = ${FFTW3_LIBRARIES}")
 
+message (STATUS "BUILD_DEPRECATED ...... = ${BUILD_DEPRECATED}")
 message (STATUS "BUILD_PYTHON .......... = ${BUILD_PYTHON}")
 message (STATUS "BUILD_PYTHON3 ......... = ${BUILD_PYTHON3}")
 
@@ -559,15 +588,18 @@ if (BUILD_PYTHON3)
 endif (BUILD_PYTHON3)
 
 # List of build variables and defaults.
-#  BUILD_PYTHON                  NO
+#  BUILD_PYTHON                  YES
+#  BUILD_PYTHON3                 NO
+#  BUILD_DEPRECATED            NO
 #  ENABLE_SHARED                 YES
 #  ENABLE_RPATH                  YES
-#  CXX11                         YES
 #  ENABLE_TABLELOCKING           YES
+#  USE_ADIOS2                    NO
 #  USE_HDF5                      NO
 #  USE_FFTW3                     NO
-#  USE_THREADS                   NO
+#  USE_THREADS                   YES
 #  USE_OPENMP                    NO
+#  USE_MPI                       NO
 #  USE_STACKTRACE                NO
 #  DATA_DIR                      ${CMAKE_INSTALL_PREFIX}/share/casacore/data
 #  MODULE                        all
@@ -589,6 +621,7 @@ endif (BUILD_PYTHON3)
 #  HDF5         casa (optional)
 #  BISON        casa,tables,images
 #  FLEX         casa,tables,images
+#  ADIOS2       tables (optional)
 #  LAPACK       scimath
 #  BLAS         scimath
 #  FFTW         scimath (optional)

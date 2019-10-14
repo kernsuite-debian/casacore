@@ -44,12 +44,24 @@
 
 //# stdlib.h is needed for bison 1.28 and needs to be included here
 //# (before the flex/bison files).
+//# Bison defines WHERE, which is also defined in LogOrigin.h (which
+//# is included in auto-template mode).
+//# So undefine WHERE first.
+#undef WHERE
 #include <casacore/casa/stdlib.h>
-//# Define register as empty string to avoid warnings in C++11 compilers
-//# because keyword register is not supported anymore.
-#define register
+
+//# Let clang and gcc ignore some warnings in bison/flex code.
+//# Undef YY_NULL because flex can redefine it slightly differently (giving a warning).
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpragmas"
+#pragma GCC diagnostic ignored "-Wdeprecated-register"
+#pragma GCC diagnostic ignored "-Wsign-compare"
 #include "RecordGram.ycc"                  // bison output
+#ifdef YY_NULL
+# undef YY_NULL
+#endif
 #include "RecordGram.lcc"                  // flex output
+#pragma GCC diagnostic pop
 
 
 // Define the yywrap function for flex.
@@ -134,10 +146,10 @@ int recordGramInput (char* buf, int max_size)
 {
     int nr=0;
     while (*strpRecordGram != 0) {
-	if (nr >= max_size) {
-	    break;                         // get max. max_size char.
-	}
-	buf[nr++] = *strpRecordGram++;
+        if (nr >= max_size) {
+            break;                         // get max. max_size char.
+        }
+        buf[nr++] = *strpRecordGram++;
     }
     return nr;
 }
@@ -145,12 +157,179 @@ int recordGramInput (char* buf, int max_size)
 void RecordGramerror (const char*)
 {
     throw (TableInvExpr ("Parse error at or near '" +
-			 String(RecordGramtext) + "'"));
+                         String(RecordGramtext) + "'"));
 }
 
 
+Bool RecordGram::expr2Bool (const String& expr, const Record& vars)
+{
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  Bool result;
+  node.get (vars, result);
+  return result;
+}
+
+Int64 RecordGram::expr2Int (const String& expr, const Record& vars)
+{
+  return Int64(expr2Double (expr, vars) + 0.0001);
+}
+
+double RecordGram::expr2Double (const String& expr, const Record& vars,
+                                const String& unit)
+{
+  String ex = expr;
+  if (! unit.empty()) {
+    // Convert to the given unit (e.g., 1.3 GHz to Hz).
+    ex = "(" + ex + ")" + unit;
+  }
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, ex));
+  // Evaluate.
+  double result;
+  node.get (vars, result);
+  return result;
+}
+
+DComplex RecordGram::expr2Complex (const String& expr, const Record& vars)
+{
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  DComplex result;
+  node.get (vars, result);
+  return result;
+}
+
+String RecordGram::expr2String (const String& expr, const Record& vars)
+{
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  String result;
+  node.get (vars, result);
+  return result;
+}
+
+MVTime RecordGram::expr2Date (const String& expr, const Record& vars)
+{
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  MVTime result;
+  node.get (vars, result);
+  return result;
+}
+
+Array<Bool> RecordGram::expr2ArrayBool (const String& expr,
+                                        const Record& vars)
+{
+  String ex = expr;
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  Array<Bool> result;
+  if (node.isScalar()) {
+    result.resize (IPosition(1,1));
+    node.get (vars, result.data()[0]);
+  } else {
+    node.get (vars, result);
+  }
+  return result;
+}
+
+Array<Int64> RecordGram::expr2ArrayInt (const String& expr,
+                                        const Record& vars)
+{
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  Array<Int64> result;
+  if (node.isScalar()) {
+    result.resize (IPosition(1,1));
+    node.get (vars, result.data()[0]);
+  } else {
+    node.get (vars, result);
+  }
+  return result;
+}
+
+Array<double> RecordGram::expr2ArrayDouble (const String& expr,
+                                            const Record& vars,
+                                            const String& unit)
+{
+  String ex = expr;
+  if (! unit.empty()) {
+    // Convert to the given unit (e.g., 1.3 GHz to Hz).
+    ex = "(" + ex + ")" + unit;
+  }
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, ex));
+  // Evaluate.
+  Array<double> result;
+  if (node.isScalar()) {
+    result.resize (IPosition(1,1));
+    node.get (vars, result.data()[0]);
+  } else {
+    node.get (vars, result);
+  }
+  return result;
+}
+
+Array<DComplex> RecordGram::expr2ArrayComplex (const String& expr,
+                                               const Record& vars)
+{
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, expr));
+  // Evaluate.
+  Array<DComplex> result;
+  if (node.isScalar()) {
+    result.resize (IPosition(1,1));
+    node.get (vars, result.data()[0]);
+  } else {
+    node.get (vars, result);
+  }
+  return result;
+}
+
+Array<String> RecordGram::expr2ArrayString (const String& expr,
+                                            const Record& vars)
+{
+  String ex = expr;
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, ex));
+  // Evaluate.
+  Array<String> result;
+  if (node.isScalar()) {
+    result.resize (IPosition(1,1));
+    node.get (vars, result.data()[0]);
+  } else {
+    node.get (vars, result);
+  }
+  return result;
+}
+
+Array<MVTime> RecordGram::expr2ArrayDate (const String& expr,
+                                          const Record& vars)
+{
+  String ex = expr;
+  // Convert expression to tree.
+  TableExprNode node (RecordGram::parse(vars, ex));
+  // Evaluate.
+  Array<MVTime> result;
+  if (node.isScalar()) {
+    result.resize (IPosition(1,1));
+    node.get (vars, result.data()[0]);
+  } else {
+    node.get (vars, result);
+  }
+  return result;
+}
+
+  
 TableExprNode RecordGram::parse (const RecordInterface& record,
-				 const String& expression)
+                                 const String& expression)
 {
     ScopedMutexLock lock(theirMutex);
     theirRecPtr = &record;
@@ -159,7 +338,7 @@ TableExprNode RecordGram::parse (const RecordInterface& record,
 }
 
 TableExprNode RecordGram::parse (const Table& table,
-				 const String& expression)
+                                 const String& expression)
 {
     ScopedMutexLock lock(theirMutex);
     theirRecPtr = 0;
@@ -175,23 +354,23 @@ TableExprNode RecordGram::doParse (const String& expression)
     Bool error = False;
     TableExprNode result;
     try {
-	// Parse and execute the command.
-	if (recordGramParseCommand(command) != 0) {
-	    throw (TableParseError(expression));   // throw exception if error
-	}
+        // Parse and execute the command.
+        if (recordGramParseCommand(command) != 0) {
+            throw (TableParseError(expression));   // throw exception if error
+        }
         // Make this copy before deleteTokenStorage is done,
         // otherwise it will be deleted.
         result = *theirNodePtr;
     } catch (const AipsError& x) {
-	message = x.getMesg();
-	error = True;
+        message = x.getMesg();
+        error = True;
     }
     // Delete possibly non-deleted tokens (usually in case of exception).
     deleteTokenStorage();
     //# If an exception was thrown; throw it again with the message.
     if (error) {
-	throw AipsError(message + '\n' + "Scanned so far: " +
-	                 command.before(recordGramPosition()));
+        throw AipsError(message + '\n' + "Scanned so far: " +
+                         command.before(recordGramPosition()));
     }
     return result;
 }
@@ -203,49 +382,49 @@ TableExprNode RecordGram::handleLiteral (RecordGramVal* val)
     TableExprNode expr;
     switch (val->type) {
     case 'b':
-	expr = TableExprNode (val->bval);
-	break;
+        expr = TableExprNode (val->bval);
+        break;
     case 'i':
-	expr = TableExprNode (val->ival);
-	break;
+        expr = TableExprNode (val->ival);
+        break;
     case 'f':
-	expr = TableExprNode (val->dval[0]);
-	if (! val->str.empty()) {
-	    expr = expr.useUnit (val->str);
-	}
-	break;
+        expr = TableExprNode (val->dval[0]);
+        if (! val->str.empty()) {
+            expr = expr.useUnit (val->str);
+        }
+        break;
     case 'c':
-	expr= TableExprNode (DComplex (val->dval[0], val->dval[1]));
-	break;
+        expr= TableExprNode (DComplex (val->dval[0], val->dval[1]));
+        break;
     case 's':
-	expr = TableExprNode (val->str);
-	break;
+        expr = TableExprNode (val->str);
+        break;
     case 'd':
       {
-	MUString str (val->str);
-	Quantity res;
-	if (! MVTime::read (res, str)) {
-	    throw (TableInvExpr ("invalid date string " + val->str));
-	}
-	expr = TableExprNode (MVTime(res));
+        MUString str (val->str);
+        Quantity res;
+        if (! MVTime::read (res, str)) {
+            throw (TableInvExpr ("invalid date string " + val->str));
+        }
+        expr = TableExprNode (MVTime(res));
       }
-	break;
+        break;
     case 't':
       {
-	Quantity res;
-	//# Skip a possible leading / which acts as an escape character.
-	if (val->str.length() > 0  &&  val->str[0] == '/') {
-	    val->str = val->str.after(0);
-	}
-	if (! MVAngle::read (res, val->str)) {
-	    throw (TableInvExpr ("invalid time/pos string " + val->str));
-	}
-	expr = TableExprNode (MVAngle(res).radian());
-	expr = expr.useUnit ("rad");
+        Quantity res;
+        //# Skip a possible leading / which acts as an escape character.
+        if (val->str.length() > 0  &&  val->str[0] == '/') {
+            val->str = val->str.after(0);
+        }
+        if (! MVAngle::read (res, val->str)) {
+            throw (TableInvExpr ("invalid time/pos string " + val->str));
+        }
+        expr = TableExprNode (MVAngle(res).radian());
+        expr = expr.useUnit ("rad");
       }
-	break;
+        break;
     default:
-	throw (TableInvExpr ("RecordGram: unhandled literal type"));
+        throw (TableInvExpr ("RecordGram: unhandled literal type"));
     }
     return expr;
 }
@@ -259,18 +438,18 @@ TableExprNode RecordGram::handleField (const String& name)
 }
 
 TableExprNode RecordGram::handleFunc (const String& name,
-				      const TableExprNodeSet& arguments)
+                                      const TableExprNodeSet& arguments)
 {
   // The ROWNR function can only be used with tables.
   if (theirTabPtr == 0) {
     Vector<Int> ignoreFuncs (1, TableExprFuncNode::rownrFUNC);
     return TableParseSelect::makeFuncNode (0, name, arguments,
-					   ignoreFuncs, Table(),
-					   theirTaQLStyle);
+                                           ignoreFuncs, Table(),
+                                           theirTaQLStyle);
   }
   return TableParseSelect::makeFuncNode (0, name, arguments,
-					 Vector<Int>(), *theirTabPtr,
-					 theirTaQLStyle);
+                                         Vector<Int>(), *theirTabPtr,
+                                         theirTaQLStyle);
 }
 
 TableExprNode RecordGram::handleRegex (const TableExprNode& left,

@@ -239,6 +239,9 @@ public:
   // <group>
   const ImageInfo& imageInfo() const
     { return imageInfo_p; }
+  // Get non-const access to the ImageInfo.
+  ImageInfo& rwImageInfo()
+    { return imageInfo_p; }
   virtual Bool setImageInfo (const ImageInfo& info);
   // </group>
 
@@ -376,10 +379,6 @@ protected:
   RegionHandler* getRegionHandler()
     { return regHandPtr_p; }
 
-  // Get non-const access to the ImageInfo.
-  ImageInfo& rwImageInfo()
-    { return imageInfo_p; }
-
 private:
   // It is the job of the derived class to make these variables valid.
   CoordinateSystem coords_p;
@@ -397,10 +396,8 @@ private:
 
 
 //# Declare extern templates for often used types.
-#ifdef AIPS_CXX11
   extern template class ImageInterface<Float>;
   extern template class ImageInterface<Complex>;
-#endif
 
 
 } //# NAMESPACE CASACORE - END

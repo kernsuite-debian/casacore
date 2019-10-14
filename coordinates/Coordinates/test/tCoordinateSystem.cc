@@ -443,7 +443,7 @@ int main()
     	  AlwaysAssertExit (ok);
     	  cerr << "Frequency set to: " << wavelength << endl;
     	  const SpectralCoordinate &sCoo3 = csys.spectralCoordinate(coordinate);
-    	  AlwaysAssertExit(near(QC::c.getValue()/1.0e-03, sCoo3.restFrequency(), 1.0e-8));
+    	  AlwaysAssertExit(near(QC::c( ).getValue()/1.0e-03, sCoo3.restFrequency(), 1.0e-8));
     	  cerr << "The input was verified" << endl;
 
       }
@@ -2449,7 +2449,7 @@ void doit6 ()
       Bool failed = False;
       try {
          pC = cSys.makeFourierCoordinate (axes, shape);
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
         failed = True;
       } 
       if (!failed) {
@@ -2466,7 +2466,7 @@ void doit6 ()
       Vector<Bool> axes2(20, True);
       try {
          pC = cSys.makeFourierCoordinate (axes2, shape);
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
         failed = True;
       } 
       if (!failed) {
@@ -2483,7 +2483,7 @@ void doit6 ()
       Vector<Int> shape2(20, 100);
       try {
          pC = cSys.makeFourierCoordinate (axes, shape2);
-      } catch (AipsError x) {
+      } catch (AipsError& x) {
         failed = True;
       } 
       if (!failed) {

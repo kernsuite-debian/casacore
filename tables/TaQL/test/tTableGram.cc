@@ -134,7 +134,7 @@ int main (int argc, const char* argv[])
     // Do some interactive tests.
       docomm();
     }
-  } catch (AipsError x) {
+  } catch (AipsError& x) {
     cout << "\nCaught an exception: " << x.getMesg() << endl;
     return 1;
   } 
@@ -154,7 +154,7 @@ void docomm()
       break;
     try {
       seltab (str);
-    } catch (AipsError x) {
+    } catch (AipsError& x) {
       cout << x.getMesg() << endl;
     } 
   }
@@ -223,7 +223,7 @@ void showExpr(const TableExprNode& expr)
   // Print the index if possible.
   // Get internal node.
   const TableExprNodeArrayPart* nodePtr =
-               dynamic_cast<const TableExprNodeArrayPart*>(expr.getNodeRep());
+    dynamic_cast<const TableExprNodeArrayPart*>(expr.getRep().get());
   if (nodePtr != 0) {
     // The node represents a part of an array; get its index node.
     const TableExprNodeIndex* inxNode = nodePtr->getIndexNode();
@@ -261,6 +261,9 @@ void showExpr(const TableExprNode& expr)
     case TpUInt:
       cout << expr.getColumnuInt (rownrs);
       break;
+    case TpInt64:
+      cout << expr.getColumnInt64 (rownrs);
+      break;
     case TpFloat:
       cout << expr.getColumnFloat (rownrs);
       break;
@@ -287,6 +290,13 @@ void showExpr(const TableExprNode& expr)
       case TpBool:
 	{
 	  MArray<Bool> arr;
+	  expr.get (i, arr);
+	  cout << arr.array();
+	  break;
+	}
+      case TpInt64:
+	{
+	  MArray<Int64> arr;
 	  expr.get (i, arr);
 	  cout << arr.array();
 	  break;
@@ -335,7 +345,7 @@ void seltab (const String& str)
     } else {
       s = str.substr(spos, epos-spos);
       s.downcase();
-      addCalc = !(s=="select" || s=="update" || s=="insert" ||
+      addCalc = !(s=="with" || s=="select" || s=="update" || s=="insert" ||
                   s=="calc" || s=="delete" || s=="count" ||
                   s=="create" || s=="createtable" ||
                   s=="alter" || s=="altertable" ||

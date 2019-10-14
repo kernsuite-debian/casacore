@@ -376,7 +376,7 @@ OFF_T PrimaryArray<TYPE>::set_next(OFF_T ne) {
 	   delete [] array;
 		try{
          array = new TYPE [ne];
-      }catch( std::bad_alloc ){ // out of storage exception.
+      }catch( std::bad_alloc& ){ // out of storage exception.
         cerr << "\narray is too big to fit into memory."<< endl;
 		  errmsg(BADOPER,"Error allocating Array.");
 		  alloc_elems = 0;
@@ -491,10 +491,11 @@ void PrimaryArray<TYPE>::copy(double *target, FITS::FitsArrayOption opt) const {
 	    C_factor = &sub[dims()];
 	    // compute the C_factors
 	    Int i;
-	    for (i = 0; i < (dims() - 1); ++i)
+	    for (i = 0; i < (dims() - 1); ++i) {
 		C_factor[i] = 1;
 		for (Int j = i + 1; j < dims(); ++j)
 		    C_factor[i] *= dim(j);
+	    }
 	    C_factor[i] = 1;
 	    // algorithm for converting F-order to C-order
 	    count = 0;
@@ -574,10 +575,11 @@ void PrimaryArray<TYPE>::copy(float *target, FITS::FitsArrayOption opt) const {
 	    C_factor = &sub[dims()];
 	    // compute the C_factors
 	    Int i;
-	    for (i = 0; i < (dims() - 1); ++i)
+	    for (i = 0; i < (dims() - 1); ++i) {
 		C_factor[i] = 1;
 		for (Int j = i + 1; j < dims(); ++j)
 		    C_factor[i] *= dim(j);
+	    }
 	    C_factor[i] = 1;
 	    // algorithm for converting F-order to C-order
 	    count = 0;
@@ -632,10 +634,11 @@ void PrimaryArray<TYPE>::move(TYPE *target, FITS::FitsArrayOption opt) const {
 	    C_factor = &sub[dims()];
 	    // compute the C_factors
 	    Int i;
-	    for (i = 0; i < uInt(dims() - 1); ++i)
+	    for (i = 0; i < uInt(dims() - 1); ++i) {
 		C_factor[i] = 1;
 		for (Int j = i + 1; j < uInt(dims()); ++j)
 		    C_factor[i] *= dim(j);
+	    }
 	    C_factor[i] = 1;
 	    // algorithm for converting F-order to C-order
 	    count = 0;

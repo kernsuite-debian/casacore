@@ -1178,6 +1178,7 @@ void testIt(MSMetaData& md) {
         {
             cout << "*** Test getIntentsForField()" << endl;
             uInt nFields = md.nFields();
+            const auto fieldNames = md.getFieldNames();
             for (uInt i=0; i<nFields; ++i) {
                 std::set<String> expec;
                 switch (i) {
@@ -1240,8 +1241,10 @@ void testIt(MSMetaData& md) {
                 }
                 cout << "*** i " << i << endl;
                 _printSet(md.getIntentsForField(i));
-
                 AlwaysAssert(md.getIntentsForField(i) == expec, AipsError);
+                AlwaysAssert(
+                    md.getIntentsForField(fieldNames[i]) == expec, AipsError
+                );
             }
         }
         {
@@ -1368,7 +1371,7 @@ void testIt(MSMetaData& md) {
         }
         {
             cout << "*** test getScanToFirstExposureTimeMap()" << endl;
-            map<ScanKey, MSMetaData::FirstExposureTimeMap> mymap
+            std::map<ScanKey, MSMetaData::FirstExposureTimeMap> mymap
                 = md.getScanToFirstExposureTimeMap(False);
             ScanKey scan;
             scan.arrayID = 0;
@@ -2152,9 +2155,9 @@ void testIt(MSMetaData& md) {
         }
         {
             cout << "test getRestFrequencies()" << endl;
-            map<SourceKey, SHARED_PTR<vector<MFrequency> > > rfs = md.getRestFrequencies();
-            map<SourceKey, SHARED_PTR<vector<MFrequency> > >::const_iterator iter = rfs.begin();
-            map<SourceKey, SHARED_PTR<vector<MFrequency> > >::const_iterator end = rfs.end();
+            std::map<SourceKey, std::shared_ptr<vector<MFrequency> > > rfs = md.getRestFrequencies();
+            std::map<SourceKey, std::shared_ptr<vector<MFrequency> > >::const_iterator iter = rfs.begin();
+            std::map<SourceKey, std::shared_ptr<vector<MFrequency> > >::const_iterator end = rfs.end();
             while (iter != end) {
                 if (iter->second ) {
                     AlwaysAssert(
@@ -2169,9 +2172,9 @@ void testIt(MSMetaData& md) {
         }
         {
             cout << "test getTransitions()" << endl;
-            map<SourceKey, SHARED_PTR<vector<String> > > rfs = md.getTransitions();
-            map<SourceKey, SHARED_PTR<vector<String> > >::const_iterator iter = rfs.begin();
-            map<SourceKey, SHARED_PTR<vector<String> > >::const_iterator end = rfs.end();
+            std::map<SourceKey, std::shared_ptr<vector<String> > > rfs = md.getTransitions();
+            std::map<SourceKey, std::shared_ptr<vector<String> > >::const_iterator iter = rfs.begin();
+            std::map<SourceKey, std::shared_ptr<vector<String> > >::const_iterator end = rfs.end();
             while (iter != end) {
                 if (iter->second ) {
                     AlwaysAssert(
@@ -2202,7 +2205,7 @@ void testIt(MSMetaData& md) {
             sskey.scan = 1;
             MSMetaData::SubScanProperties props = md.getSubScanProperties(sskey);
             AlwaysAssert(props.acRows + props.xcRows == 367, AipsError);
-            SHARED_PTR<const std::map<SubScanKey, MSMetaData::SubScanProperties> > allProps
+            std::shared_ptr<const std::map<SubScanKey, MSMetaData::SubScanProperties> > allProps
                 = md.getSubScanProperties();
             AlwaysAssert(
                 allProps->find(sskey)->second.acRows + allProps->find(sskey)->second.xcRows == 367,
@@ -2246,7 +2249,7 @@ void testIt(MSMetaData& md) {
             std::set<SubScanKey> sskeys = md.getSubScanKeys(arrayKey);
             std::set<SubScanKey>::const_iterator ssiter = sskeys.begin();
             std::set<SubScanKey>::const_iterator ssend = sskeys.end();
-            SHARED_PTR<const std::map<SubScanKey, std::set<String> > > mymap = md.getSubScanToIntentsMap();
+            std::shared_ptr<const std::map<SubScanKey, std::set<String> > > mymap = md.getSubScanToIntentsMap();
             for (; ssiter!=ssend; ++ssiter) {
                 std::set<String> intents = md.getIntentsForSubScan(*ssiter);
                 std::set<String> exp;
@@ -2423,7 +2426,7 @@ void testIt(MSMetaData& md) {
         }
         {
             cout << "*** test getScanToTimeRangeMap()" << endl;
-            SHARED_PTR<const std::map<ScanKey, std::pair<Double,Double> > > mymap
+            std::shared_ptr<const std::map<ScanKey, std::pair<Double,Double> > > mymap
                 = md.getScanToTimeRangeMap();
             ScanKey key;
             key.arrayID = 0;
@@ -2439,11 +2442,11 @@ void testIt(MSMetaData& md) {
             key.obsID = 0;
             key.scan = 1;
             key.fieldID = 0;
-            SHARED_PTR<const map<SubScanKey, uInt> > both = md.getNRowMap(MSMetaData::BOTH);
+            std::shared_ptr<const std::map<SubScanKey, uInt> > both = md.getNRowMap(MSMetaData::BOTH);
             AlwaysAssert(both->find(key)->second == 367, AipsError);
-            SHARED_PTR<const map<SubScanKey, uInt> > ac = md.getNRowMap(MSMetaData::AUTO);
+            std::shared_ptr<const std::map<SubScanKey, uInt> > ac = md.getNRowMap(MSMetaData::AUTO);
             AlwaysAssert(ac->find(key)->second == 51, AipsError);
-            SHARED_PTR<const map<SubScanKey, uInt> > xc = md.getNRowMap(MSMetaData::CROSS);
+            std::shared_ptr<const std::map<SubScanKey, uInt> > xc = md.getNRowMap(MSMetaData::CROSS);
             AlwaysAssert(xc->find(key)->second == 316, AipsError);
         }
         {
@@ -2474,7 +2477,7 @@ void testIt(MSMetaData& md) {
         }
         {
             cout << "*** test getFirstExposureTimeMap()" << endl;
-            vector<map<Int, Quantity> > mymap = md.getFirstExposureTimeMap();
+            vector<std::map<Int, Quantity> > mymap = md.getFirstExposureTimeMap();
             AlwaysAssert(mymap.size() == 25, AipsError);
             for (Int i=0; i<25; ++i) {
                 uInt expSize = 0;
@@ -2520,7 +2523,7 @@ void testIt(MSMetaData& md) {
         }
         {
             cout << "*** test getSourceTimes()" << endl;
-            SHARED_PTR<const Quantum<Vector<Double> > > times = md.getSourceTimes();
+            std::shared_ptr<const Quantum<Vector<Double> > > times = md.getSourceTimes();
             Vector<Double> v = times->getValue();
             AlwaysAssert(v.size() == 200, AipsError);
             AlwaysAssert(times->getUnit() == "s", AipsError);

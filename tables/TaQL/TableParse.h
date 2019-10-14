@@ -52,6 +52,7 @@ class TableExprNodeIndex;
 class TableColumn;
 class AipsIO;
 template<class T> class Vector;
+template<class T> class ArrayColumn;
 
 
 // <summary>
@@ -140,7 +141,7 @@ private:
 // <synopsis>
 // Parse and execute the given command.
 // It will open (and close) all tables needed.
-// It returns the resulting table. 
+// It returns the resulting table.
 // The command type (select or update) and the selected or updated
 // column names can be returned.
 // Zero or more temporary tables can be used in the command
@@ -150,21 +151,21 @@ private:
 TaQLResult tableCommand (const String& command);
 
 TaQLResult tableCommand (const String& command,
-			 const Table& tempTable);
+                         const Table& tempTable);
 TaQLResult tableCommand (const String& command,
-			 const std::vector<const Table*>& tempTables);
+                         const std::vector<const Table*>& tempTables);
 TaQLResult tableCommand (const String& command,
-			 Vector<String>& columnNames);
+                         Vector<String>& columnNames);
 TaQLResult tableCommand (const String& command,
-			 Vector<String>& columnNames,
-			 String& commandType);
+                         Vector<String>& columnNames,
+                         String& commandType);
 TaQLResult tableCommand (const String& command,
-			 const std::vector<const Table*>& tempTables,
-			 Vector<String>& columnNames);
+                         const std::vector<const Table*>& tempTables,
+                         Vector<String>& columnNames);
 TaQLResult tableCommand (const String& command,
-			 const std::vector<const Table*>& tempTables,
-			 Vector<String>& columnNames,
-			 String& commandType);
+                         const std::vector<const Table*>& tempTables,
+                         Vector<String>& columnNames,
+                         String& commandType);
 // </group>
 
 
@@ -276,19 +277,19 @@ public:
   // It checks if no aggregate functions are used.
   TableParseUpdate (const String& columnName,
                     const String& columnNameMask,
-		    const TableExprNodeSet& indices,
+                    const TableExprNodeSet& indices,
                     const TableExprNode&,
-		    const TaQLStyle&);
+                    const TaQLStyle&);
 
   // Construct from a column name, subscripts and mask, and expression.
   // It checks if no aggregate functions are used.
   // It checks if one of the indices represents subscripts, the other a mask.
   TableParseUpdate (const String& columnName,
                     const String& columnNameMask,
-		    const TableExprNodeSet& indices1,
-		    const TableExprNodeSet& indices2,
+                    const TableExprNodeSet& indices1,
+                    const TableExprNodeSet& indices2,
                     const TableExprNode&,
-		    const TaQLStyle&);
+                    const TaQLStyle&);
   // Handle the subscripts or mask.
   // It checks if subscripts or mask was not already used.
   void handleIndices (const TableExprNodeSet& indices,
@@ -388,7 +389,8 @@ public:
     PCOUNT,
     PCALC,
     PCRETAB,
-    PALTTAB
+    PALTTAB,
+    PSHOW
   };
 
   enum GroupAggrType {
@@ -456,7 +458,7 @@ public:
 
   // Keep the column specification in a create table command.
   void handleColSpec (const String& columnName, const String& dataType,
-		      const Record& spec, Bool isCOrder=False);
+                      const Record& spec, Bool isCOrder=False);
 
   // Reopen the table (for update) used in the ALTER TABLE command.
   void handleAltTab();
@@ -497,7 +499,7 @@ public:
   TableRecord& findKeyword (const String& name, String& keyName);
 
   // Add an update object.
-  void addUpdate (TableParseUpdate* upd);
+  void addUpdate (const CountedPtr<TableParseUpdate>& upd);
 
   // Set the insert expressions for all rows.
   void setInsertExprs (const std::vector<TableExprNode> exprs)
@@ -520,7 +522,7 @@ public:
 
   // Keep the sort expressions.
   void handleSort (const std::vector<TableParseSort>& sortList,
-		   Bool noDuplicates, Sort::Order defaultSortOrder);
+                   Bool noDuplicates, Sort::Order defaultSortOrder);
 
   // Evaluate and keep limit/offset/stride given as start:end:incr
   void handleLimit (const TableExprNodeSetElem& expr);
@@ -536,10 +538,11 @@ public:
 
   // Add a table nr, name, or object to the container.
   void addTable (Int tabnr, const String& name,
-		 const Table& table,
-		 const String& shorthand,
-		 const vector<const Table*> tempTables,
-		 const vector<TableParseSelect*>& stack);
+                 const Table& table,
+                 const String& shorthand,
+                 Bool addToFromList,
+                 const vector<const Table*> tempTables,
+                 const vector<TableParseSelect*>& stack);
 
   // Make a Table object for given name, seqnr or so.
   // If <src>alwaysOpen=False</src> the table will only be looked up,
@@ -562,26 +565,26 @@ public:
 
   // Handle a slice operator.
   static TableExprNode handleSlice (const TableExprNode& array,
-				    const TableExprNodeSet& indices,
-				    const TaQLStyle&);
+                                    const TableExprNodeSet& indices,
+                                    const TaQLStyle&);
 
   // Handle a function.
   TableExprNode handleFunc (const String& name,
-			    const TableExprNodeSet& arguments,
-			    const TaQLStyle&);
+                            const TableExprNodeSet& arguments,
+                            const TaQLStyle&);
 
   // Make a function object node for the given function name and arguments.
   // The ignoreFuncs vector contains invalid function codes.
   static TableExprNode makeFuncNode (TableParseSelect*,
                                      const String& name,
-				     const TableExprNodeSet& arguments,
-				     const Vector<int>& ignoreFuncs,
-				     const Table& table,
-				     const TaQLStyle&);
+                                     const TableExprNodeSet& arguments,
+                                     const Vector<int>& ignoreFuncs,
+                                     const Table& table,
+                                     const TaQLStyle&);
 
   // Add a column to the list of column names.
   void handleColumn (Int type, const String& name, const TableExprNode& expr,
-		     const String& newName, const String& nameMask,
+                     const String& newName, const String& nameMask,
                      const String& newDtype);
 
   // Finish the addition of columns to the list of column names.
@@ -606,6 +609,9 @@ public:
   // An exception is thrown if the node uses an aggregate function.
   static void checkAggrFuncs (const TableExprNode& node);
 
+  // Show the structure of fromTables_p[0] using the options given in parts[2:].
+  String getTableInfo (const Vector<String>& parts, const TaQLStyle& style);
+
   // Split a name into its parts (shorthand, column and field names).
   // True is returned if the name contained a keyword part.
   // In that case fieldNames contains the keyword name and the possible
@@ -625,7 +631,7 @@ private:
   // <br> bit 0:  on = groupby is given
   // <br> bit 1:  on = aggregate functions are given
   // <br> bit 2:  on = only select count(*) aggregate function is given
-  Int testGroupAggr (vector<TableExprNodeRep*>& aggr) const;
+  Int testGroupAggr (std::vector<TableExprNodeRep*>& aggr) const;
 
   // Get the aggregate functions used in SELECT and HAVING.
   vector<TableExprNodeRep*> getAggrNodes() const;
@@ -640,10 +646,9 @@ private:
   // Find the function code belonging to a function name.
   // Functions to be ignored can be given (as function type values).
   // If the function name is unknown, NRFUNC is returned.
-  static TableExprFuncNode::FunctionType findFunc
-                                   (const String& name,
-				    uInt narguments,
-				    const Vector<Int>& ignoreFuncs);
+  static TableExprFuncNode::FunctionType findFunc (const String& name,
+                                                   uInt narguments,
+                                                   const Vector<Int>& ignoreFuncs);
 
   // Do the update step.
   // Rows 0,1,2,.. in UpdTable are updated from the expression result
@@ -698,7 +703,7 @@ private:
 
   // Do the groupby/aggregate step and return its result.
   CountedPtr<TableExprGroupResult> doGroupby
-  (bool showTimings, vector<TableExprNodeRep*> aggrNodes,
+  (bool showTimings, const std::vector<TableExprNodeRep*> aggrNodes,
    Int groupAggrUsed);
 
   // Do the HAVING step.
@@ -710,7 +715,7 @@ private:
 
   // Do a full groupby/aggregate step.
   CountedPtr<TableExprGroupResult> doGroupByAggr
-  (const vector<TableExprNodeRep*>& aggrNodes);
+  (const std::vector<TableExprNodeRep*>& aggrNodes);
 
   // Do the sort step.
   void doSort (Bool showTimings);
@@ -765,7 +770,7 @@ private:
   // Make a data type from the string.
   // It checks if it is compatible with the given (expression) data type.
   DataType makeDataType (DataType dtype, const String& dtstr,
-			 const String& colName);
+                         const String& colName);
 
   // Get the order for this key. Use the default order_p if not
   // explicitly given with the key.
@@ -781,9 +786,10 @@ private:
   Int64 evalIntScaExpr (const TableExprNode& expr) const;
 
   // Find a table for the given shorthand.
+  // Optionally the WITH tables are searched as well.
   // If no shorthand is given, the first table is returned (if there).
   // If not found, a null Table object is returned.
-  Table findTable (const String& shorthand) const;
+  Table findTable (const String& shorthand, Bool doWith) const;
 
   // Handle the selection of a wildcarded column name.
   void handleWildColumn (Int stringType, const String& name);
@@ -791,12 +797,13 @@ private:
   // Add the description of a column to the table description.
   // ndim < 0 means a scalar column.
   void addColumnDesc (TableDesc& td, DataType dtype,
-		      const String& colName, Int options,
-		      Int ndim, const IPosition& shape,
-		      const String& dmType, const String& dmGroup,
-		      const String& comment,
+                      const String& colName, Int options,
+                      Int ndim, const IPosition& shape,
+                      const String& dmType, const String& dmGroup,
+                      const String& comment,
                       const TableRecord& keywordSet,
-		      const String& unitName);
+                      const Vector<String>& unitName,
+                      const Record& attributes);
 
   // Find the names of all stored columns in a table.
   Block<String> getStoredColumns (const Table& tab) const;
@@ -806,14 +813,14 @@ private:
   // If not found, an exception is thrown.
   static Table tableKey (const String& fullName,
                          const String& shorthand, const String& columnName,
-			 const Vector<String>& fieldNames,
-			 const vector<TableParseSelect*>& stack);
+                         const Vector<String>& fieldNames,
+                         const vector<TableParseSelect*>& stack);
 
   // Try to find the keyword representing a table in the given table.
   // If the columnName is empty, the keyword is a table keyword.
   // If not found, a null Table object is returned.
   static Table findTableKey (const Table& table, const String& columnName,
-			     const Vector<String>& keyNames);
+                             const Vector<String>& keyNames);
 
   // Check if the tables used in selection columns have the same
   // size as the first table given in FROM.
@@ -823,7 +830,7 @@ private:
   // a single groupby key is given.
   // This offers much faster map access then doGroupByAggrMultiple.
   template<typename T>
-  vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrSingleKey
+  std::vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrSingleKey
   (const vector<TableExprNodeRep*>& aggrNodes)
   {
     // We have to group the data according to the (possibly empty) groupby.
@@ -860,16 +867,17 @@ private:
 
   // Create the set of aggregate functions and groupby keys in case
   // multiple keys are given.
-  vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrMultipleKeys
+  std::vector<CountedPtr<TableExprGroupFuncSet> > doGroupByAggrMultipleKeys
   (const vector<TableExprNodeRep*>& aggrNodes);
 
   //# Command type.
   CommandType commandType_p;
   //# Table description for a series of column descriptions.
   TableDesc tableDesc_p;
-  //# Vector of TableParse objects.
+  //# Vector of TableParse objects (from WITH and FROM clause).
   //# This is needed for the functions above, otherwise they have no
   //# way to communicate.
+  vector<TableParse> withTables_p;
   vector<TableParse> fromTables_p;
   //# Block of selected column names (new name in case of select).
   Block<String> columnNames_p;
@@ -901,7 +909,7 @@ private:
   TableExprNode node_p;
   //# The GROUPBY expressions.
   vector<TableExprNode> groupbyNodes_p;
-  Bool groupbyRollup_p;   //# use ROLLUP in GROUPBY? 
+  Bool groupbyRollup_p;   //# use ROLLUP in GROUPBY?
   //# The HAVING expression.
   TableExprNode havingNode_p;
   //# The possible limit (= max nr of selected rows) (0 means no limit).
@@ -914,7 +922,7 @@ private:
   //# The possible stride in offset:endrow:stride.
   Int64 stride_p;
   //# The update and insert list.
-  std::vector<TableParseUpdate*> update_p;
+  std::vector<CountedPtr<TableParseUpdate>> update_p;
   //# The insert expressions (possibly for multiple rows).
   std::vector<TableExprNode> insertExprs_p;
   //# The table selection to be inserted.
@@ -990,7 +998,7 @@ inline const Block<String>& TableParseSelect::getColumnNames() const
 inline const Table& TableParseSelect::getTable() const
   { return table_p; }
 
-inline void TableParseSelect::addUpdate (TableParseUpdate* upd)
+inline void TableParseSelect::addUpdate (const CountedPtr<TableParseUpdate>& upd)
   { update_p.push_back (upd); }
 
 inline Sort::Order TableParseSelect::getOrder (const TableParseSort& key) const

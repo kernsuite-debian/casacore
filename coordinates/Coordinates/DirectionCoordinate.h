@@ -331,6 +331,10 @@ public:
     // <group>
     virtual Bool toWorld(Vector<Double> &world, 
 			 const Vector<Double> &pixel, Bool useConversionFrame=True) const;
+
+    // <src>world</src> values must have units equivalent to the world axis
+    // units. If the coordinate has a conversion layer, the world coordinates
+    // must be supplied in the conversion frame.
     virtual Bool toPixel(Vector<Double> &pixel, 
 			 const Vector<Double> &world) const;
     // </group>
@@ -579,19 +583,23 @@ public:
     // get the pixel area.
     Quantity getPixelArea() const;
 
-    // Convert this coordinate to another reference frame by rotating it
-    // about the reference pixel so the the axes of the new reference frame
-    // are aligned along the cardinal directions (left-right, up-down).
-    // The reference pixel remains the same and the conversion is
-    // exact for the reference pixel and in general becomes less accurate
-    // as distance from reference pixel increases. The latitude like and
-    // the longitude like pixel increments are preserved.
-    // Conversions for which require extra information such as epoch and
-    // position are not supported. The <src>angle</src> parameter is the angle
-    // through which this coordinate had to be rotated clockwise to produce
-    // the new coordinate.
-    DirectionCoordinate convert(Quantity& angle,
-                                MDirection::Types directionType) const;
+    // Convert this coordinate to another reference frame by rotating it about
+    // the reference pixel so the the axes of the new reference frame are
+    // aligned along the current pixel axes. The reference pixel remains the
+    // same and the conversion is exact for the reference pixel and in general
+    // becomes less accurate as distance from reference pixel increases. The
+    // latitude like and the longitude like pixel increments are preserved.
+    // Conversions which require extra information such as epoch and position
+    // are not supported. The <src>angle</src> parameter is the angle between
+    // the new coordinate and the pixel coordinate, measured clockwise from the
+    // positive y-axis of the new coordinate to the positive y-axis of the pixel
+    // coordinate; ie, it is the clockwise angle through which the current world
+    // coordinate would have to be rotated so that the new coordinate's axes
+    // would be parallel to the pixel axes. The accuracy of the returned angle
+    // is good to at least 7 digits.
+    DirectionCoordinate convert(
+        Quantity& angle, MDirection::Types directionType
+    ) const;
 
     // Set the projection.
     void setProjection(const Projection&);
@@ -719,9 +727,6 @@ private:
     // Return unit conversion vector for converting to current units
     const Vector<Double> toCurrentFactors () const;
 
-    static Double _longitudeDifference(const Quantity& longAngleDifference,
-                                       const Quantity& latitude,
-                                       const Quantity& longitudePixelIncrement);
 };
 
 } //# NAMESPACE CASACORE - END

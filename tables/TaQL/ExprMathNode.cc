@@ -36,7 +36,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // Implement the arithmetic operators for each data type.
 
 TableExprNodePlus::TableExprNodePlus (NodeDataType dt,
-				      const TableExprNodeRep& node)
+                                      const TableExprNodeRep& node)
 : TableExprNodeBinary (dt, node, OtPlus)
 {}
 TableExprNodePlus::~TableExprNodePlus()
@@ -94,13 +94,13 @@ void TableExprNodePlusDate::handleUnits()
     }
 }
 MVTime TableExprNodePlusDate::getDate(const TableExprId& id)
-{ return lnode_p->getDouble(id) + rnode_p->getDouble(id); }
+    { return lnode_p->getDouble(id) + rnode_p->getDouble(id); }
 Double TableExprNodePlusDate::getDouble(const TableExprId& id)
-{ return lnode_p->getDouble(id) + rnode_p->getDouble(id); }
+    { return lnode_p->getDouble(id) + rnode_p->getDouble(id); }
 
 
 TableExprNodeMinus::TableExprNodeMinus (NodeDataType dt,
-					const TableExprNodeRep& node)
+                                        const TableExprNodeRep& node)
 : TableExprNodeBinary (dt, node, OtMinus)
 {}
 TableExprNodeMinus::~TableExprNodeMinus()
@@ -169,7 +169,7 @@ Double TableExprNodeMinusDate::getDouble(const TableExprId& id)
 
 
 TableExprNodeTimes::TableExprNodeTimes (NodeDataType dt,
-					const TableExprNodeRep& node)
+                                        const TableExprNodeRep& node)
 : TableExprNodeBinary (dt, node, OtTimes)
 {}
 TableExprNodeTimes::~TableExprNodeTimes()
@@ -182,8 +182,8 @@ void TableExprNodeTimes::handleUnits()
         setUnit (lnode_p->unit());
     } else {
         Quantity q1 (1, lnode_p->unit());
-	Quantity q2 (1, rnode_p->unit());
-	setUnit ((q1*q2).getFullUnit());
+        Quantity q2 (1, rnode_p->unit());
+        setUnit ((q1*q2).getFullUnit());
     }
 }
 
@@ -219,7 +219,7 @@ DComplex TableExprNodeTimesDComplex::getDComplex (const TableExprId& id)
 
 
 TableExprNodeDivide::TableExprNodeDivide (NodeDataType dt,
-					  const TableExprNodeRep& node)
+                                          const TableExprNodeRep& node)
 : TableExprNodeBinary (dt, node, OtDivide)
 {}
 TableExprNodeDivide::~TableExprNodeDivide()
@@ -239,13 +239,13 @@ void TableExprNodeDivide::handleUnits()
         &&  (rnode_p->dataType() == NTDouble  ||  rnode_p->dataType() == NTInt)
         &&  rnode_p->getDouble(0) == 86400.
         &&  lnode_p->unit().getName() == "s") {
-	    setUnit ("d");
-	} else {
-	    setUnit (lnode_p->unit());
-	}
+            setUnit ("d");
+        } else {
+            setUnit (lnode_p->unit());
+        }
     } else {
         Quantity q1 (1, lnode_p->unit());
-	Quantity q2 (1, rnode_p->unit());
+        Quantity q2 (1, rnode_p->unit());
         // If same unit kinds, result is no unit.
         if (q1.isConform (q2)) {
             makeEqualUnits (lnode_p, rnode_p);
@@ -275,14 +275,14 @@ DComplex TableExprNodeDivideDComplex::getDComplex (const TableExprId& id)
 
 
 TableExprNodeModulo::TableExprNodeModulo (NodeDataType dt,
-					  const TableExprNodeRep& node)
+                                          const TableExprNodeRep& node)
 : TableExprNodeBinary (dt, node, OtModulo)
 {}
 TableExprNodeModulo::~TableExprNodeModulo()
 {}
 void TableExprNodeModulo::handleUnits()
 {
-    setUnit (lnode_p->unit());
+    TableExprNodeBinary::handleUnits();
 }
 
 TableExprNodeModuloInt::TableExprNodeModuloInt (const TableExprNodeRep& node)

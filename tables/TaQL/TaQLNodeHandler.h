@@ -100,7 +100,7 @@ public:
   // Handle and process the raw parse tree.
   // The result contains a Table or TableExprNode object.
   TaQLNodeResult handleTree (const TaQLNode& tree,
-			     const std::vector<const Table*>&);
+                             const std::vector<const Table*>&);
 
   // Define the functions to visit each node type.
   // <group>
@@ -162,8 +162,12 @@ private:
   // Optionally the command is not executed (needed for the EXISTS operator).
   TaQLNodeResult handleSelect (const TaQLSelectNodeRep& node, Bool doExec);
 
+  // Handle a table name or temptable number in the given node
+  // and put it in the value result.
+  void handleTableName (TaQLNodeHRValue* hrval, const TaQLNode& node);
+  
   // Handle a MultiNode containing table info.
-  void handleTables (const TaQLMultiNode&);
+  void handleTables (const TaQLMultiNode&, Bool addToFromList=True);
 
   // Make a ConcatTable from a nested set of tables.
   Table makeConcatTable (const TaQLMultiNodeRep& node);
