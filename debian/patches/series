@@ -7,3 +7,4 @@ Make-the-check-for-NFS-a-bit-more-portable-BSD.patch
 Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
 #Fixed-compile-error-in-LatticeMath.patch
+Adjust-soversion-for-shared-libs.patch

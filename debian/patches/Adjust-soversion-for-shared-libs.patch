@@ -1,0 +1,18 @@
+From: Athanaseus Ramaila <aramaila@ska.ac.za>
+Date: Wed, 21 Nov 2018 10:15:17 +0000
+Subject: Adjust soversion for shared libs 
+
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1840ccb7b..7166ffd94 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -25,7 +25,7 @@ set(PROJECT_VERSION_PATCH 2)
+ set(PROJECT_VERSION 
+   "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+ 
+-SET(PROJECT_SOVERSION 3)
++SET(PROJECT_SOVERSION 4)
+ 
+ SET(NO_SOVERSION FALSE CACHE BOOL "do not add version information to shared libraries")
+ set (CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
