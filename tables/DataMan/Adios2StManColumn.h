@@ -29,6 +29,7 @@
 #define ADIOS2STMANCOLUMN_H
 
 #include <unordered_map>
+#include <numeric>
 #include <casacore/casa/Arrays/Array.h>
 #include <casacore/tables/DataMan/StManColumn.h>
 #include <casacore/tables/Tables/RefRows.h>
@@ -42,12 +43,16 @@ namespace casacore
 class Adios2StManColumn : public StManColumn
 {
 public:
-    Adios2StManColumn(Adios2StMan::impl *aParent, int aDataType, String aColName, std::shared_ptr<adios2::IO> aAdiosIO);
+    Adios2StManColumn(Adios2StMan::impl *aParent,
+            int aDataType,
+            String aColName,
+            std::shared_ptr<adios2::IO> aAdiosIO);
 
     virtual Bool canAccessSlice (Bool& reask) const { reask = false; return true; };
+    virtual Bool canAccessColumnSlice (Bool& reask) const { reask = false; return true; };
 
     virtual void create(std::shared_ptr<adios2::Engine> aAdiosEngine,
-                        char aOpenMode) = 0;
+                        char aOpenMode, size_t aReaderCacheRows) = 0;
     virtual void setShapeColumn(const IPosition &aShape);
     virtual IPosition shape(uInt aRowNr);
     Bool canChangeShape() const;
@@ -115,6 +120,9 @@ protected:
     void scalarVToSelection(uInt rownr);
     void arrayVToSelection(uInt rownr);
     void sliceVToSelection(uInt rownr, const Slicer &ns);
+    void columnSliceVToSelection(const Slicer &ns);
+    void columnSliceCellsVToSelection(const RefRows &rows, const Slicer &ns);
+    void columnSliceCellsVToSelection(uInt row_start, uInt row_end, const Slicer &ns);
 
     Adios2StMan::impl *itsStManPtr;
 
@@ -147,19 +155,26 @@ public:
     {
     }
 
-    void create(std::shared_ptr<adios2::Engine> aAdiosEngine, char aOpenMode)
+    void create(std::shared_ptr<adios2::Engine> aAdiosEngine, char aOpenMode, size_t aReaderCacheRows)
     {
         itsAdiosEngine = aAdiosEngine;
         itsAdiosOpenMode = aOpenMode;
+        itsReadCacheMaxRows = aReaderCacheRows;
         itsAdiosVariable = itsAdiosIO->InquireVariable<T>(itsColumnName);
-        if (!itsAdiosVariable && aOpenMode == 'w')
+        if(aOpenMode == 'r')
         {
-            itsAdiosVariable = itsAdiosIO->DefineVariable<T>(
-                itsColumnName,
-                itsAdiosShape,
-                itsAdiosStart,
-                itsAdiosCount);
+            size_t cacheSize = std::accumulate(
+                    itsAdiosShape.begin() + 1,
+                    itsAdiosShape.end(),
+                    itsReadCacheMaxRows,
+                    std::multiplies<size_t>());
+            itsReadCache.resize(cacheSize);
         }
+        itsArraySize = std::accumulate(
+                itsAdiosShape.begin() + 1,
+                itsAdiosShape.end(),
+                1,
+                std::multiplies<size_t>());
     }
 
     virtual void putArrayV(uInt rownr, const void *dataPtr)
@@ -171,7 +186,26 @@ public:
     virtual void getArrayV(uInt rownr, void *dataPtr)
     {
         arrayVToSelection(rownr);
-        fromAdios(dataPtr);
+        if(itsReadCacheMaxRows > 0)
+        {
+            if(itsAdiosStart[0] < itsReadCacheStartRow or itsAdiosStart[0] >= itsReadCacheStartRow + itsReadCacheRows)
+            {
+                itsAdiosCount[0] = itsReadCacheMaxRows;
+                itsReadCacheRows = itsReadCacheMaxRows;
+                fromAdios(itsReadCache.data());
+            }
+            Bool deleteIt;
+            auto *arrayPtr = asArrayPtr(dataPtr);
+            T *data = arrayPtr->getStorage(deleteIt);
+            size_t index = itsArraySize * (itsAdiosStart[0] - itsReadCacheStartRow);
+            size_t length = sizeof(T) * itsArraySize;
+            std::memcpy(data, itsReadCache.data() + index, length);
+            arrayPtr->putStorage(data, deleteIt);
+        }
+        else
+        {
+            fromAdios(dataPtr);
+        }
     }
 
     virtual void putScalarV(uInt rownr, const void *dataPtr)
@@ -252,21 +286,40 @@ public:
         fromAdios(dataPtr);
     }
 
+    virtual void putColumnSliceV(const Slicer &ns, const void *dataPtr)
+    {
+        columnSliceVToSelection(ns);
+        toAdios(dataPtr);
+    }
+
     virtual void getColumnSliceV(const Slicer &ns, void *dataPtr)
     {
-        itsAdiosStart[0] = 0;
-        itsAdiosCount[0] = itsAdiosShape[0];
-        for (size_t i = 1; i < itsAdiosShape.size(); ++i)
-        {
-            itsAdiosStart[i] = ns.start()(i - 1);
-            itsAdiosCount[i] = ns.length()(i - 1);
-        }
+        columnSliceVToSelection(ns);
         fromAdios(dataPtr);
     }
 
+    virtual void getColumnSliceCellsV(const RefRows& rownrs,
+                                      const Slicer& slicer, void* dataPtr)
+    {
+        columnSliceCellsVToSelection(rownrs, slicer);
+        fromAdios(dataPtr);
+    }
+
+    virtual void putColumnSliceCellsV (const RefRows& rownrs,
+                                       const Slicer& slicer, const void* dataPtr)
+    {
+        columnSliceCellsVToSelection(rownrs, slicer);
+        toAdios(dataPtr);
+    }
+
 private:
-    adios2::Variable<T> itsAdiosVariable;
     const String itsStringArrayBarrier = "ADIOS2BARRIER";
+    adios2::Variable<T> itsAdiosVariable;
+    size_t itsReadCacheStartRow = 0;
+    size_t itsReadCacheRows = 0;
+    size_t itsReadCacheMaxRows;
+    size_t itsArraySize;
+    std::vector<T> itsReadCache;
 
     Array<T> *asArrayPtr(void *dataPtr) const
     {
@@ -280,7 +333,18 @@ private:
 
     void toAdios(const T *data)
     {
-        itsAdiosVariable.SetSelection({itsAdiosStart, itsAdiosCount});
+        if (!itsAdiosVariable)
+        {
+            itsAdiosVariable = itsAdiosIO->DefineVariable<T>(
+                    itsColumnName,
+                    itsAdiosShape,
+                    itsAdiosStart,
+                    itsAdiosCount);
+        }
+        else
+        {
+            itsAdiosVariable.SetSelection({itsAdiosStart, itsAdiosCount});
+        }
         itsAdiosEngine->Put<T>(itsAdiosVariable, data, adios2::Mode::Sync);
     }
 
