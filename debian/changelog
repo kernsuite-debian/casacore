@@ -4,7 +4,7 @@ casacore (3.2.1-1kern1) bionic; urgency=medium
   * New upstream version 3.2.1
   * Adjust SOVERSION for all libs
 
- -- athanaseus <athanaseus@athanaseus-E5550>  Fri, 22 Nov 2019 12:54:42 +0200
+ -- KERN packaging <packaging@kernsuite.info>  Fri, 22 Nov 2019 12:54:42 +0200
 
 casacore (3.1.2-1kern1) bionic; urgency=medium
 
