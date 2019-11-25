@@ -2301,6 +2301,7 @@ libcasa_scimath.so.4 libcasa-scimath4 #MINVER#
  _ZNSt6vectorIdSaIdEE17_M_realloc_insertIJRKdEEEvN9__gnu_cxx17__normal_iteratorIPdS1_EEDpOT_@Base 3.2.1
  _ZNSt6vectorIdSaIdEE17_M_realloc_insertIJdEEEvN9__gnu_cxx17__normal_iteratorIPdS1_EEDpOT_@Base 3.2.1
  _ZNSt6vectorIdSaIdEEaSERKS1_@Base 3.2.1
+ _ZNSt6vectorIfSaIfEE17_M_default_appendEm@Base 3.2.1
  _ZNSt7__cxx1115basic_stringbufIcSt11char_traitsIcESaIcEED0Ev@Base 3.2.1
  _ZNSt7__cxx1115basic_stringbufIcSt11char_traitsIcESaIcEED1Ev@Base 3.2.1
  _ZNSt7__cxx1115basic_stringbufIcSt11char_traitsIcESaIcEED2Ev@Base 3.2.1
