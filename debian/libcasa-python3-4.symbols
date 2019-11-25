@@ -1,4 +1,4 @@
-libcasa_python3.so.4 libcasa-python34 #MINVER#
+libcasa_python3.so.4 libcasa-python3-4 #MINVER#
  _ZGVN5boost6python9converter6detail15registered_baseIRVKN8casacore6StringEE10convertersE@Base 3.2.1
  _ZGVN5boost6python9converter6detail15registered_baseIRVKN8casacore6VectorINS4_6StringEEEE10convertersE@Base 3.2.1
  _ZGVN5boost6python9converter6detail15registered_baseIRVKN8casacore9IPositionEE10convertersE@Base 3.2.1
