@@ -2735,7 +2735,6 @@ libcasa_images.so.4 libcasa-images4 #MINVER#
  _ZN8casacore5ArrayINS_12GaussianBeamEE10assignBaseERKNS_9ArrayBaseEb@Base 3.2.1
  _ZN8casacore5ArrayINS_12GaussianBeamEE10getStorageERb@Base 3.2.1
  _ZN8casacore5ArrayINS_12GaussianBeamEE10putStorageERPS1_b@Base 3.2.1
- _ZN8casacore5ArrayINS_12GaussianBeamEE10setEndIterEv@Base 3.2.1
  _ZN8casacore5ArrayINS_12GaussianBeamEE11getVStorageERb@Base 3.2.1
  _ZN8casacore5ArrayINS_12GaussianBeamEE11putVStorageERPvb@Base 3.2.1
  _ZN8casacore5ArrayINS_12GaussianBeamEE11takeStorageERKNS_9IPositionEPKS1_@Base 3.2.1
