@@ -46,7 +46,7 @@ Depends: libcasa-casa4 (= ${binary:Version}),
          libcasa-scimath-f4 (= ${binary:Version}),
          libcasa-scimath4 (= ${binary:Version}),
          libcasa-tables4 (= ${binary:Version}),
-         ${misc:Depends}, ${shlibs:Depends}
+         ${misc:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Description: CASA core library development files
  The casacore package contains the core libraries of the old
