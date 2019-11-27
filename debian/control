@@ -91,7 +91,7 @@ Description: Tools built with CASA
 Package: libcasa-casa4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA core modules
@@ -115,7 +115,7 @@ Description: CASA core modules
 Package: libcasa-scimath4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA basic mathematical modules
@@ -130,7 +130,7 @@ Description: CASA basic mathematical modules
 Package: libcasa-scimath-f4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA scimath F library
@@ -145,7 +145,7 @@ Description: CASA scimath F library
 Package: libcasa-python4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA legacy Python 2 bindings
@@ -159,7 +159,7 @@ Description: CASA legacy Python 2 bindings
 Package: libcasa-python3-4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA Python bindings
@@ -173,7 +173,7 @@ Description: CASA Python bindings
 Package: libcasa-tables4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA table system
@@ -188,7 +188,7 @@ Description: CASA table system
 Package: libcasa-measures4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Recommends: casacore-data
 Multi-Arch: same
@@ -208,7 +208,7 @@ Description: CASA measures library
 Package: libcasa-lattices4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA lattice library
@@ -223,7 +223,7 @@ Description: CASA lattice library
 Package: libcasa-fits4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA FITS library
@@ -237,7 +237,7 @@ Description: CASA FITS library
 Package: libcasa-ms4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA MeasurementSet library
@@ -253,7 +253,7 @@ Description: CASA MeasurementSet library
 Package: libcasa-derivedmscal4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA derived mscal library
@@ -268,7 +268,7 @@ Description: CASA derived mscal library
 Package: libcasa-msfits4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA msfits library
@@ -282,7 +282,7 @@ Description: CASA msfits library
 Package: libcasa-coordinates4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA coordinates library
@@ -297,7 +297,7 @@ Description: CASA coordinates library
 Package: libcasa-images4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA image processing library
@@ -312,7 +312,7 @@ Description: CASA image processing library
 Package: libcasa-meas4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA functions handling measures
@@ -327,7 +327,7 @@ Description: CASA functions handling measures
 Package: libcasa-mirlib4
 Section: libs
 Architecture: any
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Multi-Arch: same
 Description: CASA mirlib library
