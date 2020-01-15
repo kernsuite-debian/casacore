@@ -1,3 +1,12 @@
+casacore (3.2.1-4kern1) bionic; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * Remove debian/compat
+  * Push Standards-Version to 4.4.1
+  * Rediff patches
+
+ -- KERN packaging <packaging@kernsuite.info>  Wed, 15 Jan 2020 15:19:24 +0200
+
 casacore (3.2.1-1kern1) bionic; urgency=medium
 
   [ Athanaseus Javas Ramaila ]
