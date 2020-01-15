@@ -2,34 +2,6 @@ From: Ole Streicher <olebole@debian.org>
 Date: Fri, 2 Dec 2016 11:11:28 +0100
 Subject: Disable known test failures
 
-Disable tPath test
-
-sbuild gets HOME variable leaked into the build environment.  Debian
-uses sbuild as official build farm.  Until the cause is pinned down,
-this test is disabled.
-
- 98/425 Test #101: tPath ...............................***Failed    0.64 sec
-1,16d0
-< expanded: /home/heroxbd
-< expected: /<<PKGBUILDDIR>>
-< absolute: /home/heroxbd
-< expected: /<<PKGBUILDDIR>>
-< expanded: /home/heroxbd/test/test2
-< expected: /<<PKGBUILDDIR>>/test/test2
-< absolute: /home/heroxbd/test/test2
-< expected: /<<PKGBUILDDIR>>/test/test2
-< expanded: /home/heroxbd/test
-< expected: /<<PKGBUILDDIR>>/test
-< absolute: /home/heroxbd/test
-< expected: /<<PKGBUILDDIR>>/test
-< expanded: /home/heroxbd/test
-< expected: /<<PKGBUILDDIR>>/test
-< absolute: /home/heroxbd/test
-< expected: /<<PKGBUILDDIR>>/test
-33a18
-> OK
-FAIL (output not verified): ./tPath
-
 Disable tLSQaips and tLSQFit tests
 
 These tests fail, probably due to the test itself. From
@@ -45,11 +17,12 @@ in the logs, but not have the build fail if only those tests fail.
 ---
  casa/IO/test/CMakeLists.txt              | 4 ++--
  casa/OS/test/CMakeLists.txt              | 9 ++++-----
+ casa/System/test/CMakeLists.txt          | 2 +-
  images/Images/test/CMakeLists.txt        | 2 +-
  lattices/LatticeMath/test/CMakeLists.txt | 2 +-
  scimath/Fitting/test/CMakeLists.txt      | 4 ++--
  tables/TaQL/test/CMakeLists.txt          | 4 ++--
- 6 files changed, 12 insertions(+), 13 deletions(-)
+ 7 files changed, 13 insertions(+), 14 deletions(-)
 
 diff --git a/casa/IO/test/CMakeLists.txt b/casa/IO/test/CMakeLists.txt
 index 188a6c4..3187b60 100644
@@ -97,6 +70,19 @@ index 520ceed..e5c9ee3 100644
  tTime
  tTimer
  tVAXConversion
+diff --git a/casa/System/test/CMakeLists.txt b/casa/System/test/CMakeLists.txt
+index 790da89..8c3c3ea 100644
+--- a/casa/System/test/CMakeLists.txt
++++ b/casa/System/test/CMakeLists.txt
+@@ -5,7 +5,7 @@ tAppInfo
+ tAppState
+ tCasarc01
+ tChoice
+-tObjectID
++# tObjectID # https://github.com/casacore/casacore/issues/986
+ )
+
+ foreach (test ${tests})
 diff --git a/images/Images/test/CMakeLists.txt b/images/Images/test/CMakeLists.txt
 index 4115c29..6865919 100644
 --- a/images/Images/test/CMakeLists.txt
