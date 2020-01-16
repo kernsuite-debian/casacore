@@ -1,4 +1,4 @@
-Fromm: Ole Streicher <olebole@debian.org>
+From: Ole Streicher <olebole@debian.org>
 Date: Tue, 3 Dec 2019 17:09:32 +0100
 Subject: Fall back to older cmake functions to find Python 3
 
