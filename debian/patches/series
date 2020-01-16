@@ -6,3 +6,4 @@ Loose-some-tests-tFFTServer-tests.patch
 Make-the-check-for-NFS-a-bit-more-portable-BSD.patch
 Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
+Fall-back-to-older-cmake-functions-to-find-Python-3.patch
