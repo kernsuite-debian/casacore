@@ -1,0 +1,23 @@
+From: Ole Streicher <olebole@debian.org>
+Date: Tue, 3 Dec 2019 17:09:32 +0100
+Subject: Fall back to older cmake functions to find Python 3
+
+This is a workaround that cmake will fail when the default Python
+version is not the newest one. Reference: #945825
+---
+ python3/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/python3/CMakeLists.txt b/python3/CMakeLists.txt
+index 5e68684..da1ca02 100644
+--- a/python3/CMakeLists.txt
++++ b/python3/CMakeLists.txt
+@@ -1,7 +1,7 @@
+ # It would be nice to use CMAKE_VERSION instead but that requires CMake 2.6.3
+ if(${CMAKE_MAJOR_VERSION} GREATER 3 OR
+   (${CMAKE_MAJOR_VERSION} EQUAL 3 AND ${CMAKE_MINOR_VERSION} GREATER 13))
+-    include (${CMAKE_CURRENT_LIST_DIR}/CMakeLists-cmake3.14.txt)
++    include (${CMAKE_CURRENT_LIST_DIR}/CMakeLists-older-cmake.txt)
+ else()
+     include (${CMAKE_CURRENT_LIST_DIR}/CMakeLists-older-cmake.txt)
+ endif()

@@ -3,8 +3,8 @@ Date: Sun, 27 Nov 2016 15:26:25 +0100
 Subject: Enable hostinfo for kFreeBSD
 
 ---
- casa/aipsenv.h        | 2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ casa/aipsenv.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/casa/aipsenv.h b/casa/aipsenv.h
 index 64139ec..8cd6ac0 100644
