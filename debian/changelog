@@ -2,6 +2,7 @@ casacore (3.3.0-1kern1) bionic; urgency=medium
 
   [ Athanaseus Javas Ramaila ]
   * New upstream version 3.3.0
+  * Adjust SOVERSION for all libs
 
  -- KERN packaging <packaging@kernsuite.info>  Mon, 20 Apr 2020 10:58:34 +0200
 
