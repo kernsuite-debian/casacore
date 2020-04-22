@@ -28,6 +28,7 @@
 #include <casacore/ms/MSOper/MSConcat.h>
 #include <casacore/casa/Arrays/Vector.h>
 #include <casacore/casa/Arrays/Matrix.h>
+#include <casacore/casa/Arrays/Cube.h>
 #include <casacore/casa/Arrays/ArrayMath.h>
 #include <casacore/casa/Containers/Block.h>
 #include <casacore/casa/Containers/Record.h>
@@ -78,6 +79,7 @@ MSConcat::MSConcat(MeasurementSet& ms):
   itsRespectForFieldName = False;
   doSource_p=False;
   doObsA_p = doObsB_p = False;
+  doProcA_p = doProcB_p = False;
 }
 
 IPosition MSConcat::isFixedShape(const TableDesc& td) {
@@ -338,6 +340,9 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   // OBSERVATION
   copyObservation(otherMS.observation(), True);
 
+  // PROCESSOR
+  copyProcessor(otherMS.processor(), True);
+
   // POINTING
   if(!antIndexTrivial){
     copyPointingB(otherMS.pointing(), newAntIndices);
@@ -387,6 +392,8 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   ArrayColumn<Float>& otherWeightSp = otherMainCols.weightSpectrum();
   ArrayColumn<Float>& otherSigma = otherMainCols.sigma();
   ArrayColumn<Float>& otherSigmaSp = otherMainCols.sigmaSpectrum();
+  ArrayColumn<Bool>& otherFlag = otherMainCols.flag();
+  ArrayColumn<Bool>& otherFlagCat = otherMainCols.flagCategory();
 
   ScalarColumn<Int>& otherAnt1Col = otherMainCols.antenna1();
   ScalarColumn<Int>& otherAnt2Col = otherMainCols.antenna2();
@@ -395,10 +402,12 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   ScalarColumn<Int>& otherScanCol = otherMainCols.scanNumber();
   ScalarColumn<Int>& otherStateIdCol = otherMainCols.stateId();
   ScalarColumn<Int>& otherObsIdCol =otherMainCols.observationId();
+  ScalarColumn<Int>& otherProcIdCol =otherMainCols.processorId();
 
   ScalarColumn<Int>& thisScanCol = mainCols.scanNumber();
   ScalarColumn<Int>& thisStateIdCol = mainCols.stateId();
   ScalarColumn<Int>& thisObsIdCol = mainCols.observationId();
+  ScalarColumn<Int>& thisProcIdCol = mainCols.processorId();
 
   Vector<Int> otherAnt1;
   Vector<Int> otherAnt2;
@@ -413,6 +422,7 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   Vector<Int> otherScan = otherScanCol.getColumn();
   Vector<Int> otherStateId(otherMS.nrow(),-1); 
   Vector<Int> otherObsIds;
+  Vector<Int> otherProcIds;
 
   if (doState && !otherStateNull){
     otherStateId = otherStateIdCol.getColumn();
@@ -429,6 +439,8 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
 
     otherObsIds = otherObsIdCol.getColumn();
     Vector<Int> theseObsIds=thisObsIdCol.getColumn();
+    otherProcIds = otherProcIdCol.getColumn();
+    Vector<Int> theseProcIds=thisProcIdCol.getColumn();
     Vector<Int> theseScans=thisScanCol.getColumn();
     
     if(doObsA_p){ // the obs ids changed for the first table
@@ -438,6 +450,15 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
 	}
       }
       thisObsIdCol.putColumn(theseObsIds);
+    }  
+
+    if(doProcA_p){ // the proc ids changed for the first table
+      for(uInt r = 0; r < theseRows; r++) {
+	if(newProcIndexA_p.find(theseProcIds[r]) != newProcIndexA_p.end()){ // apply change 
+	  theseProcIds[r] = getMapValue(newProcIndexA_p, theseProcIds[r]);
+	}
+      }
+      thisProcIdCol.putColumn(theseProcIds);
     }  
 
     // SCAN NUMBER
@@ -565,6 +586,7 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   
   Bool copyWtSp = (!otherWeightSp.isNull()) && otherWeightSp.isDefined(0);
   Bool copySgSp = (!otherSigmaSp.isNull()) && otherSigmaSp.isDefined(0);
+  Bool copyFlagCat = (!otherFlagCat.isNull()) && otherFlagCat.isDefined(0); 
   
   // MAIN
   
@@ -599,6 +621,17 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
 
       otherObsIds[r] = oid;
+
+      Int procid = 0;
+      if(doProcB_p && newProcIndexB_p.find(otherProcIds[r]) != newProcIndexB_p.end()){ 
+	// the proc ids have been changed for the table to be appended
+	procid = getMapValue (newProcIndexB_p, otherProcIds[r]);
+      }
+      else{ // this PROC id didn't change
+	procid = otherProcIds[r];
+      }
+
+      otherProcIds[r] = procid;
 
     }
 
@@ -668,7 +701,32 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     }  
   }
 
+  const ROMSPolarizationColumns otherPolCols(otherMS.polarization());
+  const ROMSDataDescColumns otherDDCols(otherMS.dataDescription());
+  Int polId = -1;
+  vector<Int> polSwap;
+
   for (uInt r = 0; r < otherRows; r++) {
+    // Determine whether we need to swap rows in the visibility matrix
+    // if we change the order of the antennas.  This is done by
+    // creating a mapping that makes sure the receptor numbers remain
+    // correct when the antennas are swapped.
+    uInt d = otherDDId(r);
+    uInt p = otherDDCols.polarizationId()(otherDDId(r));
+    if (p != polId) {
+      const Matrix<Int> &products = otherPolCols.corrProduct()(p);
+      polSwap.resize(products.shape()(1));
+      for (Int i = 0; i < products.shape()(1); i++) {
+	for (Int j = 0; j < products.shape()(1); j++) {
+	  if (products(0, i) == products(1, j) &&
+	      products(1, i) == products(0, j)) {
+	    polSwap[i] = j;
+	    break;
+	  }
+	}
+      }
+      polId = p;
+    }
     
     Bool doConjugateVis = False;
 
@@ -699,6 +757,7 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       Vector<Int> datShape;
       Matrix<Complex> reversedData;
       Matrix<Float> reversedFloatData;
+      Matrix<Complex> swappedData;
       if(doFloatData){
 	datShape=otherFloatData.shape(r).asVector();
 	reversedFloatData.resize(datShape[0], datShape[1]);
@@ -735,7 +794,11 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       else{
 	if(doConjugateVis){
-	  otherData.put(r, conj(reversedData));	  
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(reversedData)).row(polSwap[p]);
+	  }
+	  otherData.put(r, conj(swappedData));
 	}
 	else{
 	  otherData.put(r, reversedData);
@@ -743,7 +806,11 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       if(doCorrectedData){
 	if(doConjugateVis){
-	  otherCorrectedData.put(r, conj(reversedCorrData));
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(reversedCorrData)).row(polSwap[p]);
+	  }
+	  otherCorrectedData.put(r, conj(swappedData));
 	}
 	else{
 	  otherCorrectedData.put(r, reversedCorrData);
@@ -751,7 +818,11 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       if(doModelData){
 	if(doConjugateVis){
-	  otherModelData.put(r, conj(reversedModData));
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(reversedModData)).row(polSwap[p]);
+	  }
+	  otherModelData.put(r, conj(swappedData));
 	}
 	else{
 	  otherModelData.put(r, reversedModData);
@@ -759,19 +830,36 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
     }
     else{ // no reversal
+      Vector<Int> datShape;
+      Matrix<Complex> swappedData;
       if(!doFloatData){
 	if(doConjugateVis){ // conjugate because order of antennas was reversed
-	  otherData.put(r, conj(otherData(r)));
+	  datShape=otherData.shape(r).asVector();
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(otherData(r))).row(polSwap[p]);
+	  }
+	  otherData.put(r, conj(swappedData));
 	}
       }
       if(doModelData){
 	if(doConjugateVis){
-	  otherModelData.put(r, conj(otherModelData(r)));
+	  datShape=otherModelData.shape(r).asVector();
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(otherModelData(r))).row(polSwap[p]);
+	  }
+	  otherModelData.put(r, conj(swappedData));
 	}
       } 
       if(doCorrectedData){
 	if(doConjugateVis){
-	  otherCorrectedData.put(r, conj(otherCorrectedData(r)));
+	  datShape=otherCorrectedData.shape(r).asVector();
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(otherCorrectedData(r))).row(polSwap[p]);
+	  }
+	  otherCorrectedData.put(r, conj(swappedData));
 	}
       }
     } // end if itsChanReversed
@@ -780,13 +868,92 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     otherFieldId[r] = newFldIndices[otherFieldId[r]];
     
     if(doWeightScale){
-      otherWeight.put(r, otherWeight(r)*itsWeightScale);
-      if (copyWtSp) otherWeightSp.put(r, otherWeightSp(r)*itsWeightScale);
-      
-      otherSigma.put(r, otherSigma(r) * sScale);
-      if (copySgSp) otherSigmaSp.put(r, otherWeightSp(r) * sScale);
+      if(doConjugateVis){
+	Vector<Int> datShape=otherWeight.shape(r).asVector();
+	Vector<Float> swappedWeight(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedWeight(p) = (Vector<Float>(otherWeight(r)))(polSwap[p]);
+	}
+	otherWeight.put(r, swappedWeight*itsWeightScale);
+	if (copyWtSp) {
+	  datShape.assign(otherWeightSp.shape(r).asVector());
+	  Matrix<Float> swappedWeightSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedWeightSp.row(p) = (Matrix<Float>(otherWeightSp(r))).row(polSwap[p]);
+	  }
+	  otherWeightSp.put(r, swappedWeightSp*itsWeightScale);
+	}
+	datShape.assign(otherSigma.shape(r).asVector());
+	Vector<Float> swappedSigma(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedSigma(p) = (Vector<Float>(otherSigma(r)))(polSwap[p]);
+	}
+	otherSigma.put(r, swappedSigma*sScale);
+	if (copySgSp) {
+	  datShape.assign(otherSigmaSp.shape(r).asVector());
+	  Matrix<Float> swappedSigmaSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedSigmaSp.row(p) = (Matrix<Float>(otherSigmaSp(r))).row(polSwap[p]);
+	  }
+	  otherSigmaSp.put(r, swappedSigmaSp*sScale);
+	}
+      }
+      else{
+	otherWeight.put(r, otherWeight(r)*itsWeightScale);
+	if (copyWtSp) otherWeightSp.put(r, otherWeightSp(r)*itsWeightScale);
+	otherSigma.put(r, otherSigma(r)*sScale);
+	if (copySgSp) otherSigmaSp.put(r, otherWeightSp(r)*sScale);
+      }
     }
-    
+    else{
+      if(doConjugateVis){
+	Vector<Int> datShape=otherWeight.shape(r).asVector();
+	Vector<Float> swappedWeight(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedWeight(p) = (Vector<Float>(otherWeight(r)))(polSwap[p]);
+	}
+	otherWeight.put(r, swappedWeight);
+	if (copyWtSp) {
+	  datShape.assign(otherWeightSp.shape(r).asVector());
+	  Matrix<Float> swappedWeightSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedWeightSp.row(p) = (Matrix<Float>(otherWeightSp(r))).row(polSwap[p]);
+	  }
+	  otherWeightSp.put(r, swappedWeightSp);
+	}
+	datShape.assign(otherSigma.shape(r).asVector());
+	Vector<Float> swappedSigma(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedSigma(p) = (Vector<Float>(otherSigma(r)))(polSwap[p]);
+	}
+	otherSigma.put(r, swappedSigma);
+	if (copySgSp) {
+	  datShape.assign(otherSigmaSp.shape(r).asVector());
+	  Matrix<Float> swappedSigmaSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedSigmaSp.row(p) = (Matrix<Float>(otherSigmaSp(r))).row(polSwap[p]);
+	  }
+	  otherSigmaSp.put(r, swappedSigmaSp);
+	}
+      }
+    }
+
+    if(doConjugateVis){
+      Vector<Int> datShape=otherFlag.shape(r).asVector();
+      Matrix<Bool> swappedFlag(datShape[0], datShape[1]);
+      for (Int p = 0; p < datShape[0]; p++) {
+	swappedFlag.row(p) = (Matrix<Bool>(otherFlag(r))).row(polSwap[p]);
+      }
+      otherFlag.put(r, swappedFlag);
+      if (copyFlagCat) {
+	datShape.assign(otherFlagCat.shape(r).asVector());
+	Cube<Bool> swappedFlagCat(datShape[0], datShape[1], datShape[2]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedFlagCat.yzPlane(p) = (Cube<Bool>(otherFlagCat(r))).yzPlane(polSwap[p]);
+	}
+	otherFlagCat.put(r, swappedFlagCat);
+      }
+    }
   } // end for
   
   // write the scalar columns
@@ -807,6 +974,7 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   if(reindexObsidAndScan){
     otherScanCol.putColumn(otherScan);
     otherObsIdCol.putColumn(otherObsIds);
+    otherProcIdCol.putColumn(otherProcIds);
   }
   
   if(doModelData){ //update the MODEL_DATA keywords
@@ -1040,6 +1208,9 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   // OBSERVATION
   copyObservation(otherMS.observation(), True);
 
+  // PROCESSOR
+  copyProcessor(otherMS.processor(), True);
+
   // POINTING
   if(handling<2){
     if(!copyPointing(otherMS.pointing(), newAntIndices)){
@@ -1184,14 +1355,17 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   const ScalarColumn<Int>& otherScan = otherMainCols.scanNumber();
   const ScalarColumn<Int>& otherStateId = otherMainCols.stateId();
   const ScalarColumn<Int>& otherObsId=otherMainCols.observationId();
+  const ScalarColumn<Int>& otherProcId=otherMainCols.processorId();
 
   ScalarColumn<Int> thisScan;
   ScalarColumn<Int> thisStateId;
   ScalarColumn<Int> thisObsId;
+  ScalarColumn<Int> thisProcId;
   
   thisScan.reference(scanNumber());
   thisStateId.reference(stateId());
   thisObsId.reference(observationId());
+  thisProcId.reference(processorId());
   
   Vector<Int> obsIds=otherObsId.getColumn();
   
@@ -1200,6 +1374,17 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     for(uInt r = 0; r < curRow; r++) {
       if(newObsIndexA_p.find(oldObsIds[r]) != newObsIndexA_p.end()){ // apply change 
 	thisObsId.put(r, getMapValue (newObsIndexA_p, oldObsIds[r]));
+      }
+    }
+  }  
+
+  Vector<Int> procIds=otherProcId.getColumn();
+  
+  if(doProcA_p){ // the proc ids changed for the first table
+    Vector<Int> oldProcIds=thisProcId.getColumn();
+    for(uInt r = 0; r < curRow; r++) {
+      if(newProcIndexA_p.find(oldProcIds[r]) != newProcIndexA_p.end()){ // apply change 
+	thisProcId.put(r, getMapValue (newProcIndexA_p, oldProcIds[r]));
       }
     }
   }  
@@ -1289,6 +1474,7 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
   thisScan.reference(destMainCols.scanNumber());
   thisStateId.reference(destMainCols.stateId());
   thisObsId.reference(destMainCols.observationId());
+  thisProcId.reference(destMainCols.processorId());
   
   Bool copyWtSp = !(thisWeightSp.isNull() || otherWeightSp.isNull()); 
   copyWtSp = copyWtSp && thisWeightSp.isDefined(0) 
@@ -1306,8 +1492,33 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     sScale = 1/sqrt(itsWeightScale);
   }
 
+  const ROMSPolarizationColumns otherPolCols(otherMS.polarization());
+  const ROMSDataDescColumns otherDDCols(otherMS.dataDescription());
+  Int polId = -1;
+  vector<Int> polSwap;
+
   for (uInt r = 0; r < newRows; r++, curRow++) {
-    
+    // Determine whether we need to swap rows in the visibility matrix
+    // if we change the order of the antennas.  This is done by
+    // creating a mapping that makes sure the receptor numbers remain
+    // correct when the antennas are swapped.
+    uInt d = otherDDId(r);
+    uInt p = otherDDCols.polarizationId()(otherDDId(r));
+    if (p != polId) {
+      const Matrix<Int> &products = otherPolCols.corrProduct()(p);
+      polSwap.resize(products.shape()(1));
+      for (Int i = 0; i < products.shape()(1); i++) {
+	for (Int j = 0; j < products.shape()(1); j++) {
+	  if (products(0, i) == products(1, j) &&
+	      products(1, i) == products(0, j)) {
+	    polSwap[i] = j;
+	    break;
+	  }
+	}
+      }
+      polId = p;
+    }
+
     Int newA1 = newAntIndices[otherAnt1(r)];
     Int newA2 = newAntIndices[otherAnt2(r)];
     Bool doConjugateVis = False;
@@ -1357,6 +1568,17 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     else{
       thisScan.put(curRow, otherScan(r));
     }
+
+    Int procid = 0;
+    if(doProcB_p && newProcIndexB_p.find(procIds[r]) != newProcIndexB_p.end()){ 
+      // the proc ids have been changed for the table to be appended
+      procid = getMapValue(newProcIndexB_p, procIds[r]); 
+    }
+    else { // this PROC id didn't change 
+      procid = procIds[r];
+    }
+    thisProcId.put(curRow, procid);
+
     
     if(doState){
       if(itsStateNull || otherStateNull){
@@ -1375,6 +1597,7 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       Vector<Int> datShape;
       Matrix<Complex> reversedData;
       Matrix<Float> reversedFloatData;
+      Matrix<Complex> swappedData;
       if(doFloatData){
 	datShape=otherFloatData.shape(r).asVector();
 	reversedFloatData.resize(datShape[0], datShape[1]);
@@ -1403,7 +1626,6 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
 	    reversedCorrData(k1,k2)=(Matrix<Complex>(otherCorrectedData(r)))(k1,
 									     datShape[1]-1-k2);
 	  }
-	  
 	}
       } 
       if(doFloatData){
@@ -1411,7 +1633,11 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       else{
 	if(doConjugateVis){
-	  thisData.put(curRow, conj(reversedData));	  
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(reversedData)).row(polSwap[p]);
+	  }
+	  thisData.put(curRow, conj(swappedData));
 	}
 	else{
 	  thisData.put(curRow, reversedData);
@@ -1419,7 +1645,11 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       if(doCorrectedData){
 	if(doConjugateVis){
-	  thisCorrectedData.put(curRow, conj(reversedCorrData));
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(reversedCorrData)).row(polSwap[p]);
+	  }
+	  thisCorrectedData.put(curRow, conj(swappedData));
 	}
 	else{
 	  thisCorrectedData.put(curRow, reversedCorrData);
@@ -1427,7 +1657,11 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       if(doModelData){
 	if(doConjugateVis){
-	  thisModelData.put(curRow, conj(reversedModData));
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(reversedModData)).row(polSwap[p]);
+	  }
+	  thisModelData.put(curRow, conj(swappedData));
 	}
 	else{
 	  thisModelData.put(curRow, reversedModData);
@@ -1435,12 +1669,19 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
     }
     else{ // no reversal
+      Vector<Int> datShape;
+      Matrix<Complex> swappedData;
       if(doFloatData){
 	thisFloatData.put(curRow, otherFloatData, r);
       }
       else{
 	if(doConjugateVis){ // conjugate because order of antennas was reversed
-	  thisData.put(curRow, conj(otherData(r)));
+	  datShape=otherData.shape(r).asVector();
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(otherData(r))).row(polSwap[p]);
+	  }
+	  thisData.put(curRow, conj(swappedData));
 	}
 	else{
 	  thisData.put(curRow, otherData, r);
@@ -1448,7 +1689,12 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       }
       if(doModelData){
 	if(doConjugateVis){
-	  thisModelData.put(curRow, conj(otherModelData(r)));
+	  datShape=otherModelData.shape(r).asVector();
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(otherModelData(r))).row(polSwap[p]);
+	  }
+	  thisModelData.put(curRow, conj(swappedData));
 	}
 	else{
 	  thisModelData.put(curRow, otherModelData, r);
@@ -1456,7 +1702,12 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
       } 
       if(doCorrectedData){
 	if(doConjugateVis){
-	  thisCorrectedData.put(curRow, conj(otherCorrectedData(r)));
+	  datShape=otherCorrectedData.shape(r).asVector();
+	  swappedData.resize(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedData.row(p) = (Matrix<Complex>(otherCorrectedData(r))).row(polSwap[p]);
+	  }
+	  thisCorrectedData.put(curRow, conj(swappedData));
 	}
 	else{
 	  thisCorrectedData.put(curRow, otherCorrectedData, r);
@@ -1465,16 +1716,82 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     } // end if itsChanReversed
     
     if(doWeightScale){
-      thisWeight.put(curRow, otherWeight(r)*itsWeightScale);
-      if (copyWtSp) thisWeightSp.put(curRow, otherWeightSp(r)*itsWeightScale);
-      thisSigma.put(curRow, otherSigma(r)*sScale);
-      if (copySgSp) thisSigmaSp.put(curRow, otherSigmaSp(r)*sScale);
+      if(doConjugateVis){
+	Vector<Int> datShape=otherWeight.shape(r).asVector();
+	Vector<Float> swappedWeight(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedWeight(p) = (Vector<Float>(otherWeight(r)))(polSwap[p]);
+	}
+	thisWeight.put(curRow, swappedWeight*itsWeightScale);
+	if (copyWtSp) {
+	  datShape.assign(otherWeightSp.shape(r).asVector());
+	  Matrix<Float> swappedWeightSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedWeightSp.row(p) = (Matrix<Float>(otherWeightSp(r))).row(polSwap[p]);
+	  }
+	  thisWeightSp.put(curRow, swappedWeightSp*itsWeightScale);
+	}
+	datShape.assign(otherSigma.shape(r).asVector());
+	Vector<Float> swappedSigma(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedSigma(p) = (Vector<Float>(otherSigma(r)))(polSwap[p]);
+	}
+	thisSigma.put(curRow, swappedSigma*sScale);
+	if (copySgSp) {
+	  datShape.assign(otherSigmaSp.shape(r).asVector());
+	  Matrix<Float> swappedSigmaSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedSigmaSp.row(p) = (Matrix<Float>(otherSigmaSp(r))).row(polSwap[p]);
+	  }
+	  thisSigmaSp.put(curRow, swappedSigmaSp*sScale);
+	}
+      }
+      else {
+	thisWeight.put(curRow, otherWeight(r)*itsWeightScale);
+	if (copyWtSp)
+	  thisWeightSp.put(curRow, otherWeightSp(r)*itsWeightScale);
+	thisSigma.put(curRow, otherSigma(r)*sScale);
+	if (copySgSp)
+	  thisSigmaSp.put(curRow, otherSigmaSp(r)*sScale);
+      }
     }
     else{
-      thisWeight.put(curRow, otherWeight, r);
-      if (copyWtSp) thisWeightSp.put(curRow, otherWeightSp, r);
-      thisSigma.put(curRow, otherSigma, r);
-      if (copySgSp) thisSigmaSp.put(curRow, otherSigmaSp, r);
+      if (doConjugateVis){
+	Vector<Int> datShape=otherWeight.shape(r).asVector();
+	Vector<Float> swappedWeight(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedWeight(p) = (Vector<Float>(otherWeight(r)))(polSwap[p]);
+	}
+	thisWeight.put(curRow, swappedWeight);
+	if (copyWtSp) {
+	  datShape.assign(otherWeightSp.shape(r).asVector());
+	  Matrix<Float> swappedWeightSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedWeightSp.row(p) = (Matrix<Float>(otherWeightSp(r))).row(polSwap[p]);
+	  }
+	  thisWeightSp.put(curRow, swappedWeightSp);
+	}
+	datShape.assign(otherSigma.shape(r).asVector());
+	Vector<Float> swappedSigma(datShape[0]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedSigma(p) = (Vector<Float>(otherSigma(r)))(polSwap[p]);
+	}
+	thisSigma.put(curRow, swappedSigma);
+	if (copySgSp) {
+	  datShape.assign(otherSigmaSp.shape(r).asVector());
+	  Matrix<Float> swappedSigmaSp(datShape[0], datShape[1]);
+	  for (Int p = 0; p < datShape[0]; p++) {
+	    swappedSigmaSp.row(p) = (Matrix<Float>(otherSigmaSp(r))).row(polSwap[p]);
+	  }
+	  thisSigmaSp.put(curRow, swappedSigmaSp);
+	}
+      }
+      else{
+	thisWeight.put(curRow, otherWeight, r);
+	if (copyWtSp) thisWeightSp.put(curRow, otherWeightSp, r);
+	thisSigma.put(curRow, otherSigma, r);
+	if (copySgSp) thisSigmaSp.put(curRow, otherSigmaSp, r);
+      }
     }
     
     if(notYetFeedWarned && (otherFeed1(r)>0 || otherFeed2(r)>0)){
@@ -1497,8 +1814,26 @@ IPosition MSConcat::isFixedShape(const TableDesc& td) {
     thisExposure.put(curRow, otherExposure, r);
     thisTimeCen.put(curRow, otherTimeCen, r);
     thisArrayId.put(curRow, otherArrayId, r);
-    thisFlag.put(curRow, otherFlag, r);
-    if (copyFlagCat) thisFlagCat.put(curRow, otherFlagCat, r);
+    if(doConjugateVis){
+      Vector<Int> datShape=otherFlag.shape(r).asVector();
+      Matrix<Bool> swappedFlag(datShape[0], datShape[1]);
+      for (Int p = 0; p < datShape[0]; p++) {
+	swappedFlag.row(p) = (Matrix<Bool>(otherFlag(r))).row(polSwap[p]);
+      }
+      thisFlag.put(curRow, swappedFlag);
+      if (copyFlagCat) {
+	datShape.assign(otherFlagCat.shape(r).asVector());
+	Cube<Bool> swappedFlagCat(datShape[0], datShape[1], datShape[2]);
+	for (Int p = 0; p < datShape[0]; p++) {
+	  swappedFlagCat.yzPlane(p) = (Cube<Bool>(otherFlagCat(r))).yzPlane(polSwap[p]);
+	}
+	thisFlagCat.put(curRow, swappedFlagCat);
+      }
+    }
+    else{
+      thisFlag.put(curRow, otherFlag, r);
+      if (copyFlagCat) thisFlagCat.put(curRow, otherFlagCat, r);
+    }
     thisFlagRow.put(curRow, otherFlagRow, r);
 
   } // end for
@@ -1963,6 +2298,102 @@ Int MSConcat::copyObservation(const MSObservation& otherObs,
 
   return obs.nrow();
 }
+
+
+Int MSConcat::copyProcessor(const MSProcessor& otherProc, 
+			      const Bool remRedunProcId){
+  LogIO os(LogOrigin("MSConcat", "copyProcessor"));
+
+  MSProcessor& proc=itsMS.processor();
+  TableRow procRow(proc);
+  const ROTableRow otherProcRow(otherProc);
+  newProcIndexA_p.clear();
+  newProcIndexB_p.clear();
+  std::map<Int, Int> tempProcIndex;
+  std::map<Int, Int> tempProcIndex2;
+  doProcA_p = False; 
+  doProcB_p = True;
+
+  Int originalNrow = proc.nrow(); // remember the original number of rows
+
+  // copy the new proc rows over and note new ids in map
+  Int actualRow=proc.nrow()-1;
+  for (uInt k=0; k < otherProc.nrow() ; ++k){ 
+    proc.addRow();
+    ++actualRow;
+    procRow.put(actualRow, otherProcRow.get(k, True));
+    tempProcIndex[k] = actualRow;
+  }
+  if(remRedunProcId){ // remove redundant rows
+    MSProcessorColumns& procCol = processor();
+    Vector<Bool> rowToBeRemoved(proc.nrow(), False);
+    vector<uInt> rowsToBeRemoved;
+    for(uInt j=0; j<proc.nrow(); j++){ // loop over PROC table rows
+      for (uInt k=j+1; k<proc.nrow(); k++){ // loop over remaining PROC table rows
+	if(procRowsEquivalent(procCol, j, k)){ // rows equivalent?
+	  // make entry in map for (k,j) and mark k for deletion
+	  tempProcIndex2[k] = j;
+	  rowToBeRemoved(k) = True;
+	  rowsToBeRemoved.push_back(k);
+	}
+      }	     
+    }// end for j
+
+    if(rowsToBeRemoved.size()<otherProc.nrow()){ // there were new rows, need to determined their index, too
+      uInt removedSoFar=0;
+      for(uInt j=0; j<proc.nrow(); j++){ // loop over PROC table rows
+	if(!rowToBeRemoved(j)){
+	  if(removedSoFar>0){
+	    // make entry in map for (j,j-removedSoFar), i.e. move j up by removeSoFar 
+	    tempProcIndex2[j] = j-removedSoFar;
+	  }
+	}
+	else {
+	  removedSoFar++;
+	}	          
+      }
+    }
+
+    // create final maps
+    // map for first table
+    for(Int i=0; i<originalNrow; i++){ // loop over rows of old first table
+      if(tempProcIndex2.find(i) != tempProcIndex2.end()){ // ID changed because of removal
+        newProcIndexA_p[i] = tempProcIndex2.at(i);
+	  doProcA_p = True;
+      }
+    }
+    // map for second table
+    for(uInt i=0; i<otherProc.nrow(); i++){ // loop over rows of second table
+      if(tempProcIndex.find(i) != tempProcIndex.end()){ // ID changed because of addition to table
+	if(tempProcIndex2.find(tempProcIndex.at(i)) != tempProcIndex2.end()){ // ID also changed because of removal
+	  newProcIndexB_p[i] = tempProcIndex2.at(tempProcIndex.at(i));
+	}
+	else { // ID only changed because of addition to the table
+	  newProcIndexB_p[i] = tempProcIndex.at(i);
+	}
+      }
+    }
+    if(rowsToBeRemoved.size()>0){ // actually remove the rows
+      Vector<uInt> rowsTBR(rowsToBeRemoved);
+      proc.removeRow(rowsTBR);
+    }    
+    os << "Added " << proc.nrow()- originalNrow << " rows and matched "
+       << rowsToBeRemoved.size() << " rows in the processor subtable." << LogIO::POST;
+
+  }
+  else {
+    // create map for second table only
+    for(uInt i=0; i<otherProc.nrow(); i++){ // loop over rows of second table
+      if(tempProcIndex.find(i) != tempProcIndex.end()){ // ID changed because of addition to table
+        newProcIndexB_p[i] = tempProcIndex.at(i);
+      }
+    }
+    os << "Added " << proc.nrow()- originalNrow << " rows in the processor subtable." << LogIO::POST;
+  } // end if(remRedunProcId)
+
+  return proc.nrow();
+}
+
 
 
 Block<uInt> MSConcat::copyAntennaAndFeed(const MSAntenna& otherAnt,
@@ -2831,6 +3262,27 @@ Bool MSConcat::obsRowsEquivalent(const MSObservationColumns& obsCol, const uInt&
      areEQ(obsCol.timeRange(), rowi, rowj)
      ){    
     areEquivalent = True;
+  }
+  return areEquivalent;
+}
+
+Bool MSConcat::procRowsEquivalent(const MSProcessorColumns& procCol, const uInt& rowi, const uInt& rowj){
+  // check if the two PROCESSOR table rows are identical
+
+  Bool areEquivalent(False);
+
+  if(areEQ(procCol.flagRow(), rowi, rowj) &&
+     areEQ(procCol.modeId(), rowi, rowj) &&
+     areEQ(procCol.type(), rowi, rowj) &&
+     areEQ(procCol.typeId(), rowi, rowj) &&
+     areEQ(procCol.subType(), rowi, rowj)
+     ){    
+    areEquivalent = True;
+
+    // passId is optional
+    if(!procCol.passId().isNull() && !areEQ(procCol.passId(), rowi, rowj)){
+      areEquivalent = False;
+    }
   }
   return areEquivalent;
 }
