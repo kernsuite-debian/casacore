@@ -4,7 +4,7 @@ Maintainer: Debian Astro Team <debian-astro-maintainers@lists.alioth.debian.org>
 Uploaders: Benda Xu <heroxbd@gentoo.org>, Ole Streicher <olebole@debian.org>
 Build-Depends: bison,
                cmake (>= 1.6.2),
-               debhelper-compat (= 11),
+               debhelper-compat (= 12),
                dh-python,
                doxygen,
                flex,
@@ -17,11 +17,10 @@ Build-Depends: bison,
                liblapack-dev,
                libncurses5-dev,
                libreadline6-dev,
-               python-numpy-dev,
                python3-dev,
                python3-numpy-dev,
                wcslib-dev
-Standards-Version: 4.4.1
+Standards-Version: 4.5.0
 Section: science
 Homepage: https://casacore.github.io/casacore
 Vcs-Git: https://salsa.debian.org/debian-astro-team/casacore.git
@@ -42,7 +41,6 @@ Depends: libcasa-casa5 (= ${binary:Version}),
          libcasa-mirlib5 (= ${binary:Version}),
          libcasa-ms5 (= ${binary:Version}),
          libcasa-msfits5 (= ${binary:Version}),
-         libcasa-python5 (= ${binary:Version}),
          libcasa-python3-5 (= ${binary:Version}),
          libcasa-scimath-f5 (= ${binary:Version}),
          libcasa-scimath5 (= ${binary:Version}),
@@ -73,7 +71,7 @@ Description: CASA core library (documentation)
 
 Package: casacore-tools
 Architecture: any
-Depends: python, ${misc:Depends}, ${shlibs:Depends}
+Depends: python3, ${misc:Depends}, ${shlibs:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Description: Tools built with CASA
  The casacore package contains the core libraries of the old
@@ -142,20 +140,6 @@ Description: CASA scimath F library
  .
  This package contains the Mathematical modules N-dim functionals,
  linear/non-linear fitting, and miscellaneous.
-
-Package: libcasa-python5
-Section: libs
-Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}
-Pre-Depends: ${misc:Pre-Depends}
-Multi-Arch: same
-Description: CASA legacy Python 2 bindings
- The casacore package contains the core libraries of the old
- AIPS++/CASA (Common Astronomy Software Applications) package. This
- split was made to get a better separation of core libraries and
- applications.
- .
- This package contains the legacy Python 2 bindings.
 
 Package: libcasa-python3-5
 Section: libs

@@ -1,3 +1,10 @@
+casacore (3.3.0-1kern2) focal; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * BUild for KERN-7 (focal)
+
+ -- KERN packaging <packaging@kernsuite.info>  Wed, 30 Sep 2020 06:08:14 +0000
+
 casacore (3.3.0-1kern1) bionic; urgency=medium
 
   [ Athanaseus Javas Ramaila ]
