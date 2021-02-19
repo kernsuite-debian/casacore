@@ -62,6 +62,7 @@
 #include <casacore/casa/OS/File.h>
 #include <casacore/casa/OS/HostInfo.h>
 #include <casacore/casa/Quanta/MVTime.h>
+#include <casacore/tables/Tables/ArrColDesc.h>
 #include <casacore/tables/Tables/ArrayColumn.h>
 #include <casacore/tables/DataMan/IncrementalStMan.h>
 #include <casacore/tables/Tables/ScalarColumn.h>
@@ -291,7 +292,7 @@ MSFitsInput::MSFitsInput(const String& msFile, const String& fitsFile,
         }
         else {
 
-            if (checkInput(*_infile)) {
+            if (_checkInput(*_infile)) {
                 if (_infile->hdutype() == FITS::PrimaryGroupHDU) {
                     _priGroup.attach(*_infile);
                 }
@@ -357,7 +358,7 @@ void MSFitsInput::readRandomGroupUVFits(Int obsType) {
         }
         catch(const AipsError& ex) {
             _log << LogOrigin("MSFitsInput", __func__)
-		        << ex.getMesg()
+		        << ex.what()
 		        << LogIO::EXCEPTION;
         }
     }
@@ -368,12 +369,12 @@ void MSFitsInput::readRandomGroupUVFits(Int obsType) {
         }
         catch(const AipsError& ex) {
             _log << LogOrigin("MSFitsInput", __func__)
-               << ex.getMesg()
+               << ex.what()
                << LogIO::EXCEPTION;
         }
     }
     // now handle the BinaryTable extensions for the subtables
-    Bool haveAn = False, haveField = False, haveSpW = False;
+    Bool haveAn = False, haveField = False, haveSpW = False, haveSysPower = False;
     while (_infile->rectype() != FITS::EndOfFile && !_infile->err()) {
         if (_infile->hdutype() != FITS::BinaryTableHDU) {
             _log << LogOrigin("MSFitsInput", __func__)
@@ -410,6 +411,10 @@ void MSFitsInput::readRandomGroupUVFits(Int obsType) {
                 if (haveSpW) {
                     updateSpectralWindowTable();
                 }
+            }
+            else if (type.contains("SY") && ! haveSysPower) {
+                haveSysPower = True;
+                _fillSysPowerTable(binTab);
             }
             else {
                 _log << LogOrigin("MSFitsInput", __func__)
@@ -516,6 +521,9 @@ void MSFitsInput::readPrimaryTableUVFits(Int obsType) {
                     //    updateSpectralWindowTable();
                     //}
                 } 
+                else if (type.contains("SY")) {
+                    _fillSysPowerTable(*bt);
+                }
                 else if (type.contains("UV")) {
                     //showBinaryTable(*bt);
                     //fillOtherUVTables(*bt, *fqTab);
@@ -537,7 +545,7 @@ void MSFitsInput::readPrimaryTableUVFits(Int obsType) {
                     }
                     catch(const AipsError& ex) {
                         _log << LogOrigin("MSFitsInput", __func__)
-                               << ex.getMesg() 
+                               << ex.what() 
                                << LogIO::EXCEPTION;
                     }
                     //fillPointingTable();
@@ -545,7 +553,7 @@ void MSFitsInput::readPrimaryTableUVFits(Int obsType) {
                     fillFeedTable();
 
                     moreToDo = false;
-        }
+                }
                 else {
                     _infile->skip_hdu();
                     _log << LogOrigin("MSFitsInput", __func__)
@@ -587,7 +595,7 @@ void MSFitsInput::readFitsFile(Int obsType) {
     		_ms = MeasurementSet();
     		Table::deleteTable(name, True);
     	}
-    	ThrowCc(ex.getMesg());
+    	ThrowCc(ex.what());
     }
 }
 
@@ -596,14 +604,14 @@ MSFitsInput::~MSFitsInput() {
     delete _msc;
 }
 
-Bool MSFitsInput::checkInput(FitsInput& infile) {
+Bool MSFitsInput::_checkInput(FitsInput& infile) {
     // Check that we have a valid UV fits file
     if (infile.rectype() != FITS::HDURecord) {
-        _log << LogOrigin("MSFitsInput", "checkInput")
+        _log << LogOrigin("MSFitsInput", __func__)
                << "file does not start with standard hdu record."
                << LogIO::EXCEPTION;
     }
-    _log << LogOrigin("MSFitsInput", "checkInput")
+    _log << LogOrigin("MSFitsInput", __func__)
            << LogIO::DEBUG1
            << "infile.hdutype(): " << infile.hdutype() 
            << LogIO::POST;
@@ -612,7 +620,7 @@ Bool MSFitsInput::checkInput(FitsInput& infile) {
     if (infile.hdutype() != FITS::PrimaryGroupHDU &&
         infile.hdutype() != FITS::PrimaryArrayHDU &&
          infile.hdutype() != FITS::PrimaryTableHDU) {
-        _log << LogOrigin("MSFitsInput", "checkInput")
+        _log << LogOrigin("MSFitsInput", __func__)
                << "Error, neither primary group nor primary table"
                << LogIO::EXCEPTION;
     }
@@ -621,7 +629,7 @@ Bool MSFitsInput::checkInput(FitsInput& infile) {
          dataType != FITS::SHORT &&
          dataType != FITS::LONG &&
          dataType != FITS::BYTE) {
-        _log << LogOrigin("MSFitsInput", "checkInput")
+        _log << LogOrigin("MSFitsInput", __func__)
                << "Error, this class handles only FLOAT, SHORT, LONG and BYTE data "
                << "(BITPIX=-32,16,32,8) at present" << LogIO::EXCEPTION;
     }
@@ -1135,8 +1143,25 @@ void MSFitsInput::fillMSMainTableColWise(Int& nField, Int& nSpW) {
     Int iTime1 = getIndex(pType, "DATE", 1);
     // get index for source
     Int iSource = getIndex(pType, "SOURCE");
+    if ( iSource == -1 ) {
+        _log << LogOrigin("MSFitsInput", __func__)
+             << LogIO::NORMAL
+             << "SOURCE not found in";
+        for ( auto p = pType.begin( ); p != pType.end( ); ++p )
+            _log << " " << *p ;
+        _log << LogIO::POST;
+    }
+
     // get index for Freq
     Int iFreq = getIndex(pType, "FREQSEL");
+    if ( iFreq == -1 ) {
+        _log << LogOrigin("MSFitsInput", __func__)
+             << LogIO::NORMAL
+             << "FREQSEL not found in";
+        for ( auto p = pType.begin( ); p != pType.end( ); ++p )
+            _log << " " << *p ;
+        _log << LogIO::POST;
+    }
 
     // get index for Integration time
     Int iInttim = getIndex(pType, "INTTIM");
@@ -1198,7 +1223,7 @@ void MSFitsInput::fillMSMainTableColWise(Int& nField, Int& nSpW) {
         time *= C::day;
 
         // Extract fqid
-        Int freqId = Int(_priGroup.parm(iFreq));
+        Int freqId = iFreq > 0 ? Int(_priGroup.parm(iFreq)) : 1;
 
         // Extract field Id
         Int fieldId = 0;
@@ -1441,8 +1466,24 @@ void MSFitsInput::fillMSMainTable(Int& nField, Int& nSpW) {
     Int iTime1 = getIndex(pType, "DATE", 1);
     // get index for source
     Int iSource = getIndex(pType, "SOURCE");
+    if ( iSource == -1 ) {
+        _log << LogOrigin("MSFitsInput", __func__)
+             << LogIO::NORMAL
+             << "SOURCE not found in";
+        for ( auto p = pType.begin( ); p != pType.end( ); ++p )
+            _log << " " << *p ;
+        _log << LogIO::POST;
+    }
     // get index for Freq
     Int iFreq = getIndex(pType, "FREQSEL");
+    if ( iFreq == -1 ) {
+        _log << LogOrigin("MSFitsInput", __func__)
+             << LogIO::NORMAL
+             << "FREQSEL not found in";
+        for ( auto p = pType.begin( ); p != pType.end( ); ++p )
+            _log << " " << *p ;
+        _log << LogIO::POST;
+    }
 
     // get index for Integration time
     Int iInttim = getIndex(pType, "INTTIM");
@@ -1498,7 +1539,7 @@ void MSFitsInput::fillMSMainTable(Int& nField, Int& nSpW) {
         time *= C::day;
 
         // Extract fqid
-        Int freqId = Int(_priGroup.parm(iFreq));
+        Int freqId = iFreq > 0 ? Int(_priGroup.parm(iFreq)) : 1;
 
         // Extract field Id
         Int fieldId = 0;
@@ -1688,6 +1729,141 @@ void MSFitsInput::fillMSMainTable(Int& nField, Int& nSpW) {
     // fill the receptorAngle with defaults, just in case there is no AN table
     _receptorAngle = 0;
 }
+
+void MSFitsInput::_fillSysPowerTable(BinaryTable& bt) {
+    static const Regex trailing(" *$"); // trailing blanks
+    const TableRecord btKeywords = bt.getKeywords();
+    const auto nIF = btKeywords.asInt("NO_IF");
+    ThrowIf(nIF > 1, "Currently SYSPOWER tables with only a single IF may be imported");
+    ThrowIf(nIF == 0, "Number of IFs in SY table cannot be 0");
+    const auto nPol = btKeywords.asInt("NO_POL");
+    Table syTab = bt.fullTable();
+    //syTab.tableDesc().show();
+    const static String name = "SYSPOWER";
+    const String casaTableName = _ms.tableName() + "/" + name;
+    {
+        // table creation code copied from casa ASDM2MSFiller.cc
+        TableDesc tableDesc;
+        // Key columns.
+        tableDesc.comment() = "System calibration from Cal diode demodulation (EVLA).";
+        tableDesc.addColumn(ScalarColumnDesc<Int>("ANTENNA_ID", "Antenna identifier."));
+        tableDesc.addColumn(ScalarColumnDesc<Int>("FEED_ID", "Feed's index."));
+        tableDesc.addColumn(ScalarColumnDesc<Int>("SPECTRAL_WINDOW_ID", "Spectral window identifier."));
+        tableDesc.addColumn(ScalarColumnDesc<Double>("TIME", "Midpoint of time measurement."));
+        tableDesc.addColumn(ScalarColumnDesc<Float>("INTERVAL", "Interval of measurement."));
+        // Data columns.
+        tableDesc.addColumn(ArrayColumnDesc<Float>("SWITCHED_DIFF", "Switched power difference (cal on - off)."));
+        tableDesc.addColumn(ArrayColumnDesc<Float>("SWITCHED_SUM", "Switched power sum (cal on + off)."));
+        tableDesc.addColumn(ArrayColumnDesc<Float>("REQUANTIZER_GAIN", "Requantizer gain."));
+        SetupNewTable tableSetup(casaTableName, tableDesc, Table::New);
+        _ms.rwKeywordSet().defineTable(name, Table(tableSetup));
+        _ms.rwKeywordSet().asTable(name).flush();
+    }
+    Table casaTable(casaTableName, Table::Update);
+    casaTable.addRow(syTab.nrow() * nIF);
+    ScalarColumn<Double> timeCol(syTab, "TIME");
+    ScalarColumn<Float> timeIntCol(syTab, "TIME INTERVAL");
+    ScalarColumn<Int> antNoCol(syTab, "ANTENNA NO.");
+    ScalarColumn<Int> freqIDCol(syTab, "FREQ ID");
+    if (nIF == 1) {
+        ScalarColumn<Float> powerDif1Col(syTab, "POWER DIF1");
+        ScalarColumn<Float> powerSum1Col(syTab, "POWER SUM1");
+        ScalarColumn<Float> postGain1Col(syTab, "POST GAIN1");
+        ScalarColumn<Float> powerDif2Col;
+        ScalarColumn<Float> powerSum2Col;
+        ScalarColumn<Float> postGain2Col;
+        if (nPol == 2) {
+            powerDif2Col = ScalarColumn<Float>(syTab, "POWER DIF2");
+            powerSum2Col = ScalarColumn<Float>(syTab, "POWER SUM2");
+            postGain2Col = ScalarColumn<Float>(syTab, "POST GAIN2");
+        }
+        _doFillSysPowerSingleIF(
+            casaTableName, timeCol, timeIntCol,
+            antNoCol, freqIDCol, powerDif1Col,
+            powerSum1Col, postGain1Col, powerDif2Col,
+            powerSum2Col, postGain2Col 
+        );
+    }
+    else {
+        ArrayColumn<Float> powerDif1Col(syTab, "POWER DIF1");
+        ArrayColumn<Float> powerSum1Col(syTab, "POWER SUM1");
+        ArrayColumn<Float> postGain1Col(syTab, "POST GAIN1");
+    }
+}
+
+void MSFitsInput::_doFillSysPowerSingleIF(
+    const String& casaTableName, const ScalarColumn<Double>& timeCol,
+    const ScalarColumn<Float>& intervalCol,
+    const ScalarColumn<Int>& antNoCol, const ScalarColumn<Int>& freqIDCol,
+    const ScalarColumn<Float>& powerDif1Col,
+    const ScalarColumn<Float>& powerSum1Col,
+    const ScalarColumn<Float>& postGain1Col,
+    const ScalarColumn<Float>& powerDif2Col,
+    const ScalarColumn<Float>& powerSum2Col,
+    const ScalarColumn<Float>& postGain2Col
+) {
+    Table casaTable(casaTableName, Table::Update);
+    const auto nrow = timeCol.nrow();
+    const auto npol = powerDif2Col.nrow() == 0 ? 1 : 2;
+    {
+        ScalarColumn<Int> sysPowerAnt(casaTable, "ANTENNA_ID");
+        const auto antVals = antNoCol.getColumn() - 1;
+        sysPowerAnt.putColumn(antVals);
+    }
+    {
+        ScalarColumn<Int> sysPowerFeed(casaTable, "FEED_ID");
+        const Vector<Int> feedVals(nrow, 0);
+        sysPowerFeed.putColumn(feedVals);
+    }
+    {
+        ScalarColumn<Int> sysPowerSpw(casaTable, "SPECTRAL_WINDOW_ID");
+        const auto spwVals = freqIDCol.getColumn() - 1;
+        sysPowerSpw.putColumn(spwVals);
+    }
+    {
+        ScalarColumn<Double> sysPowerTime(casaTable, "TIME");
+        const auto timeVals = timeCol.getColumn() * C::day;
+        sysPowerTime.putColumn(timeVals);
+    }
+    {
+        ScalarColumn<Float> sysPowerInterval(casaTable, "INTERVAL");
+        const auto intervalVals = intervalCol.getColumn() * (float)C::day;
+        sysPowerInterval.putColumn(intervalVals);
+    }
+    {
+        ArrayColumn<Float> sysPowerDiff(casaTable, "SWITCHED_DIFF");
+        Array<Float> diffs(IPosition(2, npol, nrow));
+        for (uInt i=0; i<nrow; ++i) {
+            diffs(IPosition(2, 0, i)) = powerDif1Col(i);
+            if (npol == 2) {
+                diffs(IPosition(2, 1, i)) = powerDif2Col(i);
+            }
+        }
+        sysPowerDiff.putColumn(diffs);
+    }
+    {
+        ArrayColumn<Float> sysPowerSum(casaTable, "SWITCHED_SUM");
+        Array<Float> sums(IPosition(2, npol, nrow));
+        for (uInt i=0; i<nrow; ++i) {
+            sums(IPosition(2, 0, i)) = powerSum1Col(i);
+            if (npol == 2) {
+                sums(IPosition(2, 1, i)) = powerSum2Col(i);
+            }
+        }
+        sysPowerSum.putColumn(sums);
+    }
+    {
+        ArrayColumn<Float> sysPowerGain(casaTable, "REQUANTIZER_GAIN");
+        Array<Float> gains(IPosition(2, npol, nrow));
+        for (uInt i=0; i<nrow; ++i) {
+            gains(IPosition(2, 0, i)) = postGain1Col(i);
+            if (npol == 2) {
+                gains(IPosition(2, 1, i)) = postGain2Col(i);
+            }
+        }
+        sysPowerGain.putColumn(gains);
+    }
+}  
 
 void MSFitsInput::fillAntennaTable(BinaryTable& bt) {
     static const Regex trailing(" *$"); // trailing blanks
@@ -2053,9 +2229,9 @@ void MSFitsInput::fillSpectralWindowTable(BinaryTable& bt, Int nSpW)
       colIFFreq.getColumn(ifFreq);
       colChWidth.getColumn(chWidth);
       colTotalBandwidth.getColumn(totalBandwidth);
-    }catch(AipsError& x) {
+    }catch(std::exception& x) {
       _log << LogOrigin("MSFitsInput", "fillSpectralWindowTable")
-             << LogIO::DEBUG1 << x.getMesg() << LogIO::POST;
+             << LogIO::DEBUG1 << x.what() << LogIO::POST;
     }
     catch(...) {
       _log << LogOrigin("MSFitsInput", "fillSpectralWindowTable")
@@ -2248,8 +2424,8 @@ void MSFitsInput::fillFieldTable(BinaryTable& bt, Int nField) {
     	);
     	sysvel.getColumn(_sysVel);
     }
-    catch (const AipsError& x) {
-    	ThrowIf(throwImmediately, x.getMesg());
+    catch (const std::exception& x) {
+    	ThrowIf(throwImmediately, x.what());
     	if(noif>1){
     		_log << LogOrigin("MSFitsInput", __func__) << LogIO::WARN
     				<< x.what() << ": " << "Inconsistent setup of RESTFREQ and LSRVEL columns." << endl
@@ -3254,9 +3430,9 @@ void MSFitsInput::fillMSMainTable(BinaryTable& bt) {
             }
             meter.update((group + 1) * 1.0);
         }
-        catch (const AipsError& x) {
+        catch (const std::exception& x) {
             _log << LogOrigin("MSFitsInput", "fillMSMainTable")
-                    << "Exception while filling MS main table. " << x.getMesg()
+                    << "Exception while filling MS main table. " << x.what()
                     << LogIO::EXCEPTION;
         }
 
@@ -3453,7 +3629,7 @@ void MSFitsInput::fillSourceTable() {
                 sourceIndex.sourceId() = fid;
                 sourceIndex.spectralWindowId() = spwIds(spwId);
 
-                Vector<uInt> rows = sourceIndex.getRowNumbers();
+                Vector<rownr_t> rows = sourceIndex.getRowNumbers();
                 if (rows.nelements() == 0) {
                     _ms.source().addRow();
                     Int j = _ms.source().nrow() - 1;
@@ -3526,7 +3702,7 @@ void MSFitsInput::fillSourceTable() {
                 MSSourceIndex sourceIndex(_ms.source());
                 sourceIndex.sourceId() = lastFieldId;
                 sourceIndex.spectralWindowId() = spwId;
-                Vector<uInt> rows = sourceIndex.getRowNumbers();
+                Vector<rownr_t> rows = sourceIndex.getRowNumbers();
                 if (rows.nelements() == 0) {
                     _ms.source().addRow();
                     Int j = _ms.source().nrow() - 1;
@@ -3751,6 +3927,7 @@ void MSFitsInput::fillFieldTable(double ra, double dec, String source) {
     msField.flagRow().put(0, False);
 
 }
+        
 
 } //# NAMESPACE CASACORE - END
 

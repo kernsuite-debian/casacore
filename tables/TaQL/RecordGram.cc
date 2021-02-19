@@ -361,8 +361,8 @@ TableExprNode RecordGram::doParse (const String& expression)
         // Make this copy before deleteTokenStorage is done,
         // otherwise it will be deleted.
         result = *theirNodePtr;
-    } catch (const AipsError& x) {
-        message = x.getMesg();
+    } catch (const std::exception& x) {
+        message = x.what();
         error = True;
     }
     // Delete possibly non-deleted tokens (usually in case of exception).
@@ -482,7 +482,7 @@ TableExprNode RecordGram::handleRegex (const TableExprNode& left,
   if (caseInsensitive) {
     str = Regex::makeCaseInsensitive (str);
   }
-  TableExprNode rnode((Regex(str)));
+  TableExprNode rnode((Regex(str, True)));
   if (negate) {
     lnode = (lnode != rnode);
   } else {

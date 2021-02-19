@@ -68,6 +68,7 @@
 #include <casacore/casa/Logging/LogIO.h>
 
 #include <set>
+#include <limits>
 
 namespace casacore {
 
@@ -138,10 +139,7 @@ void MSFitsOutput::timeToDay(Int &day, Double &dayFraction, Double time) {
 
 void MSFitsOutput::write() const {
     MSObservationColumns obsCols(_ms.observation());
-    if (
-        obsCols.nrow() > 0 && (obsCols.telescopeName()(0) == "WSRT"
-        || obsCols.telescopeName()(0) == "LOFAR")
-    ) {
+    if (obsCols.nrow() > 0 && obsCols.telescopeName()(0) == "WSRT") {
         ThrowIf(
             ! MSFitsOutputAstron::writeFitsFile(_fitsfile, _ms, _column,
                 _startChan, _nchan, _stepChan, _writeSysCal, _asMultiSource,
@@ -219,31 +217,29 @@ void MSFitsOutput::write() const {
     // Write main table. Get freq and channel-width back.
     Int refPixelFreq;
     Double refFreq, chanbw;
-    FitsOutput* fitsOutput = _writeMain(
+    auto fitsOutput = _writeMain(
         refPixelFreq, refFreq, chanbw, outfile,
         spwidMap, nrspw, fieldidMap, doMultiSource
     );
-
-    Bool ok = fitsOutput;
     ThrowIf (
-        ! ok, "Could not write main table\n"
+        ! fitsOutput, "Could not write main table\n"
     );
     os << LogIO::NORMAL << "Writing AIPS FQ table" << LogIO::POST;
     ThrowIf(
-        ! writeFQ(
+        ! _writeFQ(
             fitsOutput, _ms, spwidMap, nrspw, refFreq, refPixelFreq,
             chanbw, _combineSpw, _startChan, _nchan, _stepChan, _avgChan
         ), "Could not write FQ table"
     );
     os << LogIO::NORMAL << "Writing AIPS AN table" << LogIO::POST;
     ThrowIf(
-        ! writeAN(fitsOutput, _ms, refFreq, _writeStation),
+        ! _writeAN(fitsOutput, _ms, refFreq, _writeStation),
         "Could not write AN table"
     );
     if (doMultiSource) {
         os << LogIO::NORMAL << "Writing AIPS SU table" << LogIO::POST;
         if (
-            ! writeSU(fitsOutput, _ms, fieldidMap, nrfield, spwidMap, nrspw)
+            ! _writeSU(fitsOutput, _ms, fieldidMap, nrfield, spwidMap, nrspw)
         ) {
             os << LogIO::NORMAL << "Could not write SU table" << LogIO::POST;
         }
@@ -266,7 +262,7 @@ void MSFitsOutput::write() const {
         else {
             Table syscal = handleSysCal(_ms, spwids, isSubset);
             os << LogIO::NORMAL << "writing AIPS TY table" << LogIO::POST;
-            Bool bk = writeTY(
+            Bool bk = _writeTY(
                 fitsOutput, _ms, syscal, spwidMap, nrspw, _combineSpw
             );
             if (! bk) {
@@ -275,7 +271,7 @@ void MSFitsOutput::write() const {
             }
             else {
                 os << LogIO::NORMAL << "Writing AIPS GC table" << LogIO::POST;
-                bk = writeGC(
+                bk = _writeGC(
                     fitsOutput, _ms, syscal, spwidMap, nrspw,
                     _combineSpw, _sensitivity, refPixelFreq, refFreq, chanbw
                 );
@@ -288,14 +284,35 @@ void MSFitsOutput::write() const {
     }
     if (_ms.weather().tableDesc().ncolumn() != 0) {
         os << LogIO::NORMAL << "Writing AIPS WX table" << LogIO::POST;
-        Bool bk = writeWX(fitsOutput, _ms);
+        Bool bk = _writeWX(fitsOutput, _ms);
         if (!bk) {
             os << LogIO::WARN << "Could not write WX table"
                 << LogIO::POST;
         }
     }
-    // flush output to disk
-    delete fitsOutput;
+    /*
+     * FIXME there are still some issues with this, but I have to move on to
+     * another issue for now, so commenting out SYSPOWER table support until
+     * I can work on it again
+     * dmehring 17feb2021
+     *
+    // support for adhoc NRAO SYSPOWER table
+    static const String SYSPOWER = "SYSPOWER";
+    File syspower_f( _ms.tableName() + "/" + SYSPOWER);
+    if (_ms.keywordSet().isDefined(SYSPOWER)) {
+        const auto tableName = _ms.keywordSet().asTable("SYSPOWER").tableName();
+        if(Table::isReadable(tableName)) {
+            Table syspower(tableName);
+            os << LogIO::NORMAL << "Found SYSPOWER table" << LogIO::POST;
+            if (_writeSY(fitsOutput, _ms, syspower, nrspw, spwidMap, _combineSpw)) {
+                os << LogIO::NORMAL << "Wrote SY table" << LogIO::POST;
+            }
+            else {
+                os << LogIO::WARN << "Could not write SY table" << LogIO::POST;
+            }
+        }
+    }
+    */
 }
 
 Bool MSFitsOutput::writeFitsFile(
@@ -306,6 +323,10 @@ Bool MSFitsOutput::writeFitsFile(
 	const Bool padWithFlags, Int avgchan, uInt fieldNumber,
 	Bool overwrite
 ) {
+    // A FITS table can handle only Int nrows.
+    if (ms.nrow() > std::numeric_limits<Int>::max()) {
+      throw AipsError("MS " + ms.tableName() + " is too big (#rows exceeds MAX_INT)");
+    }
     MSFitsOutput out(fitsfile, ms, column);
     out.setChannelInfo(startchan, nchan, stepchan, avgchan);
     out.setWriteSysCal(writeSysCal);
@@ -345,14 +366,14 @@ uInt MSFitsOutput::get_tbf_end(const uInt rownr, const uInt nrow,
     return tbfend;
 }
 
-FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
+std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     Double& chanbw, const String &outFITSFile,
     const Block<Int>& spwidMap, Int nrspw,
     const Block<Int>& fieldidMap,
     Bool asMultiSource
 ) const {
     Int avgchan = _avgChan < 0 ? 1 : _avgChan;
-    FitsOutput *outfile = 0;
+    std::shared_ptr<FitsOutput> outfile(nullptr);
     LogIO os(LogOrigin("MSFitsOutput", __func__));
     const uInt nrow = _ms.nrow();
     if (nrow == 0) {
@@ -408,10 +429,10 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
         srcTable = _ms.source();
         nsrc = srcTable.nrow();
     }
-    catch (const AipsError& x) {
+    catch (const std::exception& x) {
         os << LogOrigin("MSFitsOutput", __func__)
            << LogIO::WARN << "No source table in MS. " 
-           << x.getMesg() << LogIO::POST;
+           << x.what() << LogIO::POST;
     }
     const uInt ndds = ddTable.nrow();
     const uInt nspec = spectralTable.nrow();
@@ -446,7 +467,7 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     ScalarColumn<Int> measFreq(spectralTable, MSSpectralWindow::columnName(
             MSSpectralWindow::MEAS_FREQ_REF));
     Double restFreq(0.0);
-    if (nsrc > 0) {
+    if (nsrc > 0 && srcTable.isColumn(MSSource::REST_FREQUENCY)) {
         ArrayColumn<Double> restfreqcol(srcTable, MSSource::columnName(
             MSSource::REST_FREQUENCY));
         if (restfreqcol.isDefined(0) && restfreqcol(0).nelements() > 0) {
@@ -582,9 +603,9 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     // stokes(0) >= 0, or descending order if < 0.
     Vector<uInt> stokesIndex(numcorr0);
     if (stokes(0) >= 0) {
-        GenSortIndirect<Int>::sort(stokesIndex, stokes);
+        GenSortIndirect<Int,uInt>::sort(stokesIndex, stokes);
     } else {
-        GenSortIndirect<Int>::sort(stokesIndex, stokes, Sort::Descending);
+        GenSortIndirect<Int,uInt>::sort(stokesIndex, stokes, Sort::Descending);
     }
 
     // OK, make sure that we can represent the stokes in FITS
@@ -955,7 +976,7 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
                     miniDDIDs[rowInTBF] = spwidMap[inspwinid(rownr + rowInTBF)];
                     ++nperIF[miniDDIDs[rowInTBF]];
                 }
-                GenSortIndirect<Int>::sort(miniSort, miniDDIDs);
+                GenSortIndirect<Int,uInt>::sort(miniSort, miniDDIDs);
                 for (uInt rowInTBF = 0; rowInTBF < nrowsThisTBF; ++rowInTBF) {
                     sortIndex[rownr] = rownr + miniSort[rowInTBF] - rowInTBF;
                     tbfends[rownr] = tbfend;
@@ -1007,7 +1028,7 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     // Finally, make the writer.  If it breaks past this point, the user gets to
     // look at the pieces.
     FITSGroupWriter writer(outFITSFile, desc, nOutRow, ek, False);
-    outfile = writer.writer();
+    outfile.reset(writer.writer());
 
     // DATA - out
     RecordFieldPtr<Array<Float> > odata(writer.row(), "data");
@@ -1045,7 +1066,7 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     }
 
     Vector<Int> antnumbers;
-    handleAntNumbers(_ms, antnumbers);
+    _handleAntNumbers(_ms, antnumbers);
 
     // Loop through all rows.
     ProgressMeter meter(0.0, nOutRow * 1.0, "UVFITS Writer", "Rows copied", "",
@@ -1405,7 +1426,7 @@ FitsOutput *MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
     return outfile;
 }
 
-Bool MSFitsOutput::writeFQ(FitsOutput *output, const MeasurementSet &ms,
+Bool MSFitsOutput::_writeFQ(std::shared_ptr<FitsOutput> output, const MeasurementSet &ms,
         const Block<Int>& spwidMap, Int nrspw, Double refFreq,
         Int refPixelFreq, Double chanbw, Bool combineSpw,
         Int chanstart, Int nchan, Int chanstep, Int avgchan) {
@@ -1461,7 +1482,7 @@ Bool MSFitsOutput::writeFQ(FitsOutput *output, const MeasurementSet &ms,
     units.define("TOTAL BANDWIDTH", "HZ");
     desc.addField("SIDEBAND", TpArrayInt, shape); // SIDEBAND
 
-    FITSTableWriter writer(output, desc, stringLengths, nentr, header, units,
+    FITSTableWriter writer(output.get(), desc, stringLengths, nentr, header, units,
             False);
     RecordFieldPtr<Int> freqsel(writer.row(), "FRQSEL");
     RecordFieldPtr<Array<Double> > iffreq(writer.row(), "IF FREQ");
@@ -1553,7 +1574,7 @@ Bool MSFitsOutput::writeFQ(FitsOutput *output, const MeasurementSet &ms,
     return True;
 }
 
-Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
+Bool MSFitsOutput::_writeAN(std::shared_ptr<FitsOutput> output, const MeasurementSet &ms,
         Double refFreq, Bool writeStation) {
     LogIO os(LogOrigin("MSFitsOutput", "writeAN"));
     MSObservation obsTable(ms.observation());
@@ -1705,7 +1726,7 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
         std::set<uInt> uSpws = msmd.getUniqueSpwIDs();
         ArrayQuantColumn<Double> receptorAngle(feedCols.receptorAngleQuant());
 
-        FITSTableWriter writer(output, desc, strlengths, nant, header, units, False);
+        FITSTableWriter writer(output.get(), desc, strlengths, nant, header, units, False);
         RecordFieldPtr<String> anname(writer.row(), "ANNAME");
         RecordFieldPtr<Array<Double> > stabxyz(writer.row(), "STABXYZ");
         RecordFieldPtr<Array<Double> > orbparm(writer.row(), "ORBPARM");
@@ -1730,7 +1751,7 @@ Bool MSFitsOutput::writeAN(FitsOutput *output, const MeasurementSet &ms,
         *polcalb = 0.0;
 
         Vector<Int> id;
-        handleAntNumbers(ms, id);
+        _handleAntNumbers(ms, id);
 
         // A hack for old WSRT observations which stored the antenna name
         // in the STATION column instead of the NAME column.
@@ -1862,7 +1883,7 @@ void MSFitsOutput::_checkReceptorAngles(
     }
 }
 
-Bool MSFitsOutput::writeSU(FitsOutput *output, const MeasurementSet &ms,
+Bool MSFitsOutput::_writeSU(std::shared_ptr<FitsOutput> output, const MeasurementSet &ms,
         const Block<Int>& fieldidMap, Int nrfield,
         const Block<Int>& /*spwidMap*/, Int nrspw) {
     LogIO os(LogOrigin("MSFitsOutput", "writeSU"));
@@ -1967,7 +1988,7 @@ Bool MSFitsOutput::writeSU(FitsOutput *output, const MeasurementSet &ms,
     desc.addField("PMDEC", TpDouble);
     units.define("PMDEC", "DEG/DAY");
 
-    FITSTableWriter writer(output, desc, strlengths, nrfield, header, units,
+    FITSTableWriter writer(output.get(), desc, strlengths, nrfield, header, units,
             False);
 
     RecordFieldPtr<Int> idno(writer.row(), "ID. NO.");
@@ -2053,7 +2074,7 @@ Bool MSFitsOutput::writeSU(FitsOutput *output, const MeasurementSet &ms,
             //  Optional access to SOURCE table
             if (sourceTable) {
                 **srcInxFld = insrcid(fieldnum);
-                Vector<uInt> rownrs = srcInx->getRowNumbers();
+                Vector<rownr_t> rownrs = srcInx->getRowNumbers();
                 if (rownrs.nelements() > 0) {
                     uInt rownr = rownrs(0);
                     if (!sourceColumns->sysvel().isNull()
@@ -2063,7 +2084,10 @@ Bool MSFitsOutput::writeSU(FitsOutput *output, const MeasurementSet &ms,
                             *lsrvel = sv(0);
                         }
                     }
-                    if (sourceColumns->restFrequency().isDefined(rownr)) {
+                    if (
+                        sourceTable->isColumn(MSSource::REST_FREQUENCY)
+                        && sourceColumns->restFrequency().isDefined(rownr)
+                    ) {
                         Vector<Double>
                                 rf(sourceColumns->restFrequency()(rownr));
                         if (rf.nelements() > 0) {
@@ -2118,7 +2142,7 @@ Bool MSFitsOutput::writeSU(FitsOutput *output, const MeasurementSet &ms,
     return True;
 }
 
-Bool MSFitsOutput::writeTY(FitsOutput *output, const MeasurementSet &ms,
+Bool MSFitsOutput::_writeTY(std::shared_ptr<FitsOutput> output, const MeasurementSet &ms,
         const Table& syscal, const Block<Int>& spwidMap, uInt nrif,
         Bool combineSpw) {
     LogIO os(LogOrigin("MSFitsOutput", "writeTY"));
@@ -2131,7 +2155,6 @@ Bool MSFitsOutput::writeTY(FitsOutput *output, const MeasurementSet &ms,
     }
     // Get #pol by taking shape of first tsys from the column.
     const Int npol = sysCalColumns.tsys().shape(0)(0);
-
     if (!combineSpw) {
         nrif = 1;
     }
@@ -2178,7 +2201,7 @@ Bool MSFitsOutput::writeTY(FitsOutput *output, const MeasurementSet &ms,
         units.define("TANT 2", "KELVINS");
     }
 
-    FITSTableWriter writer(output, desc, stringLengths, nentries, header,
+    FITSTableWriter writer(output.get(), desc, stringLengths, nentries, header,
             units, False);
     RecordFieldPtr<Float> time(writer.row(), "TIME");
     RecordFieldPtr<Float> interval(writer.row(), "TIME INTERVAL");
@@ -2196,7 +2219,7 @@ Bool MSFitsOutput::writeTY(FitsOutput *output, const MeasurementSet &ms,
     }
 
     Vector<Int> antnums;
-    handleAntNumbers(ms, antnums);
+    _handleAntNumbers(ms, antnums);
 
     Vector<Float> tsysval;
     for (uInt i = 0; i < nrow; i += nrif) {
@@ -2238,7 +2261,7 @@ Bool MSFitsOutput::writeTY(FitsOutput *output, const MeasurementSet &ms,
     return True;
 }
 
-Bool MSFitsOutput::writeGC(FitsOutput *output, const MeasurementSet &ms,
+Bool MSFitsOutput::_writeGC(std::shared_ptr<FitsOutput> output, const MeasurementSet &ms,
         const Table& syscal, const Block<Int>& /*spwidMap*/, uInt nrif,
         Bool combineSpw, Double sensitivity, Int refPixelFreq, Double refFreq,
         Double chanbw) {
@@ -2370,7 +2393,7 @@ Bool MSFitsOutput::writeGC(FitsOutput *output, const MeasurementSet &ms,
         units.define("SENS_2", "K/JY");
     }
 
-    FITSTableWriter writer(output, desc, stringLengths, nentries, header,
+    FITSTableWriter writer(output.get(), desc, stringLengths, nentries, header,
             units, False);
     RecordFieldPtr<Int> antenna(writer.row(), "ANTENNA_NO");
     RecordFieldPtr<Int> arrayId(writer.row(), "SUBARRAY");
@@ -2404,7 +2427,7 @@ Bool MSFitsOutput::writeGC(FitsOutput *output, const MeasurementSet &ms,
 
     // The antenna numbers
     Vector<Int> antnums;
-    handleAntNumbers(ms, antnums);
+    _handleAntNumbers(ms, antnums);
 
     // Iterate through the table.
     // Each chunk should have the same size.
@@ -2450,8 +2473,8 @@ Bool MSFitsOutput::writeGC(FitsOutput *output, const MeasurementSet &ms,
     return True;
 }
 
-Bool MSFitsOutput::writeWX(FitsOutput *output, const MeasurementSet &ms) {
-    LogIO os(LogOrigin("MSFitsOutput", "writeWX"));
+Bool MSFitsOutput::_writeWX(std::shared_ptr<FitsOutput> output, const MeasurementSet &ms) {
+    LogIO os(LogOrigin("MSFitsOutput", __func__));
     const MSWeather subtable(ms.weather());
     MSWeatherColumns weatherColumns(subtable);
     const uInt nrow = subtable.nrow();
@@ -2502,7 +2525,7 @@ Bool MSFitsOutput::writeWX(FitsOutput *output, const MeasurementSet &ms) {
     desc.addField("IONOS_ELECTRON", TpFloat); //sometimes labeled as ELECTRON COL.
     units.define("IONOS_ELECTRON", "m-2");
 
-    FITSTableWriter writer(output, desc, stringLengths, nrow, header, units,
+    FITSTableWriter writer(output.get(), desc, stringLengths, nrow, header, units,
             False);
     RecordFieldPtr<Double> time(writer.row(), "TIME");
     RecordFieldPtr<Float> interval(writer.row(), "TIME_INTERVAL");
@@ -2517,7 +2540,7 @@ Bool MSFitsOutput::writeWX(FitsOutput *output, const MeasurementSet &ms) {
     RecordFieldPtr<Float> ionoselectron(writer.row(), "IONOS_ELECTRON");
 
     Vector<Int> antnums;
-    handleAntNumbers(ms, antnums);
+    _handleAntNumbers(ms, antnums);
     //check optional columns
     Bool hasTemperature = !(weatherColumns.temperature().isNull());
     Bool hasPressure = !(weatherColumns.pressure().isNull());
@@ -2581,6 +2604,222 @@ Bool MSFitsOutput::writeWX(FitsOutput *output, const MeasurementSet &ms) {
     return True;
 }
 
+// TODO uncommoment nspw when multiple IFs are supported
+Bool MSFitsOutput::_writeSY(
+    std::shared_ptr<FitsOutput> output, const MeasurementSet &ms, Table& syspower,
+    Int /*nspw*/, const Block<Int>& spwIDMap, Bool combineSpw
+) {
+    LogIO os(LogOrigin("MSFitsOutput", __func__));
+    static const String TIME = "TIME";
+    static const String ANTENNA_ID = "ANTENNA_ID";
+    static const String FEED_ID = "FEED_ID";
+    static const String SPECTRAL_WINDOW_ID = "SPECTRAL_WINDOW_ID";
+    //Table subtable(syspower.path().originalName());
+    const auto td = syspower.tableDesc();
+    const auto nrows = syspower.nrow();
+    if (nrows == 0) {
+        os << LogIO::WARN << "SYSPOWER table is empty." << LogIO::POST;
+        return False;
+    }
+    static const std::vector<String> expColNames {
+        ANTENNA_ID, FEED_ID, SPECTRAL_WINDOW_ID, TIME, "INTERVAL",
+        "SWITCHED_DIFF", "SWITCHED_SUM", "REQUANTIZER_GAIN"
+    };
+    for (const auto cname: expColNames) {
+        if (! td.isColumn(cname)) {
+            os << LogIO::WARN << "Required column " << cname
+                << " not found in SYSPOWER table" << LogIO::POST;
+            return False;
+        }
+    }
+    const ScalarColumn<Int> feedID(syspower, FEED_ID);
+    const auto fv = feedID.getColumn();
+    if (! allEQ(fv[0], fv)) {
+        os << LogIO::WARN << "All FEED_IDs in SYSPOWER table are not identical"
+            << LogIO::POST;
+        return False;
+    }
+    // What to do based on the value of combineSpw follows the pattern
+    // in _writeTy()
+    // TODO currently not supporting writing multiple IFs. This code has been written in
+    // a way that should make supporting multiple IFs fairly straight forward (the issue will
+    // be adding support to MSFitsInput.cc, and in fact the reason I'm not supporting writing multiple
+    // IFs to the uvfits table currently is because the only way to test that is to read the uvfits file
+    // back in which requires support for multiple IFs in MSFitsInput.cc. The current requirement is to
+    // write the SYSPOWER table to uvfits, not read it from uvfits, so the current implementation is 
+    // sufficient CAS-11860 )
+    Int nrif = 1;
+    if (combineSpw) {
+        os << LogIO::WARN << "Combining spectral windows (multiple IFs) is currently not supported "
+            << "for the SYSPOWER table" << LogIO::POST;
+        combineSpw = False;
+    }
+    /*
+    // this code is for when multiple IFs are supported
+    if (combineSpw) {
+        if (nrows % nspw == 0) {
+            nrif = nspw;
+        }
+        else {
+            nrif = 1;
+            combineSpw = False;
+            os << LogIO::WARN << "Number of rows (" << nrows << ") in SYSPOWER "
+                << "table is not a multiple of the number of spectral windows ("
+                << nspw << "). Cannot combine spectral windows in the UVFITS "
+                << "SY table. Will instead write one spw per row."
+                << LogIO::POST;
+        }
+    }
+    */
+    IPosition ifShape(1, nrif);
+    const uInt nentries = nrows/nrif;
+    os << LogIO::NORMAL << "Found " << nentries << " SY table entries ("
+        << nrif << " IFs)" << LogIO::POST;
+    if (combineSpw) {
+        // ensure that the table is sorted correctly
+        Block<String> sortNames(3);
+        sortNames[0] = TIME;
+        sortNames[1] = ANTENNA_ID;
+        sortNames[2] = SPECTRAL_WINDOW_ID;
+        syspower = syspower.sort(sortNames);
+    }
+    const ArrayColumn<Float> switchedDiff (syspower, "SWITCHED_DIFF");
+    const Int npol = switchedDiff.shape(0)[0];
+    Record header;
+    header.define("EXTNAME", "AIPS SY");
+    header.define("NO_IF", nrif);
+    header.define("NO_POL", npol);
+    header.define("NO_ANT", (Int)ms.antenna().nrow());
+    RecordDesc desc;
+    Record stringLengths; // no strings
+    Record units;
+    desc.addField(TIME, TpDouble);
+    units.define(TIME, "DAYS");
+    desc.addField("TIME INTERVAL", TpFloat);
+    units.define("TIME INTERVAL", "DAYS");
+    desc.addField("SOURCE ID", TpInt);
+    desc.addField("ANTENNA NO.", TpInt);
+    desc.addField("SUBARRAY", TpInt);
+    desc.addField("FREQ ID", TpInt);
+    desc.addField("POWER DIF1", TpArrayFloat, ifShape);
+    units.define("POWER DIF1", "counts");
+    desc.addField("POWER SUM1", TpArrayFloat, ifShape);
+    units.define("POWER SUM1", "counts");
+    desc.addField("POST GAIN1", TpArrayFloat, ifShape);
+    if (npol == 2) {
+        desc.addField("POWER DIF2", TpArrayFloat, ifShape);
+        units.define("POWER DIF2", "counts");
+        desc.addField("POWER SUM2", TpArrayFloat, ifShape);
+        units.define("POWER SUM2", "counts");
+        desc.addField("POST GAIN2", TpArrayFloat, ifShape);
+    }
+    FITSTableWriter writer(
+        output.get(), desc, stringLengths, nentries, header,
+        units, False
+    );
+    RecordFieldPtr<Double> time(writer.row(), TIME);
+    RecordFieldPtr<Float> interval(writer.row(), "TIME INTERVAL");
+    RecordFieldPtr<Int> sourceId(writer.row(), "SOURCE ID");
+    RecordFieldPtr<Int> antenna(writer.row(), "ANTENNA NO.");
+    RecordFieldPtr<Int> arrayId(writer.row(), "SUBARRAY");
+    RecordFieldPtr<Int> freqId(writer.row(), "FREQ ID");
+    RecordFieldPtr<Array<Float>> powerDif1(writer.row(), "POWER DIF1");
+    RecordFieldPtr<Array<Float>> powerSum1(writer.row(), "POWER SUM1");
+    RecordFieldPtr<Array<Float>> postGain1(writer.row(), "POST GAIN1");
+    RecordFieldPtr<Array<Float>> powerDif2;
+    RecordFieldPtr<Array<Float>> powerSum2;
+    RecordFieldPtr<Array<Float>> postGain2;
+    if (npol == 2) {
+        powerDif2 = RecordFieldPtr<Array<Float>>(writer.row(), "POWER DIF2");
+        powerSum2 = RecordFieldPtr<Array<Float>>(writer.row(), "POWER SUM2");
+        postGain2 = RecordFieldPtr<Array<Float>>(writer.row(), "POST GAIN2");
+    }
+
+    Vector<Int> antnums;
+    _handleAntNumbers(ms, antnums);
+    MSMetaData md(&ms, 100);
+    const ScalarColumn<Double> timeCol(syspower, TIME);
+    const ScalarColumn<Double> intervalCol(syspower, "INTERVAL");
+    const ScalarColumn<Int> antCol(syspower, ANTENNA_ID);
+    const ScalarColumn<Int> spwCol(syspower, SPECTRAL_WINDOW_ID);
+    const ArrayColumn<Float> switchedSum (syspower, "SWITCHED_SUM");
+    const ArrayColumn<Float> qGDiff (syspower, "REQUANTIZER_GAIN");
+    Vector<Float> pdv, psv, pgv;
+    for (uInt i = 0; i < nrows; i += nrif) {
+        const auto myTime = timeCol(i);
+        *time = myTime/C::day;
+        const auto myInterval = intervalCol(i);
+        *interval = myInterval/(float)C::day;
+        const auto fields = md.getFieldsForTimes(*time, *interval/2);
+        const auto nfields = fields.size();
+        if (nfields > 1) {
+            os << LogIO::SEVERE << "Multiple fields found for time " << myTime
+                << " and interval " << myInterval << ". Please file a bug report "
+                << LogIO::POST;
+            return False;
+        }
+        else if (nfields == 0) {
+            os << LogIO::SEVERE << "No fields found for time " << myTime
+                << " and interval " << myInterval << ". Please file a bug report "
+                << LogIO::POST;
+            return False;
+        }
+        *sourceId = *(fields.cbegin()) + 1;
+        *antenna = antnums(antCol(i));
+        // FIXME arrayid
+        *arrayId = 1;
+        *freqId = combineSpw ? 1 : 1 + spwIDMap[spwCol(i)];
+        Vector<Float> pd1(nrif);
+        Vector<Float> pd2(nrif);
+        Vector<Float> ps1(nrif);
+        Vector<Float> ps2(nrif);
+        Vector<Float> pg1(nrif);
+        Vector<Float> pg2(nrif);
+        std::set<Int> spwSet;
+        for (Int j = 0; j < nrif; ++j) {
+            if (j > 0) {
+                if (timeCol(i + j) != myTime) {
+                    os << LogIO::SEVERE << "Irregularities in time values "
+                        << "in the SYSPOWER subtable, so spectral window "
+                        << "data cannot be combined when writing UVFITS "
+                        << "SY table. Perhaps try combineSpw=False" 
+                        << LogIO::POST;
+                    return False;
+                }
+                else if (antnums(antCol(i + j)) != *antenna) {
+                    os << LogIO::SEVERE << "Irregularities in antenna_id "
+                        << "values in the SYSPOWER subtable, so spectral "
+                        << "window data cannot be combined when writing "
+                        << "UVFITS SY table. Perhaps try combineSpw=False"
+                        << LogIO::POST;
+                    return False;
+                }                
+            }
+            switchedDiff.get(i + j, pdv);
+            pd1[j] = pdv[0];
+            switchedSum.get(i + j, psv);
+            ps1[j] = psv[0];
+            qGDiff.get(i + j, pgv);
+            pg1[j] = pgv[0];
+            if (npol == 2) {
+                pd2[j] = pdv[1];
+                ps2[j] = psv[1];
+                pg2[j] = pgv[1];
+            }
+        }
+        *powerDif1 = pd1;
+        *powerSum1 = ps1;
+        *postGain1 = pg1;
+        if (npol == 2) {
+            *powerDif2 = pd2;
+            *powerSum2 = ps2;
+            *postGain2 = pg2;
+        }
+        writer.write();
+    }
+    return True;
+}
+    
 void MSFitsOutput::getStartHA(Double& startTime, Double& startHA,
         const MeasurementSet& ms, uInt rownr) {
     MSColumns mscol(ms);
@@ -2748,7 +2987,7 @@ Int MSFitsOutput::_makeIdMap(Block<Int>& map, Vector<Int>& selids, const Vector<
     return nr;
 }
 
-void MSFitsOutput::handleAntNumbers(const MeasurementSet& ms,
+void MSFitsOutput::_handleAntNumbers(const MeasurementSet& ms,
         Vector<Int>& antnumbers) {
 
     // This method parses the MS ANTENNA NAME into a antenna
