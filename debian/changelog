@@ -1,3 +1,10 @@
+casacore (3.4.0-1kern1) focal; urgency=medium
+
+  [ Athanaseus Javas Ramaila]
+  * New upstream version 3.4.0
+
+ -- KERN packaging <packaging@kernsuite.info>  Fri, 19 Feb 2021 13:44:18 +0000
+
 casacore (3.3.0-1kern2) focal; urgency=medium
 
   [ Athanaseus Javas Ramaila ]
