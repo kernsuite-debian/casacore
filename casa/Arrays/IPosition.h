@@ -58,7 +58,7 @@ class LogIO;
 // IPosition is an Index Position in an n-dimensional array.
 // </etymology>
 
-// <synopsis> 
+// <synopsis>
 // IPosition is "logically" a Vector<int> constrained so that its origin
 // is zero-based, and in fact that used to be the way it was implemented.
 // It was split out into a separate class to make the inheritance from
@@ -118,9 +118,8 @@ class LogIO;
 class IPosition
 {
     friend class IPositionComparator;
-    
+
 public:
-    enum {MIN_INT = -2147483647};
     // A zero-length IPosition.
     IPosition() noexcept;
 
@@ -129,33 +128,57 @@ public:
 
     // An IPosition initialized from the given list
     IPosition(std::initializer_list<ssize_t> list);
-    
-    // An IPosition of size "length." The values in the object get
+
+    // An IPosition of size "length." All values in the object are
     // initialized to val.
     IPosition(size_t length, ssize_t val);
 
-    // An IPosition of size "length" with defined values. You need to supply
-    // a value for each element of the IPosition (up to 10). [Unfortunately
-    // varargs might not be sufficiently portable.]
-    //TODO: [[deprecated("Use the initialize list constructor")]]
-    IPosition (size_t length, ssize_t val0, ssize_t val1, ssize_t val2=MIN_INT, 
-	       ssize_t val3=MIN_INT, ssize_t val4=MIN_INT, ssize_t val5=MIN_INT,
-	       ssize_t val6=MIN_INT, ssize_t val7=MIN_INT, ssize_t val8=MIN_INT,
-	       ssize_t val9=MIN_INT);
+    // An IPosition initialized from a variable number of parameters.
+    // The first parameter should specify the size, but the actual
+    // size of the resulting IPosition is determined from the number
+    // of parameters (the first argument is ignored).
+    //
+    // This constructor should be disfavoured, because i) of the
+    // dummy parameter and ii) because it may narrow the
+    // specified parameter without a warning.
+    //
+    // Instead, use an initializer list constructor whenever possible.
+    // If an IPosition is created inside a macro, an initializer list
+    // is not possible. In those cases, use the Make(Vals...) factory
+    // method. Both of those methods do not have the above issues.
+    template<typename... Vals>
+    //[[ deprecated("Use the initializer list constructor or Make() method") ]]
+    IPosition (size_t /*dummy*/, ssize_t val1, ssize_t val2, Vals... vals) :
+    IPosition{val1, val2, static_cast<ssize_t>(vals)...} { }
 
     // Makes a copy (copy, NOT reference, semantics) of source.
     IPosition(const IPosition& source);
-    
+
     IPosition(IPosition&& source) noexcept;
-    
+
     ~IPosition();
+
+    // Construct an IPosition that is initialized from a variable number of parameter.
+    // The resulting size of the IPosition will equal the number of parameters specified.
+    //
+    // In general, using the initializer list constructor should be preferred. Defining
+    // an initializer list inside macros is however not possible. In those cases, this
+    // method can be used to construct the IPosition.
+    //
+    // Example: IPosition::Make(3, 5) creates an IPosition of size 2, with values 3 and 5.
+    // It is identical to IPosition{3, 5}. A program is ill-formed when narrowing of
+    // a parameter is required, causing a compiler warning or error.
+    template<typename... Vals>
+    static IPosition Make (Vals... vals) {
+      return IPosition{vals...};
+    }
 
     // Makes this a copy of other. When the dest is not of the same
     // size, it will resize itself to be the same length as the source.
     IPosition& operator=(const IPosition& source);
 
     IPosition& operator=(IPosition&& source);
-    
+
     // Copy "value" into every position of this IPosition.
     IPosition& operator=(ssize_t value);
 
@@ -210,12 +233,12 @@ public:
         *iter = data_p[i];
       }
     }
-  
+
 
     // This member functions return an IPosition which has
-    // degenerate (length==1) axes removed and the dimensionality reduced 
+    // degenerate (length==1) axes removed and the dimensionality reduced
     // appropriately.
-    // Only axes greater than startingAxis are considered (normally one 
+    // Only axes greater than startingAxis are considered (normally one
     // wants to remove trailing axes.
     // <br>
     // The functions with argument <src>ignoreAxes</src> do
@@ -383,7 +406,7 @@ public:
     typedef ssize_t*              iterator;
     typedef const ssize_t*        const_iterator;
     typedef value_type*       pointer;
-    typedef const value_type* const_pointer; 
+    typedef const value_type* const_pointer;
     typedef value_type&       reference;
     typedef const value_type& const_reference;
     typedef size_t            size_type;
@@ -418,7 +441,7 @@ private:
 };
 
 // Allows a way for IPosition to be used as keys in a std::map
-class IPositionComparator : public std::binary_function<IPosition, IPosition, bool> {
+class IPositionComparator {
 public:
     // if sizes aren't equal, returns true if lhs.size() < rhs.size(), false
     // otherwise. If sizes are equal, does an element by element comparison. The first
@@ -441,7 +464,7 @@ IPosition operator * (const IPosition& left, const IPosition& right);
 IPosition operator / (const IPosition& left, const IPosition& right);
 // </group>
 // Each operation is done by appliying the integer argument to all elements
-// of the IPosition argument. 
+// of the IPosition argument.
 // <group>
 IPosition operator + (const IPosition& left, ssize_t val);
 IPosition operator - (const IPosition& left, ssize_t val);
@@ -529,7 +552,7 @@ bool isInsideArray (const IPosition& iposition, const IPosition& shape);
 // </group>
 
 std::string to_string(const IPosition& ip);
-    
+
 //# Inlined member functions for IPosition
 
 inline IPosition::IPosition() noexcept

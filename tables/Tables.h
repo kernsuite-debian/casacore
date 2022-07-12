@@ -45,6 +45,7 @@
 #include <casacore/tables/Tables/ArrayColumn.h>
 #include <casacore/tables/Tables/TableRow.h>
 #include <casacore/tables/Tables/TableCopy.h>
+#include <casacore/tables/Tables/TableUtil.h>
 #include <casacore/casa/Arrays/Array.h>
 #include <casacore/casa/Arrays/Slicer.h>
 #include <casacore/casa/Arrays/Slice.h>
@@ -74,7 +75,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // <module>
 
 // <summary>
-// CTDS (Cascore Table Data System) is the data storage mechanism for Casacore
+// CTDS (Casacore Table Data System) is the data storage mechanism for Casacore
 // </summary>
 
 // <use visibility=export>
@@ -123,7 +124,16 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // </UL>
 // A few <A HREF="Tables:applications">applications</A> exist to inspect
 // and manipulate a table.
-
+//
+// Several UML diagrams describe the class structure of the Tables module.
+// <ul>
+//  <li> <a href="TableOverview.drawio.svg.html">Global overview of Table access</a>.
+//  <li> <a href="TableDesc.drawio.svg.html">Table and column descriptions</a>.
+//  <li> <a href="TableRecord.drawio.svg.html">Table keywords</a>.
+//  <li> <a href="Table.drawio.svg.html">Table class structure</a>.
+//  <li> <a href="PlainTable.drawio.svg.html">Detailed PlainTable class structure</a>.
+//  <li> <a href="DataManager.drawio.svg.html">DataManagers for storage</a>.
+// </ul>
 
 // <ANCHOR NAME="Tables:motivation">
 // <motivation></ANCHOR>
@@ -260,6 +270,13 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 //
 // When the table is opened, the data managers are reinstantiated
 // according to their definition at table creation.
+// <p>
+// <ANCHOR NAME="Tables:openTable">
+// The static function <src>TableUtil::openTable</src> can be used to open a table,
+// in particular a subtable, in a simple way by means of the :: notation like
+// <src>maintable::subtable</src>. The :: notation is much better than specifying
+// an explicit path (such as <src>maintable/subtable</src>, because it also works
+// fine if the main table is a reference table (e.g. the result of a selection).
 
 // <ANCHOR NAME="Tables:read">
 // <h3>Reading from a Table</h3></ANCHOR>
@@ -354,7 +371,6 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // can be bound to any data manager. <src>MemoryTable</src> will rebind 
 // stored columns to the <linkto class=MemoryStMan>MemoryStMan</linkto>
 // storage manager, but virtual columns bindings are not changed.
-
 //
 // The following example shows how you can create a table. An example
 // specifically illustrating the creation of the
@@ -417,6 +433,11 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // <srcblock>
 //     Table tab(newtab, Table::Memory, 10);
 // </srcblock>
+//
+// Note that the function <src>TableUtil::createTable</src> can be used to create a table
+// in a simpler way. It can also be used to create a subtable using the :: notation
+// similar to the <A HREF="#Tables:openTable"><src>Tableutil::openTable</src></A>
+// function described above.
 
 // <ANCHOR NAME="Tables:write">
 // <h3>Writing into a Table</h3></ANCHOR>
@@ -1119,6 +1140,27 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 //   normal tables. Note, however, that if a table is accessed
 //   concurrently from multiple processes, MemoryStMan data cannot be
 //   synchronized.
+//
+//  <li>
+//   @ref dyscostman.DyscoStMan is a class that stores data with lossy
+//   compression. It combines non-linear least-squares quantization and
+//   different kinds of normalizaton. With the typical factor of 4
+//   compression, the loss in accuracy from lossy compression is
+//   negligable. It should only be used for real (non-simulated) data
+//   that is in a Measurement Set.
+//   The method is described in this article:
+//   https://arxiv.org/abs/1609.02019.
+//
+//  <li>
+//   <linkto class="Adios2StMan:description">Adios2StMan</linkto> uses the
+//   <A HREF="https://github.com/ornladios/ADIOS2">ADIOS2 framework</A> to
+//   store and load column data.
+//   <br>ADIOS2 has several configurable storage backend itself, and this
+//   flexibility is also available via Adios2StMan. This includes, among other
+//   things, storing compressed data, or choosing a different on-disk formats.
+//   <br>This storage manager is also special in that it provides parallel
+//   writing capabilities for MPI processes, so that multiple processes can
+//   write into different sections of the same column concurrently.
 // </ol>
 //
 // The storage manager framework makes it possible to support arbitrary files
@@ -1461,9 +1503,9 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // <src>Table::isMultiUsed()</src> can be used to check if a table
 // is open in other processes.
 // <br>
-// The function <src>deleteTable</src> should be used to delete
+// The function <src>TableUtil::deleteTable</src> should be used to delete
 // a table. Before deleting the table it ensures that it is writable
-// and that it is not open in the current or another process
+// and that it is not open in the current or another process.
 // <p>
 // The following example wants to read the table uninterrupted, thus it uses
 // the <src>PermanentLocking</src> option. It also wants to wait

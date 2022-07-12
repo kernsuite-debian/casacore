@@ -8,12 +8,19 @@ RecordGram
 TableGram
 )
 
- 
+# Note that in the future -Dapi.pure might need be added to the else branch,
+# while %pure_parser should be removed from the .yy file.
 foreach (src ${parser_inputs})
-    BISON_TARGET (${src} TaQL/${src}.yy ${CMAKE_CURRENT_BINARY_DIR}/${src}.ycc COMPILE_FLAGS "-y -p ${src}")
+    if (BISON_VERSION VERSION_LESS 3.0)
+        BISON_TARGET (${src} TaQL/${src}.yy
+        ${CMAKE_CURRENT_BINARY_DIR}/${src}.ycc COMPILE_FLAGS "-y -p ${src}")
+    else()
+        BISON_TARGET (${src} TaQL/${src}.yy
+        ${CMAKE_CURRENT_BINARY_DIR}/${src}.ycc COMPILE_FLAGS "-y -Dapi.prefix={${src}} --warnings=no-yacc")
+    endif()
     FLEX_TARGET (${src} TaQL/${src}.ll ${CMAKE_CURRENT_BINARY_DIR}/${src}.lcc COMPILE_FLAGS "-P${src}")
 endforeach (src)
- 
+
 
 include_directories (${CMAKE_CURRENT_BINARY_DIR})
 
@@ -27,6 +34,13 @@ if (ADIOS2_FOUND)
   set(ADIOS2_SOURCES DataMan/Adios2StMan.cc DataMan/Adios2StManColumn.cc)
   set(ADIOS2_HEADERS DataMan/Adios2StMan.h DataMan/Adios2StManColumn.h)
 endif (ADIOS2_FOUND)
+
+if(BUILD_DYSCO)
+  add_subdirectory(Dysco)
+else(BUILD_DYSCO)
+  set(DYSCOSTMAN_SOURCES)
+  set(DYSCOSTMAN_LIBRARIES)
+endif(BUILD_DYSCO)
 
 add_library (casa_tables
 Tables/ArrayColumnBase.cc
@@ -88,6 +102,7 @@ Tables/TableRow.cc
 Tables/TableRowProxy.cc
 Tables/TableSyncData.cc
 Tables/TableTrace.cc
+Tables/TableUtil.cc
 DataMan/BitFlagsEngine.cc
 DataMan/CompressComplex.cc
 DataMan/CompressFloat.cc
@@ -199,9 +214,10 @@ ${FLEX_RecordGram_OUTPUTS}
 ${BISON_TableGram_OUTPUTS}
 ${FLEX_TableGram_OUTPUTS}
 ${ADIOS2_SOURCES}
+${DYSCOSTMAN_SOURCES}
 )
 
-target_link_libraries (casa_tables casa_casa ${CASACORE_ARCH_LIBS})
+target_link_libraries (casa_tables casa_casa ${CASACORE_ARCH_LIBS} ${DYSCOSTMAN_LIBRARIES})
 if(MPI_FOUND)
     target_link_libraries(casa_tables ${MPI_C_LIBRARIES})
     if(ADIOS2_FOUND)
@@ -301,6 +317,7 @@ Tables/TableRow.h
 Tables/TableRowProxy.h
 Tables/TableSyncData.h
 Tables/TableTrace.h
+Tables/TableUtil.h
 Tables/TableVector.h
 Tables/TableVector.tcc
 DESTINATION include/casacore/tables/Tables

@@ -30,6 +30,7 @@
 #include <casacore/tables/Tables/Table.h>
 #include <casacore/tables/Tables/TableDesc.h>
 #include <casacore/tables/Tables/TableLock.h>
+#include <casacore/tables/Tables/TableUtil.h>
 #include <casacore/tables/Tables/TableTrace.h>
 #include <casacore/casa/Containers/Record.h>
 #include <casacore/casa/Arrays/ArrayMath.h>
@@ -115,7 +116,7 @@ RefTable::RefTable (BaseTable* btp, const Vector<Bool>& mask)
     tdescPtr_p = new TableDesc (btp->tableDesc(), TableDesc::Scratch);
     setup (btp, Vector<String>());
     //# Store the rownr if the mask is set.
-    rownr_t nr = min (mask.nelements(), btp->nrow());
+    rownr_t nr = std::min<rownr_t> (mask.nelements(), btp->nrow());
     for (rownr_t i=0; i<nr; i++) {
 	if (mask(i)) {
 	    addRownr (i);
@@ -432,7 +433,7 @@ void RefTable::getLayout (TableDesc& desc, AipsIO& ios)
     }
     // Get description of the parent table.
     TableDesc pdesc;
-    Table::getLayout (pdesc, rootName);
+    TableUtil::getLayout (pdesc, rootName);
     makeDesc (desc, pdesc, nameMap, names);
 }
 
@@ -545,6 +546,22 @@ void RefTable::addRownr (rownr_t rnr)
 	rows_p = getStorage (rowStorage_p);
     }
     rows_p[nrrow_p++] = rnr;
+    changed_p = True;
+}
+
+//# Add a row number range of the root table.
+void RefTable::addRownrRange (rownr_t startRownr, rownr_t endRownr)
+{
+    rownr_t nrow = rowStorage_p.nelements();
+    rownr_t new_nrrow_p = nrrow_p + endRownr - startRownr + 1;
+    if (new_nrrow_p > nrow) {
+        rowStorage_p.resize (nrow + endRownr - startRownr + 1, True);
+        rows_p = getStorage (rowStorage_p);
+    }
+    std::iota(rows_p + nrrow_p, rows_p + new_nrrow_p, startRownr);
+    //for(rownr_t irow = startRownr; irow <= endRownr; ++irow)
+    //    rows_p[nrrow_p++] = irow;
+    nrrow_p = new_nrrow_p;
     changed_p = True;
 }
 
@@ -821,6 +838,11 @@ void RefTable::removeRow (rownr_t rownr)
     changed_p = True;
 }
 
+void RefTable::removeAllRow ()
+{
+    nrrow_p=0;
+    changed_p = True;
+}
 
 void RefTable::removeColumn (const Vector<String>& columnNames)
 {

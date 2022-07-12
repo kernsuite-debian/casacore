@@ -17,7 +17,11 @@ JsonGram
 )
  
 foreach (src ${parser_inputs})
-    BISON_TARGET (${src} Json/${src}.yy ${CMAKE_CURRENT_BINARY_DIR}/${src}.ycc COMPILE_FLAGS "-y -p ${src}")
+    if (BISON_VERSION VERSION_LESS 3.0)
+        BISON_TARGET (${src} Json/${src}.yy ${CMAKE_CURRENT_BINARY_DIR}/${src}.ycc COMPILE_FLAGS "-y -p ${src}")
+    else()
+        BISON_TARGET (${src} Json/${src}.yy ${CMAKE_CURRENT_BINARY_DIR}/${src}.ycc COMPILE_FLAGS "-y -Dapi.prefix={${src}} --warnings=no-yacc")
+    endif()
     FLEX_TARGET (${src} Json/${src}.ll ${CMAKE_CURRENT_BINARY_DIR}/${src}.lcc COMPILE_FLAGS "-P${src}")
 endforeach (src)
 
@@ -149,7 +153,6 @@ OS/Memory.cc
 OS/MemoryTrace.cc
 OS/ModcompConversion.cc
 OS/ModcompDataConversion.cc
-OS/Mutex.cc
 OS/OMP.cc
 OS/Path.cc
 OS/PrecTimer.cc
@@ -220,7 +223,6 @@ Utilities/Notice.cc
 Utilities/Precision.cc
 Utilities/RecordTransformable.cc
 Utilities/Regex.cc
-Utilities/RegSequence.cc
 Utilities/Sequence2.cc
 Utilities/Sort.cc
 Utilities/SortError.cc
@@ -251,6 +253,8 @@ endif (HDF5_FOUND)
 if (READLINE_FOUND)
     list (APPEND de_libraries ${READLINE_LIBRARIES})
 endif (READLINE_FOUND)
+
+find_library(libm m)
 
 target_link_libraries (
 casa_casa
@@ -636,9 +640,6 @@ Utilities/PtrHolder.h
 Utilities/PtrHolder.tcc
 Utilities/RecordTransformable.h
 Utilities/Regex.h
-Utilities/Register.h
-Utilities/Register.tcc
-Utilities/RegSequence.h
 Utilities/Sequence.h
 Utilities/Sequence.tcc
 Utilities/SortError.h
