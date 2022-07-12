@@ -36,9 +36,10 @@
 #include <casacore/casa/Arrays/ArrayFwd.h>
 #include <casacore/casa/BasicSL/String.h>
 #include <casacore/casa/IO/ByteIO.h>
-#include <casacore/casa/OS/Mutex.h>
-#include <map>
+
 #include <iosfwd>
+#include <map>
+#include <mutex>
 
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
@@ -87,6 +88,8 @@ typedef DataManager* (*DataManagerCtor) (const String& dataManagerType,
 
 // <synopsis> 
 // DataManager is the abstract base class for all kind of table data managers.
+// <br> The DataManager class structure is shown in this
+// <a href="DataManager.drawio.svg.html">UML diagram</a>.
 // There are currently 2 classes of data managers:
 // <ul>
 //  <li> Storage managers handling the storage of data. These classes
@@ -518,7 +521,7 @@ private:
     // Declare the mapping of the data manager type name to a static
     // "makeObject" function.
     static std::map<String,DataManagerCtor> theirRegisterMap;
-    static Mutex theirMutex;
+    static std::recursive_mutex theirMutex;
 
 public:
     // Has the object already been cloned?

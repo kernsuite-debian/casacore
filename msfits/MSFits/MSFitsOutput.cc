@@ -11,7 +11,7 @@
 //# but WITHOUT ANY WARRANTY; without even the implied warranty of
 //# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //# GNU General Public License for more details.
-//# 
+//#
 //# You should have received a copy of the GNU General Public License
 //# along with this program; if not, write to the Free Software
 //# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
@@ -324,7 +324,7 @@ Bool MSFitsOutput::writeFitsFile(
 	Bool overwrite
 ) {
     // A FITS table can handle only Int nrows.
-    if (ms.nrow() > std::numeric_limits<Int>::max()) {
+    if (ms.nrow() > static_cast<rownr_t>(std::numeric_limits<Int>::max())) {
       throw AipsError("MS " + ms.tableName() + " is too big (#rows exceeds MAX_INT)");
     }
     MSFitsOutput out(fitsfile, ms, column);
@@ -364,6 +364,23 @@ uInt MSFitsOutput::get_tbf_end(const uInt rownr, const uInt nrow,
             break;
     }
     return tbfend;
+}
+
+// Define a FITS random group parameter with default scaling and offset
+static void defineRandomParam(Record& ek, Int n, const String& name) {
+    String ptype = "ptype" + String::toString(n);
+    String pscal = "pscal" + String::toString(n);
+    String pzero = "pzero" + String::toString(n);
+    ek.define(ptype, name);
+    ek.define(pscal, 1.0);
+    ek.define(pzero, 0.0);
+}
+
+static void defineRandomParam(Record& ek, Int n, const String& name,
+        const String& comment) {
+    String ptype = "ptype" + String::toString(n);
+    defineRandomParam(ek, n, name);
+    ek.setComment(ptype, comment);
 }
 
 std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& refFreq,
@@ -431,7 +448,7 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
     }
     catch (const std::exception& x) {
         os << LogOrigin("MSFitsOutput", __func__)
-           << LogIO::WARN << "No source table in MS. " 
+           << LogIO::WARN << "No source table in MS. "
            << x.what() << LogIO::POST;
     }
     const uInt ndds = ddTable.nrow();
@@ -476,6 +493,10 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
             restFreq = restfreqcol(0)(ip);
         }
     }
+
+    Vector<Int> antnumbers;
+    _handleAntNumbers(_ms, antnumbers);
+    Int maxant = max(antnumbers);
 
     // Also find out what the Stokes are and make sure that they are the same
     // throughout the MS. In principle we could handle the same stokes in
@@ -678,8 +699,16 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
     // DATE
     desc.addField("date1", TpFloat);
     desc.addField("date2", TpFloat);
-    // BASELINE
-    desc.addField("baseline", TpFloat);
+    // BASELINE if maximum antenna number < 256
+    // SUBARRAY, ANTENNA1 and ANTENNA2 otherwise
+    // (see AIPS memo 117, section 3.1.2)
+    if (maxant < 256) {
+        desc.addField("baseline", TpFloat);
+    } else {
+        desc.addField("subarray", TpFloat);
+        desc.addField("antenna1", TpFloat);
+        desc.addField("antenna2", TpFloat);
+    }
     // FREQSEL
     ScalarColumn<Int> inddid(_ms, MS::columnName(MS::DATA_DESC_ID));
     desc.addField("freqsel", TpFloat);
@@ -748,36 +777,23 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
     ek.define("crota7", 0.0);
 
     // PTYPE PSCALE PZERO
-    ek.define("ptype1", "UU");
-    ek.define("pscal1", 1.0);
-    ek.define("pzero1", 0.0);
-    ek.define("ptype2", "VV");
-    ek.define("pscal2", 1.0);
-    ek.define("pzero2", 0.0);
-    ek.define("ptype3", "WW");
-    ek.define("pscal3", 1.0);
-    ek.define("pzero3", 0.0);
-    ek.define("ptype4", "DATE");
-    ek.define("pscal4", 1.0);
-    ek.define("pzero4", 0.0);
-    ek.setComment("ptype4", "Day number");
-    ek.define("ptype5", "DATE");
-    ek.define("pscal5", 1.0);
-    ek.define("pzero5", 0.0);
-    ek.setComment("ptype5", "Day fraction");
-    ek.define("ptype6", "BASELINE");
-    ek.define("pscal6", 1.0);
-    ek.define("pzero6", 0.0);
-    ek.define("ptype7", "FREQSEL");
-    ek.define("pscal7", 1.0);
-    ek.define("pzero7", 0.0);
+    Int idx = 1;
+    defineRandomParam(ek, idx++, "UU");
+    defineRandomParam(ek, idx++, "VV");
+    defineRandomParam(ek, idx++, "WW");
+    defineRandomParam(ek, idx++, "DATE", "Day number");
+    defineRandomParam(ek, idx++, "DATE", "Day fraction");
+    if (maxant < 256) {
+        defineRandomParam(ek, idx++, "BASELINE");
+    } else {
+        defineRandomParam(ek, idx++, "SUBARRAY");
+        defineRandomParam(ek, idx++, "ANTENNA1");
+        defineRandomParam(ek, idx++, "ANTENNA2");
+    }
+    defineRandomParam(ek, idx++, "FREQSEL");
     if (asMultiSource) {
-        ek.define("ptype8", "SOURCE");
-        ek.define("pscal8", 1.0);
-        ek.define("pzero8", 0.0);
-        ek.define("ptype9", "INTTIM");
-        ek.define("pscal9", 1.0);
-        ek.define("pzero9", 0.0);
+        defineRandomParam(ek, idx++, "SOURCE");
+        defineRandomParam(ek, idx++, "INTTIM");
     }
 
     // EXTEND - already written by FITSGroupWriter
@@ -1046,7 +1062,17 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
     RecordFieldPtr<Float> oww(writer.row(), "w");
     RecordFieldPtr<Float> odate1(writer.row(), "date1");
     RecordFieldPtr<Float> odate2(writer.row(), "date2");
-    RecordFieldPtr<Float> obaseline(writer.row(), "baseline");
+    RecordFieldPtr<Float> obaseline;
+    RecordFieldPtr<Float> osubarray;
+    RecordFieldPtr<Float> oantenna1;
+    RecordFieldPtr<Float> oantenna2;
+    if (maxant < 256) {
+        obaseline = RecordFieldPtr<Float> (writer.row(), "baseline");
+    } else {
+        osubarray = RecordFieldPtr<Float> (writer.row(), "subarray");
+        oantenna1 = RecordFieldPtr<Float> (writer.row(), "antenna1");
+        oantenna2 = RecordFieldPtr<Float> (writer.row(), "antenna2");
+    }
     RecordFieldPtr<Float> ofreqsel(writer.row(), "freqsel");
     RecordFieldPtr<Float> osource;
     RecordFieldPtr<Float> ointtim;
@@ -1064,9 +1090,6 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
                     << LogIO::POST;
         }
     }
-
-    Vector<Int> antnumbers;
-    _handleAntNumbers(_ms, antnumbers);
 
     // Loop through all rows.
     ProgressMeter meter(0.0, nOutRow * 1.0, "UVFITS Writer", "Rows copied", "",
@@ -1155,7 +1178,7 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
                     //weight_spectrum may not exist but flag and data always will.
                     IPosition shp = indatatmp.shape();
                     Int nchan = shp(1); // either num of channels of num of lags
-                    //cout << "shp1=" << shp << " shp2=" << inflagtmp.shape() 
+                    //cout << "shp1=" << shp << " shp2=" << inflagtmp.shape()
                     //     << " nchan=" << nchan << endl;
                     if (nchan < 1) nchan = 1;
                     const Vector<Float> wght = inweightscalar(rownr);
@@ -1192,7 +1215,7 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
             Int chancounter = 0;
             Vector<Int> flagcounter(numcorr0);
             flagcounter.set(0);
-            //cout << "chanstart=" << chanstart << " nchan=" << nchan 
+            //cout << "chanstart=" << chanstart << " nchan=" << nchan
             //     << " chanstep=" << chanstep << " avgchan=" << avgchan << endl;
             for (Int k = chanstart; k < (nchan * chanstep + chanstart); k += chanstep) {
                 //cout << "row = " << tbfrownr << " "
@@ -1225,9 +1248,9 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
                             imagcorrf[j] += iptr[offset].imag() * wptr[offset];
                             wgtaverf[j] += wptr[offset];
                         }
-                        //cout << "j=" << j << " k=" << k 
-                        //     << " real=" << realcorr[j] << " image=" << imagcorr[j] 
-                        //     << " offset=" << offset << " chancounter=" << chancounter << endl; 
+                        //cout << "j=" << j << " k=" << k
+                        //     << " real=" << realcorr[j] << " image=" << imagcorr[j]
+                        //     << " offset=" << offset << " chancounter=" << chancounter << endl;
                     }
                     ++chancounter;
                 }
@@ -1237,7 +1260,7 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
                             outptr[0] = realcorr[j] / wgtaver[j];
                             outptr[1] = imagcorr[j] / wgtaver[j];
                             outptr[2] = wgtaver[j] / flagcounter * numcorr0;
-                        } 
+                        }
                         else if (wgtaverf[j] > 0) {
                             outptr[0] = realcorrf[j] / wgtaverf[j];
                             outptr[1] = imagcorrf[j] / wgtaverf[j];
@@ -1281,9 +1304,9 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
                             imagcorrf[j] += iptr[offset].imag();
                             wgtaverf[j] += wptr[offset];
                         }
-                        //cout << "j=" << j << " k=" << k 
-                        //     << " real=" << realcorr[j] << " image=" << imagcorr[j] 
-                        //     << " offset=" << offset << " chancounter=" << chancounter << endl; 
+                        //cout << "j=" << j << " k=" << k
+                        //     << " real=" << realcorr[j] << " image=" << imagcorr[j]
+                        //     << " offset=" << offset << " chancounter=" << chancounter << endl;
                     }
                     ++chancounter;
                 }
@@ -1293,7 +1316,7 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
                             outptr[0] = realcorr[j] / flagcounter[j];
                             outptr[1] = imagcorr[j] / flagcounter[j];
                             outptr[2] = wgtaver[j] / flagcounter[j];
-                        } 
+                        }
                         else if (wgtaverf[j] > 0) {
                             outptr[0] = realcorrf[j] / avgchan;
                             outptr[1] = imagcorrf[j] / avgchan;
@@ -1343,8 +1366,15 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
         *odate2 = dayFraction;
 
         // BASELINE
-        *obaseline = antnumbers(inant1(tbfrownr)) * 256 + antnumbers(inant2(
-                tbfrownr)) + inarray(tbfrownr) * 0.01;
+        if (maxant < 256) {
+            *obaseline = antnumbers(inant1(tbfrownr)) * 256 +
+                    antnumbers(inant2(tbfrownr)) +
+                    inarray(tbfrownr) * 0.01;
+        } else {
+            *osubarray = inarray(tbfrownr) + 1;
+            *oantenna1 = antnumbers(inant1(tbfrownr));
+            *oantenna2 = antnumbers(inant2(tbfrownr));
+        }
 
         // FREQSEL (in the future it might be FREQ_GRP+1)
         //    *ofreqsel = inddid(i) + 1;
@@ -1504,7 +1534,7 @@ Bool MSFitsOutput::_writeFQ(std::shared_ptr<FitsOutput> output, const Measuremen
                 (*iffreq)(inx) = 0.0;
             } else {
                 os << LogIO::DEBUG2 << "refPixelFreq=" << refPixelFreq << " refFreq=" << refFreq
-                   //<< "\nfreqs=" << freqs 
+                   //<< "\nfreqs=" << freqs
                    << LogIO::POST;
                 Int chancounter = 0;
                 Int nselectedchan = 0;
@@ -1524,13 +1554,13 @@ Bool MSFitsOutput::_writeFQ(std::shared_ptr<FitsOutput> output, const Measuremen
                     frq += freqs(k);
                     chancounter++;
                     if (chancounter == avgchan) {
-                       sfreq(nselectedchan) = frq / avgchan;   
+                       sfreq(nselectedchan) = frq / avgchan;
                        nselectedchan++;
                        chancounter = 0;
                        frq = 0;
                     }
                 }
-                os << LogIO::DEBUG2 << "\nsfreq=" << sfreq 
+                os << LogIO::DEBUG2 << "\nsfreq=" << sfreq
                    << LogIO::POST;
                 (*iffreq)(inx) = sfreq(refPixelFreq - 1) - refFreq;
             }
@@ -1780,7 +1810,7 @@ Bool MSFitsOutput::_writeAN(std::shared_ptr<FitsOutput> output, const Measuremen
             *stabxyz = corstabxyz;
             *nosta = id[antnum];
             String mount = upcase(inantmount(antnum));
-            // MS has "EQUATORIAL", "ALT-AZ", "X-Y",  "SPACE-HALCA" 
+            // MS has "EQUATORIAL", "ALT-AZ", "X-Y",  "SPACE-HALCA"
             if (mount.contains("ALT-AZ+NASMYTH-R")) {
                 *mntsta = 4;
             }
@@ -2062,7 +2092,7 @@ Bool MSFitsOutput::_writeSU(std::shared_ptr<FitsOutput> output, const Measuremen
                 }
             }
 
-            if (dir.type() == MDirection::B1950) {
+            if (dir.getRef().getType() == MDirection::B1950) {
                 *epoch = 1950.;
             }
 
@@ -2625,7 +2655,7 @@ Bool MSFitsOutput::_writeSY(
         ANTENNA_ID, FEED_ID, SPECTRAL_WINDOW_ID, TIME, "INTERVAL",
         "SWITCHED_DIFF", "SWITCHED_SUM", "REQUANTIZER_GAIN"
     };
-    for (const auto cname: expColNames) {
+    for (const String& cname: expColNames) {
         if (! td.isColumn(cname)) {
             os << LogIO::WARN << "Required column " << cname
                 << " not found in SYSPOWER table" << LogIO::POST;
@@ -2646,7 +2676,7 @@ Bool MSFitsOutput::_writeSY(
     // be adding support to MSFitsInput.cc, and in fact the reason I'm not supporting writing multiple
     // IFs to the uvfits table currently is because the only way to test that is to read the uvfits file
     // back in which requires support for multiple IFs in MSFitsInput.cc. The current requirement is to
-    // write the SYSPOWER table to uvfits, not read it from uvfits, so the current implementation is 
+    // write the SYSPOWER table to uvfits, not read it from uvfits, so the current implementation is
     // sufficient CAS-11860 )
     Int nrif = 1;
     if (combineSpw) {
@@ -2782,7 +2812,7 @@ Bool MSFitsOutput::_writeSY(
                     os << LogIO::SEVERE << "Irregularities in time values "
                         << "in the SYSPOWER subtable, so spectral window "
                         << "data cannot be combined when writing UVFITS "
-                        << "SY table. Perhaps try combineSpw=False" 
+                        << "SY table. Perhaps try combineSpw=False"
                         << LogIO::POST;
                     return False;
                 }
@@ -2793,7 +2823,7 @@ Bool MSFitsOutput::_writeSY(
                         << "UVFITS SY table. Perhaps try combineSpw=False"
                         << LogIO::POST;
                     return False;
-                }                
+                }
             }
             switchedDiff.get(i + j, pdv);
             pd1[j] = pdv[0];
@@ -2819,7 +2849,7 @@ Bool MSFitsOutput::_writeSY(
     }
     return True;
 }
-    
+
 void MSFitsOutput::getStartHA(Double& startTime, Double& startHA,
         const MeasurementSet& ms, uInt rownr) {
     MSColumns mscol(ms);
@@ -3034,9 +3064,8 @@ void MSFitsOutput::_handleAntNumbers(const MeasurementSet& ms,
 
 }
 
-// Local Variables: 
+// Local Variables:
 // compile-command: "gmake MSFitsOutput"
-// End: 
+// End:
 
 } //# NAMESPACE CASACORE - END
-

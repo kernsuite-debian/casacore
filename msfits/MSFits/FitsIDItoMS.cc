@@ -2586,8 +2586,8 @@ void FITSIDItoMS1::fillAntennaTable()
      switch (mntid(i)) {
      case 0: mount="ALT-AZ"; break;
      case 1: mount="EQUATORIAL"; break;
-     case 2: mount="X-Y"; break;
-     case 3: mount="ORBITING"; break;
+     case 2: mount="ORBITING"; break;
+     case 3: mount="X-Y"; break;
      case 4: mount="ALT-AZ+NASMYTH-R"; break;
      case 5: mount="ALT-AZ+NASMYTH-L"; break;
      default: mount="UNKNOWN"; break;
@@ -3559,7 +3559,7 @@ Bool FITSIDItoMS1::handleGainCurve()
   ScalarColumn<Int> ytyp_2S;
   ScalarColumn<Float> gain_2S;
   ScalarColumn<Float> sens_2S;
-  Int ytyp, nterm;
+  Int ytyp = 0, nterm = 0;
   try {
     type_1.attach(gcTab, "TYPE_1");
     nterm_1.attach(gcTab, "NTERM_1");
@@ -3863,7 +3863,7 @@ bool FITSIDItoMS1::readFitsFile(const String& msFile)
       firstWeather=False;
     }
 
-    if (firstWeather && extname == "GAIN_CURVE") {
+    if (firstGainCurve && extname == "GAIN_CURVE") {
       addGainCurve=True;
       firstGainCurve=False;
     }

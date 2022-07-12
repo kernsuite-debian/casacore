@@ -58,6 +58,10 @@
 #endif
 #endif
 
+#ifdef HAVE_DYSCO
+#include <casacore/tables/Dysco/dyscostman.h>
+#endif
+
 namespace casacore { //# NAMESPACE CASACORE - BEGIN
 
 DataManager::DataManager()
@@ -336,7 +340,7 @@ void DataManager::removeColumn (DataManagerColumn*)
 // a nested lock.
 std::map<String,DataManagerCtor>
         DataManager::theirRegisterMap(initRegisterMap());
-Mutex DataManager::theirMutex(Mutex::Recursive);
+std::recursive_mutex DataManager::theirMutex;
 // Define the nr of rows fitting in an Int which is used by the data
 // managers. Test programs can set it to a lower value to test storing
 // 64-bit rownrs without the need of having very large tables.
@@ -346,14 +350,14 @@ rownr_t DataManager::MAXROWNR32 (2147483647);
 //# Register a mapping.
 void DataManager::registerCtor (const String& type, DataManagerCtor func)
 {
-    ScopedMutexLock lock(theirMutex);
+    std::lock_guard<std::recursive_mutex> lock(theirMutex);
     theirRegisterMap.insert (std::make_pair(type, func));
 }
 
 //# Test if the data manager is registered.
 Bool DataManager::isRegistered (const String& type)
 {
-    ScopedMutexLock lock(theirMutex);
+    std::lock_guard<std::recursive_mutex> lock(theirMutex);
     return theirRegisterMap.find(type) != theirRegisterMap.end();
 }
 
@@ -362,7 +366,7 @@ Bool DataManager::isRegistered (const String& type)
 //# after having tried to load it from a shared library.
 DataManagerCtor DataManager::getCtor (const String& type)
 {
-    ScopedMutexLock lock(theirMutex);
+    std::lock_guard<std::recursive_mutex> lock(theirMutex);
     std::map<String,DataManagerCtor>::const_iterator iter = theirRegisterMap.find (type);
     if (iter != theirRegisterMap.end()) {
         return iter->second;
@@ -426,6 +430,11 @@ std::map<String,DataManagerCtor> DataManager::initRegisterMap()
   theirRegisterMap.insert (std::make_pair("Adios2StMan",      Adios2StMan::makeObject));
 #endif
 #endif
+
+#ifdef HAVE_DYSCO
+  theirRegisterMap.insert (std::make_pair("DyscoStMan", dyscostman::DyscoStMan::makeObject));
+#endif
+  
   theirRegisterMap.insert (std::make_pair(CompressFloat::className(),
                                           CompressFloat::makeObject));
   theirRegisterMap.insert (std::make_pair(CompressComplex::className(),
