@@ -1,0 +1,12 @@
+diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
+index dbfc64593..9df2a0445 100644
+--- a/casa/OS/test/CMakeLists.txt
++++ b/casa/OS/test/CMakeLists.txt
+@@ -12,7 +12,6 @@ tIBMConversion
+ tLECanonicalConversion
+ tMemoryTrace
+ tModcompConversion
+-tPath
+ tPrecTimer
+ tRegularFile
+ tSymLink

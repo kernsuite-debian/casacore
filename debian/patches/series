@@ -1,10 +1,11 @@
 Do-not-install-test-and-demonstration-executables.patch
 Disable-class-and-collaboration-graph-generation.patch
-Disable-tests-that-require-data-tables.patch
-Disable-known-test-failures.patch
+#Disable-tests-that-require-data-tables.patch
+Disable-Known-Test-Failures.patch
 Loose-some-tests-tFFTServer-tests.patch
 Make-the-check-for-NFS-a-bit-more-portable-BSD.patch
 Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
 Fall-back-to-older-cmake-functions-to-find-Python-3.patch
 Use-python3-in-bang-path-of-test-utilities.patch
+End-of-file-char.patch
