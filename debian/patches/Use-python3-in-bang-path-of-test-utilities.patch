@@ -10,50 +10,50 @@ Subject: Use python3 in bang path of test utilities
  python/Converters/test/tConvert.py | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
 
-diff --git a/build-tools/casacore_floatcheck b/build-tools/casacore_floatcheck
-index a9096ea..d701918 100755
---- a/build-tools/casacore_floatcheck
-+++ b/build-tools/casacore_floatcheck
+Index: casacore/build-tools/casacore_floatcheck
+===================================================================
+--- casacore.orig/build-tools/casacore_floatcheck
++++ casacore/build-tools/casacore_floatcheck
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env python
 +#!/usr/bin/env python3
  
  #-----------------------------------------------------------------------------
  # floatcheck: Check files within floating point accuracy
-diff --git a/casa/apps/countcode b/casa/apps/countcode
-index 6f14477..ad38fca 100755
---- a/casa/apps/countcode
-+++ b/casa/apps/countcode
+Index: casacore/casa/apps/countcode
+===================================================================
+--- casacore.orig/casa/apps/countcode
++++ casacore/casa/apps/countcode
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env python
 +#!/usr/bin/env python3
  
  # This script counts the lines of code in various types of source files.
  # It has options to print summaries at various levels.
-diff --git a/casa/apps/plotmemory b/casa/apps/plotmemory
-index 4c3ff69..db6f8e7 100755
---- a/casa/apps/plotmemory
-+++ b/casa/apps/plotmemory
+Index: casacore/casa/apps/plotmemory
+===================================================================
+--- casacore.orig/casa/apps/plotmemory
++++ casacore/casa/apps/plotmemory
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env python
 +#!/usr/bin/env python3
  
  import numpy as np
  #import matplotlib.pyplot as plt
-diff --git a/casa/apps/watchmemory b/casa/apps/watchmemory
-index edc1a28..18d53e7 100755
---- a/casa/apps/watchmemory
-+++ b/casa/apps/watchmemory
+Index: casacore/casa/apps/watchmemory
+===================================================================
+--- casacore.orig/casa/apps/watchmemory
++++ casacore/casa/apps/watchmemory
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env python
 +#!/usr/bin/env python3
  
  import time
  import string
-diff --git a/python/Converters/test/tConvert.py b/python/Converters/test/tConvert.py
-index f2a66ae..ed7793e 100644
---- a/python/Converters/test/tConvert.py
-+++ b/python/Converters/test/tConvert.py
+Index: casacore/python/Converters/test/tConvert.py
+===================================================================
+--- casacore.orig/python/Converters/test/tConvert.py
++++ casacore/python/Converters/test/tConvert.py
 @@ -1,4 +1,4 @@
 -#!/usr/bin/env python
 +#!/usr/bin/env python3
