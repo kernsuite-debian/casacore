@@ -19,7 +19,7 @@ endif
 override_dh_auto_configure:
 	dh_auto_configure -- -DCMAKE_SKIP_INSTALL_RPATH=ON \
 	    -DUSE_THREADS=$(THREADS) -DLIB_SUFFIX=/$(DEB_HOST_MULTIARCH) \
-            -DDATA_DIR=/var/lib/casacore/data \
+            -DDATA_DIR=/usr/share/casacore/data \
             -DUSE_FFTW3=ON \
 	    -DUSE_OPENMP=ON \
 	    -DUSE_HDF5=ON \
