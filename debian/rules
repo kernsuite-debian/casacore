@@ -21,8 +21,9 @@ override_dh_auto_configure:
 	    -DUSE_THREADS=$(THREADS) -DLIB_SUFFIX=/$(DEB_HOST_MULTIARCH) \
             -DDATA_DIR=/var/lib/casacore/data \
             -DUSE_FFTW3=ON \
-            -DUSE_HDF5=OFF \
-            -DBUILD_PYTHON=OFF -DBUILD_PYTHON3=ON \
+	    -DUSE_OPENMP=ON \
+	    -DUSE_HDF5=ON \
+	    -DUSE_THREADS=ON \
             -DBUILD_TESTING=True
 
 override_dh_auto_build-indep:
