@@ -5,6 +5,7 @@ Uploaders: Benda Xu <heroxbd@gentoo.org>, Ole Streicher <olebole@debian.org>
 Build-Depends: bison,
                cmake (>= 1.6.2),
                debhelper-compat (= 12),
+               casacore-data,
                dh-python,
                doxygen,
                flex,
