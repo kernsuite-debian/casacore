@@ -1,3 +1,11 @@
+casacore (3.5.0-2kern1) focal; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * Enable tests
+  * Add casacore-data
+
+ -- KERN packaging <packaging@kernsuite.info>  Fri, 09 Sep 2022 10:25:38 +0000
+
 casacore (3.5.0-1kern1) focal; urgency=medium
 
   [ Athanaseus Javas Ramaila]
