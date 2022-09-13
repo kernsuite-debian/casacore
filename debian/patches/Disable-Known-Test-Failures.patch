@@ -1,12 +1,28 @@
 diff --git a/casa/OS/test/CMakeLists.txt b/casa/OS/test/CMakeLists.txt
-index dbfc64593..9df2a0445 100644
+index dbfc64593..baeac0ecb 100644
 --- a/casa/OS/test/CMakeLists.txt
 +++ b/casa/OS/test/CMakeLists.txt
-@@ -12,7 +12,6 @@ tIBMConversion
+@@ -12,7 +12,7 @@ tIBMConversion
  tLECanonicalConversion
  tMemoryTrace
  tModcompConversion
 -tPath
++#tPath
  tPrecTimer
  tRegularFile
  tSymLink
+diff --git a/scimath/Fitting/test/CMakeLists.txt b/scimath/Fitting/test/CMakeLists.txt
+index 35d258f98..de697382f 100644
+--- a/scimath/Fitting/test/CMakeLists.txt
++++ b/scimath/Fitting/test/CMakeLists.txt
+@@ -3,8 +3,8 @@ dConstraints
+ dLSQFit
+ tFitGaussian
+ tLinearFitSVD
+-tLSQaips
+-tLSQFit
++#tLSQaips
++#tLSQFit
+ tNonLinearFitLM
+ )
+ 

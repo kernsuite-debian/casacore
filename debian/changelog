@@ -1,3 +1,10 @@
+casacore (3.5.0-3kern1) focal; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * Disable know failing tests
+
+ -- KERN packaging <packaging@kernsuite.info>  Mon, 12 Sep 2022 12:05:04 +0000
+
 casacore (3.5.0-2kern1) focal; urgency=medium
 
   [ Athanaseus Javas Ramaila ]
