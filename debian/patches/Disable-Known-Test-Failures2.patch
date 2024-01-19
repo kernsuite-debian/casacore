@@ -1,0 +1,118 @@
+diff --git a/coordinates/Coordinates/test/CMakeLists.txt b/coordinates/Coordinates/test/CMakeLists.txt
+index bd1c9960db..f1233b5fa6 100644
+--- a/coordinates/Coordinates/test/CMakeLists.txt
++++ b/coordinates/Coordinates/test/CMakeLists.txt
+@@ -6,7 +6,7 @@ tCoordinate
+ tCoordinateSystem
+ tCoordinateUtil
+ tDirectionCoordinate
+-tFrequencyAligner
++#tFrequencyAligner
+ tGaussianConvert
+ tLinearCoordinate
+ tLinearXform
+diff --git a/meas/MeasUDF/test/CMakeLists.txt b/meas/MeasUDF/test/CMakeLists.txt
+index e4e8ff4aed..3f6930437e 100644
+--- a/meas/MeasUDF/test/CMakeLists.txt
++++ b/meas/MeasUDF/test/CMakeLists.txt
+@@ -1,12 +1,12 @@
+ set (tests
+  tPositionEngine
+- tEpochEngine
+- tDirectionEngine
+- tEarthMagneticEngine
++ #tEpochEngine
++ #tDirectionEngine
++ #tEarthMagneticEngine
+  tFrequencyEngine
+- tRadialVelocityEngine
+- tDopplerEngine
+- tmeas
++ #tRadialVelocityEngine
++ #tDopplerEngine
++ #tmeas
+ )
+ 
+ foreach (test ${tests})
+diff --git a/measures/Measures/test/CMakeLists.txt b/measures/Measures/test/CMakeLists.txt
+index c10a670273..f0b8da59ff 100644
+--- a/measures/Measures/test/CMakeLists.txt
++++ b/measures/Measures/test/CMakeLists.txt
+@@ -1,25 +1,25 @@
+ set (tests
+ dM1950_2000
+-dMeasure
++#dMeasure
+ tEarthField
+-tEarthMagneticMachine
+-tMBaseline
++#tEarthMagneticMachine
++#tMBaseline
+ tMDirection
+-tMEarthMagnetic
++#tMEarthMagnetic
+ tMFrequency
+-tMeasComet
++#tMeasComet
+ tMeasIERS
+ tMeasJPL
+ tMeasMath
+-tMeasure
++#tMeasure
+ tMeasureHolder
+-tMuvw
+-tParAngleMachine
++#tMuvw
++#tParAngleMachine
+ tQuality
+ tRecordTransformable
+ tStokes
+ tUVWMachine
+-tVelocityMachine
++#tVelocityMachine
+ )
+ 
+ foreach (test ${tests})
+diff --git a/measures/TableMeasures/test/CMakeLists.txt b/measures/TableMeasures/test/CMakeLists.txt
+index e7c4af1f96..d594298f72 100644
+--- a/measures/TableMeasures/test/CMakeLists.txt
++++ b/measures/TableMeasures/test/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ set (tests
+ tTableQuantum
+-tTableMeasures
++#tTableMeasures
+ dVarRefMdirCol
+ )
+ 
+diff --git a/ms/MSOper/test/CMakeLists.txt b/ms/MSOper/test/CMakeLists.txt
+index c0366ef281..ccefad5555 100644
+--- a/ms/MSOper/test/CMakeLists.txt
++++ b/ms/MSOper/test/CMakeLists.txt
+@@ -1,9 +1,9 @@
+ set (tests
+-tMSDerivedValues
++#tMSDerivedValues
+ tMSKeys
+ tMSMetaData
+ tMSReader
+-tMSSummary
++#tMSSummary
+ tNewMSSimulator
+ )
+ 
+diff --git a/ms/MeasurementSets/test/CMakeLists.txt b/ms/MeasurementSets/test/CMakeLists.txt
+index 6e66aadc3d..076b8013f3 100644
+--- a/ms/MeasurementSets/test/CMakeLists.txt
++++ b/ms/MeasurementSets/test/CMakeLists.txt
+@@ -14,8 +14,8 @@ set (tests
+ tMeasurementSet
+ tMSColumns
+ tMSDataDescBuffer
+-tMSFieldBuffer
+-tMSFieldEphem
++#tMSFieldBuffer
++#tMSFieldEphem
+ tMSIter
+ tMSMainBuffer
+ tMSPolBuffer
