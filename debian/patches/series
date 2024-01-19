@@ -9,4 +9,4 @@ Enable-hostinfo-for-kFreeBSD.patch
 Fix-compilation-for-GNU-Hurd.patch
 Fall-back-to-older-cmake-functions-to-find-Python-3.patch
 Use-python3-in-bang-path-of-test-utilities.patch
-End-Of-File-Char.patch
+End-of-File-Char.patch
