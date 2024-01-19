@@ -1,3 +1,10 @@
+casacore (3.5.0-4kern1) jammy; urgency=medium
+
+  [ Athanaseus Javase Ramaila ]
+  * Build for jammy
+
+ -- KERN packaging <packaging@kernsuite.info>  Fri, 19 Jan 2024 21:55:35 +0000
+
 casacore (3.5.0-3kern1) focal; urgency=medium
 
   [ Athanaseus Javas Ramaila ]
