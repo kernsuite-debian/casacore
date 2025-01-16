@@ -1,3 +1,11 @@
+casacore (3.6.1-1kern1) noble; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * Build for noble
+  * New upstream version 3.6.1
+
+ -- KERN packaging <packaging@kernsuite.info>  Thu, 16 Jan 2025 10:51:45 +0000
+
 casacore (3.5.0-4kern1) jammy; urgency=medium
 
   [ Athanaseus Javase Ramaila ]
