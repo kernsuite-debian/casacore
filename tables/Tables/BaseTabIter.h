@@ -17,13 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #ifndef TABLES_BASETABITER_H
 #define TABLES_BASETABITER_H
@@ -96,8 +94,9 @@ public:
     // iteration boundary. This improves performance in general but will
     // break existing applications that change the comparison objects
     // (cmpObjs) between iterations.
-    BaseTableIterator (BaseTable*, const Block<String>& columnNames,
-                       const Block<CountedPtr<BaseCompare> >& cmpObjs,
+    BaseTableIterator (const std::shared_ptr<BaseTable>&,
+                       const Block<String>& columnNames,
+                       const Block<std::shared_ptr<BaseCompare>>& cmpObjs,
                        const Block<Int>& orders,
                        int option,
                        bool cacheIterationBoundaries = false);
@@ -107,11 +106,15 @@ public:
 
     virtual ~BaseTableIterator();
 
+    // Assignment is not needed, because the assignment operator in
+    // the envelope class TableIterator has reference semantics.
+    BaseTableIterator& operator= (const BaseTableIterator&) = delete;
+
     // Reset the iterator (i.e. restart iteration).
     virtual void reset();
 
     // Return the next group.
-    virtual BaseTable* next();
+    virtual std::shared_ptr<BaseTable> next();
 
     virtual void copyState(const BaseTableIterator &);
 
@@ -119,27 +122,23 @@ public:
     // comparison function) to terminate the most recent call to next()
     // Enables clients to sense iteration boundary properties
     // and organize associated iterations
-    inline const String& keyChangeAtLastNext() const { return keyChangeAtLastNext_p; };
+    inline const String& keyChangeAtLastNext() const
+      { return keyChangeAtLastNext_p; }
 
 protected:
-    BaseTable*             sortTab_p;     //# Table sorted in iteration order
+    std::shared_ptr<BaseTable> sortTab_p; //# Table sorted in iteration order
     rownr_t                lastRow_p;     //# last row used from reftab
     uInt                   nrkeys_p;      //# nr of columns in group
     String                 keyChangeAtLastNext_p;  //# name of column that terminated most recent next()
     PtrBlock<BaseColumn*>  colPtr_p;      //# pointer to column objects
-    Block<CountedPtr<BaseCompare> > cmpObj_p;  //# comparison object per column
+    Block<std::shared_ptr<BaseCompare>> cmpObj_p;  //# comparison object per column
 
     // Copy constructor (to be used by clone)
     BaseTableIterator (const BaseTableIterator&);
 
-    BaseTable* noCachedIterBoundariesNext();
+    std::shared_ptr<BaseTable> noCachedIterBoundariesNext();
 
 private:
-    // Assignment is not needed, because the assignment operator in
-    // the envelope class TableIterator has reference semantics.
-    // Declaring it private, makes it unusable.
-    BaseTableIterator& operator= (const BaseTableIterator&);
-
     Block<void*>           lastVal_p;     //# last value per column
     Block<void*>           curVal_p;      //# current value per column
 
@@ -147,7 +146,8 @@ private:
     std::shared_ptr<Vector<size_t>> sortIterKeyIdxChange_p;
     Vector<rownr_t>::iterator sortIterBoundariesIt_p;
     Vector<size_t>::iterator  sortIterKeyIdxChangeIt_p;
-    RefTable* aRefTable_p;
+    RefTable* aRefTable_p;      //# RefTable returned in each iteration
+    std::shared_ptr<BaseTable> aBaseTable_p; //# Same as above for automatic deletion
 };
 
 

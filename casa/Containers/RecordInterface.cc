@@ -17,14 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//#
-//# $Id$
 
 
 #include <casacore/casa/Containers/RecordInterface.h>
@@ -52,8 +49,7 @@ RecordInterface::RecordInterface (RecordType type,
 {}
 
 RecordInterface::RecordInterface (const RecordInterface& other)
-: NoticeSource    (),
-  checkFunction_p (other.checkFunction_p),
+: checkFunction_p (other.checkFunction_p),
   checkArgument_p (other.checkArgument_p),
   type_p          (other.type_p)
 {}
@@ -68,7 +64,6 @@ RecordInterface& RecordInterface::operator= (const RecordInterface& other)
     
 RecordInterface::~RecordInterface()
 {
-    notify (RecordNotice (RecordNotice::DETACH, 0));
 }
 
 
@@ -692,23 +687,6 @@ const Array<String>& RecordInterface::asArrayString (const RecordFieldId& id) co
 {
     Int whichField = idToNumber (id);
     return *(const Array<String>*)get_pointer (whichField, TpArrayString);
-}
-
-
-
-
-RecordNotice::RecordNotice (NoticeType changeType, uInt fieldNumber)
-: changeType_p  (changeType),
-  fieldNumber_p (fieldNumber)
-{}
-
-bool RecordNotice::operator== (const Notice& that) const
-{
-    if (typeid(*this) != typeid(that)) {
-	return false;
-    }
-    return (changeType_p  == ((const RecordNotice&)that).changeType_p)
-	&& (fieldNumber_p == ((const RecordNotice&)that).fieldNumber_p);
 }
 
 } //# NAMESPACE CASACORE - END

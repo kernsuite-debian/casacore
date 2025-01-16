@@ -17,13 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #ifndef CASA_COMPARE_TCC
 #define CASA_COMPARE_TCC
@@ -53,7 +51,7 @@ int ObjCompare<T>::comp (const void* obj1, const void* obj2) const
 template<class T>
 DataType ObjCompare<T>::dataType() const
 {
-    return whatType ((T*)0);
+    return whatType<T>();
 }
 
 

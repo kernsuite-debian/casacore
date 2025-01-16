@@ -16,7 +16,7 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
@@ -54,9 +54,8 @@ template <class T> Bool LattStatsSpecialize::setIncludeExclude(
 //   Bool      True if successfull, will fail if user tries to give too
 //             many values for includeB or excludeB, or tries to give
 //             values for both
-    static const T dummy(0);
     ThrowIf (
-        ! isReal(whatType(&dummy)),
+        ! isReal(whatType<T>()),
         "Logic error, this method is for real data types only"
     );
     noInclude = True;

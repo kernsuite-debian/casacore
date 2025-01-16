@@ -17,13 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #include <casacore/tables/Tables/TableRecord.h>
 #include <casacore/tables/Tables/TableKeyword.h>
@@ -119,7 +117,6 @@ TableRecord& TableRecord::operator= (const TableRecord& other)
     // to replace the RecordFieldPtr pointers).
     if (this != &other) {
 	if (! isFixed()  ||  nfields() == 0) {
-	    notify (RecordNotice (RecordNotice::DETACH, 0));
 	    rep_p = other.rep_p;
 	}else{
 	    AlwaysAssert (conform (other), AipsError);
@@ -164,11 +161,7 @@ void TableRecord::makeUnique()
 
 TableRecordRep& TableRecord::rwRef()
 {
-    const TableRecordRep& oldRep = rep_p.ref();
     TableRecordRep& newRep = rep_p.rwRef();
-    if (&oldRep != &newRep) {
-	notify (RecordNotice (RecordNotice::ACQUIRE, 0));
-    }
     return newRep;
 }
 
@@ -193,8 +186,6 @@ void TableRecord::restructure (const RecordDesc& newDescription,
 {
     // Restructure is not possible for fixed records.
     throwIfFixed();
-    // Restructuring means that all RecordFieldPtr's get invalid.
-    notify (RecordNotice (RecordNotice::DETACH, 0));
     rwRef().restructure (newDescription, recursive);
 }
 
@@ -228,7 +219,6 @@ void TableRecord::removeField (const RecordFieldId& id)
     throwIfFixed();
     Int whichField = idToNumber (id);
     rwRef().removeField (whichField);
-    notify (RecordNotice (RecordNotice::REMOVE, whichField));
 }
 
 void TableRecord::renameField (const String& newName, const RecordFieldId& id)
@@ -401,8 +391,6 @@ void TableRecord::getRecord (AipsIO& os, const TableAttr& parentAttr)
     // Get is only possible when the Record is empty or when
     // the Record is non-fixed.
     AlwaysAssert ((! isFixed()  ||  nfields() == 0), AipsError);
-    // Possible RecordFieldPtr's have to be detached.
-    notify (RecordNotice (RecordNotice::DETACH, 0));
     // Reading the record type back means casting it from an int
     // to the correct type.
     Int type;

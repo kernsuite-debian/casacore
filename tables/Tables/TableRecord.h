@@ -17,14 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//#
-//# $Id$
 
 
 #ifndef TABLES_TABLERECORD_H
@@ -85,7 +82,7 @@ class TableLock;
 // The structure of the TableRecord can be defined at
 // construction time. It can thereafter be restructured. This has the
 // effect, however, that any existing RecordFieldPtr objects become
-// invalid (using the <linkto file="Notice.h">Notice</linkto> classes).
+// invalid.
 // <br>
 // It is possible to add or remove fields once a TableRecord is constructed.
 // However, this is not possible when the TableRecord is constructed with a
