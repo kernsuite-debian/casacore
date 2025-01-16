@@ -17,13 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #ifndef TABLES_NULLTABLE_H
 #define TABLES_NULLTABLE_H
@@ -72,6 +70,12 @@ public:
   NullTable();
 
   virtual ~NullTable();
+
+  // Copy constructor is forbidden.
+  NullTable (const NullTable&) = delete;
+
+  // Assignment is forbidden.
+  NullTable& operator= (const NullTable&) = delete;
 
   // The table is a null table.
   virtual Bool isNull() const override;
@@ -127,30 +131,20 @@ public:
   virtual Vector<rownr_t> rowNumbers() const override;
   virtual BaseTable* root() override;
   virtual Bool rowOrder() const override;
-  virtual Vector<rownr_t>* rowStorage() override;
+  virtual Vector<rownr_t>& rowStorage() override;
   virtual Bool adjustRownrs (rownr_t nrrow, Vector<rownr_t>& rownrs,
 			     Bool determineOrder) const override;
-  virtual BaseTable* doSort (PtrBlock<BaseColumn*>&,
-                             const Block<CountedPtr<BaseCompare> >&,
-                             const Block<Int>& sortOrder,
-                             int sortOption,
-                             std::shared_ptr<Vector<rownr_t>> sortIterBoundaries,
-                             std::shared_ptr<Vector<size_t>> sortIterKeyIdxChange) override;
+  virtual std::shared_ptr<BaseTable> doSort (PtrBlock<BaseColumn*>&,
+                                             const Block<std::shared_ptr<BaseCompare>>&,
+                                             const Block<Int>&,
+                                             int,
+                                             std::shared_ptr<Vector<rownr_t>>,
+                                             std::shared_ptr<Vector<size_t>>) override;
   virtual void renameSubTables (const String& newName,
 				const String& oldName) override;
   // </group>
 
 private:
-  // Copy constructor is forbidden, because copying a table requires
-  // some more knowledge (like table name of result).
-  // Declaring it private, makes it unusable.
-  NullTable (const NullTable&);
-
-  // Assignment is forbidden, because copying a table requires
-  // some more knowledge (like table name of result).
-  // Declaring it private, makes it unusable.
-  NullTable& operator= (const NullTable&);
-
   // Make an exception message with the name of the function.
   TableError makeError (const String& name) const;
 };

@@ -17,13 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #ifndef LATTICES_LELFUNCTION_TCC
 #define LATTICES_LELFUNCTION_TCC
@@ -49,7 +47,7 @@ namespace casacore { //# NAMESPACE CASACORE - BEGIN
 // LELFunction1D
 template <class T>
 LELFunction1D<T>::LELFunction1D(const LELFunctionEnums::Function function,
-				const CountedPtr<LELInterface<T> >& expr)
+				const std::shared_ptr<LELInterface<T>>& expr)
 : function_p(function)
 {
    switch (function_p) {
@@ -442,7 +440,7 @@ void LELFunction1D<T>::resync()
 template <class T>
 LELFunctionReal1D<T>::LELFunctionReal1D
                                (const LELFunctionEnums::Function function,
-				const CountedPtr<LELInterface<T> >& expr)
+				const std::shared_ptr<LELInterface<T>>& expr)
 : function_p(function)
 {
    switch (function_p) {
@@ -602,7 +600,7 @@ Bool LELFunctionReal1D<T>::prepareScalarExpr()
    cout << "LELFunctionReal1D::prepare" << endl;
 #endif
 
-   if (! pExpr_p.null()) {
+   if (pExpr_p) {
       return LELInterface<T>::replaceScalarExpr (pExpr_p);
    }
    return False;
@@ -657,8 +655,8 @@ LELFunctionND<T>::LELFunctionND(const LELFunctionEnums::Function function,
 
       Block<Int> argType(3);
       argType[0] = TpBool;
-      argType[1] = whatType(static_cast<T*>(0));
-      argType[2] = whatType(static_cast<T*>(0));
+      argType[1] = whatType<T>();
+      argType[2] = whatType<T>();
       setAttr (LatticeExprNode::checkArg (exp, argType, False));
       break;
    }
@@ -677,8 +675,8 @@ LELFunctionND<T>::LELFunctionND(const LELFunctionEnums::Function function,
 			   " a scalar"));
       }
       Block<Int> argType(2);
-      argType[0] = whatType(static_cast<T*>(0));
-      argType[1] = whatType(static_cast<T*>(0));
+      argType[0] = whatType<T>();
+      argType[1] = whatType<T>();
       LatticeExprNode::checkArg (exp, argType, False);
       setAttr (exp[0].getAttribute());
       break;

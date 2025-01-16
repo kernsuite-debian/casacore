@@ -17,13 +17,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #ifndef TABLES_REFTABLE_H
 #define TABLES_REFTABLE_H
@@ -142,6 +140,14 @@ public:
     // The destructor flushes (i.e. writes) the table if it is opened
     // for output and not marked for delete.
     virtual ~RefTable();
+
+    // Copy constructor is forbidden, because copying a table requires
+    // some more knowledge (like table name of result).
+    RefTable (const RefTable&) = delete;
+
+    // Assignment is forbidden, because copying a table requires
+    // some more knowledge (like table name of result).
+    RefTable& operator= (const RefTable&) = delete;
 
     // Return the layout of a table (i.e. description and #rows).
     // This function has the advantage that only the minimal amount of
@@ -305,7 +311,7 @@ public:
 
     // Get row number vector.
     // This is used by the BaseTable logic and sort routines.
-    virtual Vector<rownr_t>* rowStorage();
+    virtual Vector<rownr_t>& rowStorage();
 
     // Add a rownr to reference table.
     void addRownr (rownr_t rownr);
@@ -329,28 +335,13 @@ void addRownrRange (rownr_t startRownr, rownr_t endRownr);
     void refXor (rownr_t nr1, const rownr_t* rows1, rownr_t nr2, const rownr_t* rows2);
     void refNot (rownr_t nr1, const rownr_t* rows1, rownr_t nrmain);
 
-    // Get the internal pointer in a rowStorage vector.
-    // It checks whether no copy is made of the data.
-    static rownr_t* getStorage (Vector<rownr_t>& rownrs);
-
 private:
-    BaseTable*      baseTabPtr_p;           //# pointer to parent table
+    std::shared_ptr<BaseTable> baseTabPtr_p;//# pointer to parent table
     Bool            rowOrd_p;               //# True = table is in row order
     Vector<rownr_t> rowStorage_p;           //# row numbers in parent table
-    rownr_t*        rows_p;                 //# Pointer to rowStorage_p
     std::map<String,String> nameMap_p;      //# map to column name in parent
     std::map<String,RefColumn*> colMap_p;   //# map name to column
     Bool            changed_p;              //# True = changed since last write
-
-    // Copy constructor is forbidden, because copying a table requires
-    // some more knowledge (like table name of result).
-    // Declaring it private, makes it unusable.
-    RefTable (const RefTable&);
-
-    // Assignment is forbidden, because copying a table requires
-    // some more knowledge (like table name of result).
-    // Declaring it private, makes it unusable.
-    RefTable& operator= (const RefTable&);
 
     // Get the names of the tables this table consists of.
     virtual void getPartNames (Block<String>& names, Bool recursive) const;
@@ -395,7 +386,7 @@ private:
 
 
 inline rownr_t RefTable::rootRownr (rownr_t rnr) const
-    { return rows_p[rnr]; }
+    { return rowStorage_p[rnr]; }
 
 
 

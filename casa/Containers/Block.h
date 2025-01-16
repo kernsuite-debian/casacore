@@ -19,13 +19,11 @@
 //# Inc., 675 Massachusetts Ave, Cambridge, MA 02139, USA.
 //#
 //# Correspondence concerning AIPS++ should be addressed as follows:
-//#        Internet email: aips2-request@nrao.edu.
+//#        Internet email: casa-feedback@nrao.edu.
 //#        Postal address: AIPS++ Project Office
 //#                        National Radio Astronomy Observatory
 //#                        520 Edgemont Road
 //#                        Charlottesville, VA 22903-2475 USA
-//#
-//# $Id$
 
 #ifndef CASA_BLOCK_H
 #define CASA_BLOCK_H
@@ -656,13 +654,13 @@ public:
   inline void traceAlloc (const void* addr, size_t sz) const
   {
     if (itsTraceSize>0 && sz>=itsTraceSize) {
-      doTraceAlloc (addr, sz, whatType(static_cast<T*>(0)), sizeof(T));
+      doTraceAlloc (addr, sz, whatType<T>(), sizeof(T));
     }
   }
   inline void traceFree (const void* addr, size_t sz) const
   {
     if (itsTraceSize>0 && sz>=itsTraceSize) {
-      doTraceFree (addr, sz, whatType(static_cast<T*>(0)), sizeof(T));
+      doTraceFree (addr, sz, whatType<T>(), sizeof(T));
     }
   }
 
