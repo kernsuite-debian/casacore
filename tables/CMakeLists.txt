@@ -103,6 +103,9 @@ Tables/TableRowProxy.cc
 Tables/TableSyncData.cc
 Tables/TableTrace.cc
 Tables/TableUtil.cc
+AlternateMans/AntennaPairStMan.cc
+AlternateMans/StokesIStMan.cc
+AlternateMans/UvwStMan.cc
 DataMan/BitFlagsEngine.cc
 DataMan/CompressComplex.cc
 DataMan/CompressFloat.cc
@@ -243,7 +246,6 @@ target_link_libraries (casa_tables casa_casa ${CASACORE_ARCH_LIBS} ${DYSCOSTMAN_
 add_subdirectory (apps)
 
 install (TARGETS casa_tables
-RUNTIME DESTINATION bin
 LIBRARY DESTINATION lib${LIB_SUFFIX}
 ARCHIVE DESTINATION lib${LIB_SUFFIX}
 LIBRARY PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
@@ -339,6 +341,16 @@ DESTINATION include/casacore/tables/Tables
 )
 
 install (FILES
+AlternateMans/AntennaPairFile.h
+AlternateMans/AntennaPairStMan.h
+AlternateMans/AntennaPairStManColumn.h
+AlternateMans/BitPacking.h
+AlternateMans/BufferedColumnarFile.h
+AlternateMans/RowBasedFile.h
+AlternateMans/SimpleColumnarFile.h
+AlternateMans/StokesIStMan.h
+AlternateMans/StokesIStManColumn.h
+AlternateMans/UvwFile.h
 DataMan/BaseMappedArrayEngine.h
 DataMan/BaseMappedArrayEngine.tcc
 DataMan/BitFlagsEngine.h
@@ -499,7 +511,6 @@ install (FILES ${top_level_headers}
 DESTINATION include/casacore/tables
 )
 
-add_subdirectory (Tables/test ${EXCL_ALL})
-add_subdirectory (DataMan/test ${EXCL_ALL})
-add_subdirectory (TaQL/test ${EXCL_ALL})
-add_subdirectory (LogTables/test ${EXCL_ALL})
+foreach (casa_module Tables AlternateMans DataMan TaQL LogTables)
+  add_subdirectory (${casa_module}/test ${EXCL_ALL})
+endforeach (casa_module)

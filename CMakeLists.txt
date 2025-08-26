@@ -1,6 +1,6 @@
-cmake_minimum_required (VERSION 3.3.0)
+cmake_minimum_required (VERSION 3.14.0)
 
-project(casacore VERSION 3.6.1)
+project(casacore VERSION 3.7.1)
 
 include(CheckCXXCompilerFlag)
 include(CheckCCompilerFlag)
@@ -16,6 +16,11 @@ endif()
 # Enable <packageName>_ROOT variables for recent versions of CMake
 if (POLICY CMP0074)
     cmake_policy (SET CMP0074 NEW)
+endif()
+
+# Use LOCATION as Python find strategy.
+if (POLICY CMP0094)
+    cmake_policy (SET CMP0094 NEW)
 endif()
 
 # Increment the PROJECT_SOVERSION every time you update VERSION_MINOR!
@@ -198,8 +203,8 @@ if (NOT CMAKE_BUILD_TYPE)
     endif(_cmpvar STREQUAL "dbg" OR _cmpvar STREQUAL "debug")
 endif (NOT CMAKE_BUILD_TYPE)
 
-# Require a C++11 compatible compiler
-set(CMAKE_CXX_STANDARD 11)
+# Require a C++17 compatible compiler
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Ensure clang is not complaining about unused arguments.
@@ -324,7 +329,11 @@ find_package (DL)
 if (USE_READLINE)
     find_package (Readline REQUIRED)
 endif (USE_READLINE)
-find_package (SOFA)
+
+if (BUILD_TESTING)
+    find_package (SOFA)
+endif()
+
 if (USE_ADIOS2)
     find_package (ADIOS2 2.6.0 CONFIG REQUIRED)
     if(NOT USE_MPI)
