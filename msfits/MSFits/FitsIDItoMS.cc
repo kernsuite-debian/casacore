@@ -180,8 +180,8 @@ FITSIDItoMS1::FITSIDItoMS1(FitsInput& fitsin, const String& correlat,
     ///infile_p(fitsin),
     itsObsType(obsType),
     itsCorrelat(correlat),
-    itsVanVleck(vanVleck),
     itsCorVer(corVer),
+    itsVanVleck(vanVleck),
     msc_p(0)
 {
 
@@ -202,11 +202,13 @@ FITSIDItoMS1::FITSIDItoMS1(FitsInput& fitsin, const String& correlat,
       firstWeather = True;
       firstGainCurve = True;
       firstPhaseCal = True;
+      firstEOP = True;
       weather_hasWater_p = False;
       weather_hasElectron_p = False;
       antIdFromNo.clear();
       digiLevels.clear();
       rdate = 0.;
+      array_p = "";
   }
   
   //
@@ -1880,7 +1882,7 @@ void FITSIDItoMS1::setupMeasurementSet(const String& MSFileName, Bool useTSM,
 // Van Vleck relationship
 static Double rho_2(Double r)
 {
-  return sin((C::pi * r) / 2);
+  return sin((M_PI * r) / 2);
 }
 
 // Fred Schwab's rational approximation for 2-bit sampling with n =
@@ -2271,7 +2273,7 @@ void FITSIDItoMS1::fillMSMainTable(const String& MSFileName, Int& nField, Int& n
 	  rho = rho_4;
 	} else if (digiLevels[ant1] == 2 && digiLevels[ant2] == 2) {
 	  Rm = 1.0;
-	  alfa = 2.0 / C::pi;
+	  alfa = 2.0 / M_PI;
 	  gamma = 1.0 * 64.0 / 63.0;
 	  rho = rho_2;
 	} else if ((digiLevels[ant1] == 2 && digiLevels[ant2] == 4) ||
@@ -2584,7 +2586,7 @@ void FITSIDItoMS1::fillAntennaTable()
      }
      else{
        if(array_p != arrnam){
-	 *itsLog << LogIO::WARN << "Conflicting observatory names: found "
+	 *itsLog << LogIO::SEVERE << "Conflicting observatory names: found "
 		 << arrnam << " and " << array_p << LogIO::POST;
        }
      }
@@ -2671,6 +2673,8 @@ void FITSIDItoMS1::fillAntennaTable()
      case 3: mount="X-Y"; break;
      case 4: mount="ALT-AZ+NASMYTH-R"; break;
      case 5: mount="ALT-AZ+NASMYTH-L"; break;
+     case 6: mount="ALT-AZ+BWG-R"; break;
+     case 7: mount="ALT-AZ+BWG-L"; break;
      default: mount="UNKNOWN"; break;
      }
      ant.flagRow().put(row,False);
@@ -3564,7 +3568,7 @@ Bool FITSIDItoMS1::fillWeatherTable()
       msWeather.dewPoint().put(outRow,dewpoint(inRow)+273.15);
       msWeather.pressure().put(outRow,pressure(inRow));	// hPa == millibar
       msWeather.temperature().put(outRow,temperature(inRow)+273.15);
-      msWeather.windDirection().put(outRow,wind_direction(inRow)*C::pi/180.0);
+      msWeather.windDirection().put(outRow,wind_direction(inRow)*M_PI/180.0);
       msWeather.windSpeed().put(outRow,wind_velocity(inRow));
       if(weather_hasWater_p)
 	msWeather.H2O().put(outRow,wvr_h2o(inRow));

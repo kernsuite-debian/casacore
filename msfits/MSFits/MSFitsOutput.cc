@@ -409,7 +409,7 @@ std::shared_ptr<FitsOutput> MSFitsOutput::_writeMain(Int& refPixelFreq, Double& 
     	else {
     		// Use the actual RA/Decl
     		radec = msfc.phaseDirMeas(_fieldNumber).getAngle().getValue();
-    		radec *= 180.0 / C::pi; // convert to degrees for FITS
+    		radec *= 180.0 / M_PI; // convert to degrees for FITS
     		if (radec(0) < 0) {
     			radec(0) += 360.0;
     		}
@@ -1815,6 +1815,12 @@ Bool MSFitsOutput::_writeAN(std::shared_ptr<FitsOutput> output, const Measuremen
             else if (mount.contains("ALT-AZ+NASMYTH-L")) {
                 *mntsta = 5;
             }
+	    else if (mount.contains("ALT-AZ+BWG-R")) {
+		*mntsta = 6;
+	    }
+	    else if (mount.contains("ALT-AZ+BWG-L")) {
+		*mntsta = 7;
+	    }
 	    else if (mount.contains("ALT-AZ")) {
                 *mntsta = 0;
             }
@@ -1828,13 +1834,13 @@ Bool MSFitsOutput::_writeAN(std::shared_ptr<FitsOutput> output, const Measuremen
                 *mntsta = 3;
             }
             else if (mount.contains("SPACE-HALCA")) {
-                *mntsta = 7;
+                *mntsta = 9;
             }
             else if (mount.contains("BIZARRE")) {
-                *mntsta = 6;
+                *mntsta = 8;
             }
             else {
-                *mntsta = 7; // fits does not use anyway, put it 7
+                *mntsta = 9; // fits does not use anyway, put it 9
             }
             *staxof = inantoffset(antnum)(IPosition(1, 0));
             // OK, try to find if we're L/R or X/Y
@@ -2121,8 +2127,7 @@ Bool MSFitsOutput::_writeSU(std::shared_ptr<FitsOutput> output, const Measuremen
                             *lsrvel = sv(0);
                         }
                     }
-                    if (
-                        sourceTable->isColumn(MSSource::REST_FREQUENCY)
+                    if (sourceTable->isColumn(MSSource::REST_FREQUENCY)
                         && sourceColumns->restFrequency().isDefined(rownr)
                     ) {
                         Vector<Double>
@@ -2132,10 +2137,24 @@ Bool MSFitsOutput::_writeSU(std::shared_ptr<FitsOutput> output, const Measuremen
                         }
                     }
                     if (sourceColumns->properMotion().isDefined(rownr)) {
-                        Vector<Double> pm =
-                                sourceColumns->properMotion()(rownr);
-                        *pmra = pm(0);
-                        *pmdec = pm(1);
+			try{
+			    Vector<Quantum<Double> > pm;
+			    sourceColumns->properMotionQuant().get(rownr, pm, True);
+			    *pmra = pm(0).getValue(Unit("deg/d"));
+			    *pmdec = pm(1).getValue(Unit("deg/d"));
+			} catch (const std::exception& e) {
+			    String unit="UNCALIB";
+			    unit = sourceColumns->properMotionQuant().getUnits()[0];
+			    Vector<Double> pm;
+			    sourceColumns->properMotion().get(rownr, pm, True);
+			    *pmra = pm(0);
+			    *pmdec = pm(1);
+			    os << LogIO::WARN
+			       << "Proper motion for source in SOURCE table row #"<<rownr<<" has unfamiliar units: "
+			       << unit << " .\n Value in uv fits table needs to be checked."
+			       << LogIO::POST;
+			}
+
                     }
                     *calcode = sourceColumns->code()(rownr) + "    ";
 

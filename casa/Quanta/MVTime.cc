@@ -357,7 +357,7 @@ String MVTime::string(uInt intyp, uInt inprec) const {
 String MVTime::string(const MVTime::Format &form) const {
     ostringstream oss;
     print (oss, form);
-    return oss;
+    return String(oss);
 }
 
 Double MVTime::timeZone() {
@@ -578,7 +578,7 @@ Bool MVTime::read(Quantity &res, const String &in, Bool chk, Bool throwExcp) {
     } else if (u == UnitVal::TIME) {
       res = Quantity(r,us);
     } else if (u == UnitVal::ANGLE) {
-      res = Quantity(Quantity(r/C::_2pi,us).getBaseValue(), "d");
+      res = Quantity(Quantity(r/(2.0*M_PI),us).getBaseValue(), "d");
     } else {
       return MVAngle::handleReadError (tmp, throwExcp);
     }
