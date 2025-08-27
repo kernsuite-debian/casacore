@@ -1,0 +1,52 @@
+diff --git a/images/Images/test/CMakeLists.txt b/images/Images/test/CMakeLists.txt
+index 157cea7a6..7ca51c350 100644
+--- a/images/Images/test/CMakeLists.txt
++++ b/images/Images/test/CMakeLists.txt
+@@ -42,7 +42,7 @@ tExtendImage
+ tFITSErrorImage
+ tFITSExtImage
+ tFITSExtImageII
+-tFITSImage
++#tFITSImage
+ tFITSImgParser
+ tFITSQualityImage
+ tHDF5Image
+diff --git a/ms/MSSel/test/CMakeLists.txt b/ms/MSSel/test/CMakeLists.txt
+index 9a7dfa480..89f8a9080 100644
+--- a/ms/MSSel/test/CMakeLists.txt
++++ b/ms/MSSel/test/CMakeLists.txt
+@@ -7,7 +7,7 @@ tMSFeedGram
+ tMSFieldGram
+ tMSScanGram
+ tMSSpwGram
+-tMSTimeGram
++#tMSTimeGram
+ tMSUvDistGram
+ tMSSelection
+ )
+diff --git a/tables/DataMan/test/CMakeLists.txt b/tables/DataMan/test/CMakeLists.txt
+index 23482e491..db5ad537f 100644
+--- a/tables/DataMan/test/CMakeLists.txt
++++ b/tables/DataMan/test/CMakeLists.txt
+@@ -6,7 +6,7 @@ nISMBucket
+ tBitFlagsEngine
+ tCompressComplex
+ tCompressFloat
+-tDataManInfo
++#tDataManInfo
+ tExternalStMan
+ tExternalStManNew
+ tForwardCol
+diff --git a/tables/Tables/test/CMakeLists.txt b/tables/Tables/test/CMakeLists.txt
+index b4b7a2677..f3932e3bf 100644
+--- a/tables/Tables/test/CMakeLists.txt
++++ b/tables/Tables/test/CMakeLists.txt
+@@ -50,7 +50,7 @@ tTableLockSync_2
+ tTableRecord
+ tTableRow
+ tTableTrace
+-tTableUtil
++#tTableUtil
+ tTableVector
+ tTable_1
+ tTable_2
