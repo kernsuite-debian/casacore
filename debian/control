@@ -27,7 +27,7 @@ Build-Depends: bison,
                python3-dev,
                python3-numpy-dev,
                wcslib-dev
-Standards-Version: 4.6.2.0
+Standards-Version: 4.7.2.0
 Section: science
 Homepage: https://casacore.github.io/casacore
 Vcs-Git: https://salsa.debian.org/debian-astro-team/casacore.git
@@ -37,21 +37,21 @@ Package: casacore-dev
 Section: libdevel
 Architecture: any
 Multi-Arch: same
-Depends: libcasa-casa7 (= ${binary:Version}),
-         libcasa-coordinates7 (= ${binary:Version}),
-         libcasa-derivedmscal7 (= ${binary:Version}),
-         libcasa-fits7 (= ${binary:Version}),
-         libcasa-images7 (= ${binary:Version}),
-         libcasa-lattices7 (= ${binary:Version}),
-         libcasa-meas7 (= ${binary:Version}),
-         libcasa-measures7 (= ${binary:Version}),
-         libcasa-mirlib7 (= ${binary:Version}),
-         libcasa-ms7 (= ${binary:Version}),
-         libcasa-msfits7 (= ${binary:Version}),
-         libcasa-python3-7 (= ${binary:Version}),
-         libcasa-scimath-f7 (= ${binary:Version}),
-         libcasa-scimath7 (= ${binary:Version}),
-         libcasa-tables7 (= ${binary:Version}),
+Depends: libcasa-casa8 (= ${binary:Version}),
+         libcasa-coordinates8 (= ${binary:Version}),
+         libcasa-derivedmscal8 (= ${binary:Version}),
+         libcasa-fits8 (= ${binary:Version}),
+         libcasa-images8 (= ${binary:Version}),
+         libcasa-lattices8 (= ${binary:Version}),
+         libcasa-meas8 (= ${binary:Version}),
+         libcasa-measures8 (= ${binary:Version}),
+         libcasa-mirlib8 (= ${binary:Version}),
+         libcasa-ms8 (= ${binary:Version}),
+         libcasa-msfits8 (= ${binary:Version}),
+         libcasa-python3-8 (= ${binary:Version}),
+         libcasa-scimath-f8 (= ${binary:Version}),
+         libcasa-scimath8 (= ${binary:Version}),
+         libcasa-tables8 (= ${binary:Version}),
          ${misc:Depends}
 Pre-Depends: ${misc:Pre-Depends}
 Description: CASA core library development files
@@ -94,7 +94,7 @@ Description: Tools built with CASA
     fits2table, imreorder, casahdf5support, msselect,  image2fits,
     imageslice, etc.
 
-Package: libcasa-casa7
+Package: libcasa-casa8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -118,7 +118,7 @@ Description: CASA core modules
  code. Furthermore, some classes offer some extra functionality compared to
  STL.
 
-Package: libcasa-scimath7
+Package: libcasa-scimath8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -133,7 +133,7 @@ Description: CASA basic mathematical modules
  This package contains the mathematical modules n-dimensional functionals,
  linear and non-linear fitting, and miscellaneous.
 
-Package: libcasa-scimath-f7
+Package: libcasa-scimath-f8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -148,7 +148,7 @@ Description: CASA scimath F library
  This package contains the Mathematical modules N-dim functionals,
  linear/non-linear fitting, and miscellaneous.
 
-Package: libcasa-python3-7
+Package: libcasa-python3-8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -162,7 +162,7 @@ Description: CASA Python bindings
  .
  This package contains the Python 3 bindings.
 
-Package: libcasa-tables7
+Package: libcasa-tables8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -177,7 +177,7 @@ Description: CASA table system
  This package contains the database-like table system with advanced query
  language (TaQL).
 
-Package: libcasa-measures7
+Package: libcasa-measures8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -197,7 +197,7 @@ Description: CASA measures library
  observatory. Measures can be converted from one reference frame to another
  (and this possibility is its main reason for existence).
 
-Package: libcasa-lattices7
+Package: libcasa-lattices8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -212,7 +212,7 @@ Description: CASA lattice library
  This package implements memory- or disk-based N-dimensional arrays (lattices)
  with masking, regions, expressions, and math.
 
-Package: libcasa-fits7
+Package: libcasa-fits8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -226,7 +226,7 @@ Description: CASA FITS library
  .
  This package contains a C++ interface to read and write FITS files.
 
-Package: libcasa-ms7
+Package: libcasa-ms8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -242,7 +242,7 @@ Description: CASA MeasurementSet library
  MeasurementSet definition. The MeasurementSet is where all data are
  ultimately to be found in CASA.
 
-Package: libcasa-derivedmscal7
+Package: libcasa-derivedmscal8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -257,7 +257,7 @@ Description: CASA derived mscal library
  This package contains derived MeasurementSet quantities (like hourangle) that
  can be used as virtual table columns or as TaQL user defined functions.
 
-Package: libcasa-msfits7
+Package: libcasa-msfits8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -271,7 +271,7 @@ Description: CASA msfits library
  .
  This package contains the mapping of MeasurementSets to/from FITS.
 
-Package: libcasa-coordinates7
+Package: libcasa-coordinates8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -286,7 +286,7 @@ Description: CASA coordinates library
  This package contains the implementation of coordinates for astronomical
  images.
 
-Package: libcasa-images7
+Package: libcasa-images8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -301,7 +301,7 @@ Description: CASA image processing library
  This package implements n-dimensional images with masks, coordinates, and
  history.
 
-Package: libcasa-meas7
+Package: libcasa-meas8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
@@ -316,7 +316,7 @@ Description: CASA functions handling measures
  This module extends TaQL (the Table Query Language) with functions handling
  measures. Currently it can handle directions, epochs, and positions.
 
-Package: libcasa-mirlib7
+Package: libcasa-mirlib8
 Section: libs
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}

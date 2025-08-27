@@ -1,3 +1,11 @@
+casacore (3.7.1-1kern1) UNRELEASED; urgency=medium
+
+  [ Athanaseus Javas Ramaila ]
+  * New upstream version 3.7.1
+  * Update SOVERSION for all libs
+
+ -- KERN packaging <packaging@kernsuite.info>  Tue, 26 Aug 2025 12:44:51 +0000
+
 casacore (3.6.1-1kern1) noble; urgency=medium
 
   [ Athanaseus Javas Ramaila ]

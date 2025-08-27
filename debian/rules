@@ -24,7 +24,9 @@ override_dh_auto_configure:
 	    -DUSE_OPENMP=ON \
 	    -DUSE_HDF5=ON \
 	    -DUSE_THREADS=ON \
-            -DBUILD_TESTING=True
+            -DBUILD_TESTING=True \
+            -DCMAKE_C_STANDARD=17 \
+            -DCMAKE_C_STANDARD_REQUIRED=ON
 
 override_dh_auto_build-indep:
 	doxygen doxygen.cfg
